@@ -4,35 +4,82 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Algoram88 — Developer Tools & Automation</title>
+<meta name="description" content="Developer tools, trading automation, and AI agent utilities. CLI tools and kits built with zero dependencies.">
 <style>
-:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem; max-width: 720px; margin: 0 auto; }
-h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.5rem; }
-.subtitle { color: #8b949e; margin-bottom: 2rem; }
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.25rem; }
+.subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 1.1rem; }
+.count { color: var(--green); font-size: 0.9rem; margin-bottom: 1.5rem; }
 .product { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
-.product h3 { margin: 0 0 0.5rem 0; color: var(--accent); }
-.product p { margin: 0 0 0.75rem 0; font-size: 0.9rem; }
-.price { font-weight: bold; color: #3fb950; }
-.buy { background: #238636; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; text-decoration: none; display: inline-block; }
+.product h3 { margin: 0 0 0.5rem 0; color: var(--accent); font-size: 1.1rem; }
+.product .tagline { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--fg); }
+.product .meta { margin: 0 0 0.75rem 0; font-size: 0.8rem; color: #8b949e; }
+.price { font-weight: bold; color: var(--green); font-size: 1.1rem; }
+.buy { background: #238636; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.9rem; }
 .buy:hover { background: #2ea043; }
-footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem; }
+footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem; padding-bottom: 2rem; }
 </style>
 </head>
 <body>
 <h1>Algoram88</h1>
-<p class="subtitle">Developer tools, trading automation, and on-chain analytics.</p>
+<p class="subtitle">Developer tools, CLI utilities, and AI agent infrastructure.</p>
+<p class="count">9 tools available</p>
 <div class="product">
-  <h3>Repo Health Snapshot</h3>
-  <p>Instant codebase analysis: test coverage, security scan, complexity metrics, and agent-readiness score. One command, actionable report.</p>
-  <p class="price">$19</p>
-  <a class="buy" href="https://nepo6.gumroad.com/l/xbzsvx" target="_blank">Buy on Gumroad</a>
+  <h3>Bounty Decision Dashboard</h3>
+  <p class="tagline">Know which bounties to build before you waste a single hour</p>
+  <p class="meta">CLI-TOOL</p>
+  <span class="price">$39</span>
 </div>
 <div class="product">
-  <h3>DevTool Arsenal — 5-Tool Bundle</h3>
-  <p>Five developer tools in one bundle: code review agent, Docker health CLI, Gumroad publish accelerator, GitHub outreach kit, and agent cascade kit.</p>
-  <p class="price">$79</p>
-  <a class="buy" href="https://nepo6.gumroad.com/l/devtool-arsenal-5-tool-bundle" target="_blank">Buy on Gumroad</a>
+  <h3>CronPulse CLI</h3>
+  <p class="tagline">Know the health of every cron job in 5 seconds</p>
+  <p class="meta">CLI · 97 comprehensive tests</p>
+  <span class="price">$29</span>
 </div>
-<footer>© 2026 Algoram88. Built with automated infrastructure.</footer>
+<div class="product">
+  <h3>MCP Server Starter Kit</h3>
+  <p class="tagline">Ship production-ready MCP servers in minutes. 9 tools, 3 servers, 210 tests, zero dependencies.</p>
+  <p class="meta">TEMPLATE · 210 comprehensive tests (65 core + 67 GitHub Issues + 78 HackerNews)</p>
+  <span class="price">$39</span>
+</div>
+<div class="product">
+  <h3>n8n Workflow Template Pack</h3>
+  <p class="tagline">10 ready-to-use n8n workflow templates for AI agents, API monitoring, and automation</p>
+  <p class="meta">TEMPLATES</p>
+  <span class="price">$39</span>
+</div>
+<div class="product">
+  <h3>Repo Health Scorecard</h3>
+  <p class="tagline">Grade any codebase A+ to F in seconds — 27 health checks, 6 categories</p>
+  <p class="meta">CLI</p>
+  <span class="price">$24</span>
+</div>
+<div class="product">
+  <h3>Solana Rent Reclaimer</h3>
+  <p class="tagline">Find and reclaim SOL locked in empty token accounts</p>
+  <p class="meta">CLI</p>
+  <span class="price">$19</span>
+</div>
+<div class="product">
+  <h3>Solana Token Radar</h3>
+  <p class="tagline">Safety-first Solana token discovery dashboard with 7-signal scoring engine</p>
+  <p class="meta">WEBAPP</p>
+  <span class="price">$39</span>
+</div>
+<div class="product">
+  <h3>CJS-to-ESM Migration Factory</h3>
+  <p class="tagline">Before/after reference for CommonJS → ESM migration with 37 passing tests</p>
+  <p class="meta">TEMPLATE</p>
+  <span class="price">$19</span>
+</div>
+<div class="product">
+  <h3>MCP Server Tester CLI</h3>
+  <p class="tagline">Validate any MCP server — tools, schemas, responses, performance. Grade A+ to F.</p>
+  <p class="meta">CLI · CLI tool (mcp-tester.js, 23KB)</p>
+  <span class="price">$29</span>
+</div>
+<footer>&copy; 2026 Algoram88. Built with automated infrastructure.</footer>
 </body>
 </html>
