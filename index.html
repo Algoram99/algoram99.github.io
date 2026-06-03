@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-03T19:35:07Z -->
+<!-- built: 2026-06-03T22:00:00Z -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -49,41 +49,51 @@ a { color: inherit; }
 .brand { display: inline-flex; align-items: center; gap: .7rem; text-decoration: none; font-weight: 800; color: var(--fg); }
 .mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
 .nav-links { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-.nav-links a { color: var(--muted); text-decoration: none; font-size: .95rem; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: .95rem; transition: color .15s; }
 .nav-links a:hover { color: var(--fg); }
 .hero { padding: 4.5rem 0 3rem; }
 .eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88, 166, 255, .10); border: 1px solid rgba(88, 166, 255, .28); border-radius: 999px; padding: .35rem .75rem; font-size: .9rem; }
 h1 { font-size: clamp(2.5rem, 8vw, 5.8rem); line-height: .95; letter-spacing: -.06em; margin: 1rem 0; max-width: 980px; }
 .lead { color: var(--muted); font-size: clamp(1.08rem, 2.2vw, 1.35rem); max-width: 780px; margin: 0 0 1.6rem; }
 .actions { display: flex; gap: .8rem; flex-wrap: wrap; margin: 2rem 0 0; }
-.button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; text-decoration: none; border-radius: 12px; padding: .78rem 1rem; border: 1px solid var(--border); background: var(--panel); color: var(--fg); font-weight: 750; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; text-decoration: none; border-radius: 12px; padding: .78rem 1rem; border: 1px solid var(--border); background: var(--panel); color: var(--fg); font-weight: 750; transition: transform .15s, border-color .15s; }
 .button.primary { background: linear-gradient(135deg, #238636, #2ea043); border-color: rgba(63, 185, 80, .6); }
 .button:hover { transform: translateY(-1px); border-color: rgba(88, 166, 255, .6); }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; margin: 2.5rem 0 0; }
 .stat { background: rgba(13, 20, 33, .72); border: 1px solid var(--border); border-radius: 18px; padding: 1rem; }
 .stat strong { display: block; font-size: 1.55rem; color: var(--fg); }
 .stat span { color: var(--muted); font-size: .92rem; }
+.ribbon { display: flex; gap: 1.5rem; flex-wrap: wrap; padding: .85rem 1.2rem; background: rgba(13, 20, 33, .55); border: 1px solid var(--border); border-radius: 14px; margin: 0 0 2.5rem; }
+.ribbon .dot { display: inline-flex; align-items: center; gap: .4rem; font-size: .88rem; color: var(--muted); }
+.ribbon .dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ribbon .dot.green::before { background: var(--green); box-shadow: 0 0 6px rgba(63,185,80,.5); }
+.ribbon .dot.blue::before { background: var(--accent); box-shadow: 0 0 6px rgba(88,166,255,.5); }
+.ribbon .dot.orange::before { background: var(--orange); box-shadow: 0 0 6px rgba(245,158,11,.5); }
 .section { padding: 3rem 0; }
 .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin: 0 0 1.25rem; }
 h2 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.6rem); letter-spacing: -.04em; }
 .section-head p { color: var(--muted); max-width: 520px; margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-.card { background: linear-gradient(180deg, rgba(17, 27, 45, .96), rgba(13, 20, 33, .96)); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem; min-height: 230px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.card { background: linear-gradient(180deg, rgba(17, 27, 45, .96), rgba(13, 20, 33, .96)); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem; min-height: 230px; box-shadow: 0 10px 30px rgba(0,0,0,.18); transition: transform .18s, border-color .18s, box-shadow .18s; display: flex; flex-direction: column; }
+.card:hover { transform: translateY(-3px); border-color: rgba(88, 166, 255, .35); box-shadow: 0 14px 40px rgba(0,0,0,.25); }
 .card h3 { margin: 0 0 .45rem; font-size: 1.08rem; color: #dbeafe; }
 .card p { color: var(--muted); margin: .35rem 0; }
+.card .grow { flex: 1; }
 .meta { display: flex; gap: .5rem; flex-wrap: wrap; margin: .8rem 0; }
 .badge { color: #bde3ff; background: rgba(88, 166, 255, .10); border: 1px solid rgba(88, 166, 255, .25); border-radius: 999px; padding: .2rem .55rem; font-size: .78rem; }
 .price { color: var(--green); font-size: 1.15rem; font-weight: 850; }
-.card .links { display: flex; gap: .7rem; margin-top: 1rem; }
-.card .links a { color: var(--accent); text-decoration: none; font-weight: 700; }
+.card .links { display: flex; gap: .7rem; margin-top: auto; padding-top: .5rem; }
+.card .links a { color: var(--accent); text-decoration: none; font-weight: 700; transition: color .15s; }
+.card .links a:hover { color: #dbeafe; }
 .band { background: rgba(17, 27, 45, .68); border: 1px solid var(--border); border-radius: 22px; padding: 1.4rem; display: grid; grid-template-columns: 1.2fr .8fr; gap: 1rem; align-items: center; }
 .band p { color: var(--muted); margin: .4rem 0 0; }
 .checks { display: grid; gap: .55rem; color: var(--muted); }
-.checks span::before { content: "✓"; color: var(--green); font-weight: 900; margin-right: .5rem; }
+.checks span::before { content: "\2713"; color: var(--green); font-weight: 900; margin-right: .5rem; }
 footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem 0 3rem; margin-top: 2rem; }
 .footer-grid { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.footer-grid a { color: var(--muted); margin-left: 1rem; text-decoration: none; }
+.footer-grid a { color: var(--muted); margin-left: 1rem; text-decoration: none; transition: color .15s; }
 .footer-grid a:hover { color: var(--fg); }
+.updated { font-size: .82rem; color: rgba(159, 176, 196, .6); margin-top: .5rem; }
 @media (max-width: 900px) { .stats, .grid, .band { grid-template-columns: 1fr; } .section-head { display: block; } }
 </style>
 </head>
@@ -115,15 +125,24 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
     </div>
   </section>
 
+  <section class="container">
+    <div class="ribbon" aria-label="Live status indicators">
+      <span class="dot green">Woodpecker CI: active</span>
+      <span class="dot blue">9 products listed</span>
+      <span class="dot orange">Self-hosted pipeline</span>
+    </div>
+  </section>
+
   <section id="tools" class="container section">
     <div class="section-head">
       <h2>Current tool shelf</h2>
-      <p>These are production-oriented developer utilities and templates. Purchase links route through the Qualigen Gumroad storefront instead of fabricated per-product URLs.</p>
+      <p>Production-oriented developer utilities and templates. Purchase links route through the Qualigen Gumroad storefront.</p>
     </div>
     <div class="grid">
       <article class="card">
         <h3>Bounty Decision Dashboard</h3>
         <p>Know which bounties to build before wasting implementation hours.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">CLI tool</span><span class="badge">decision support</span></div>
         <span class="price">$39</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -131,6 +150,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>CronPulse CLI</h3>
         <p>Inspect cron-job health in seconds with a focused operator-first report.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">CLI</span><span class="badge">97 tests</span></div>
         <span class="price">$29</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -138,6 +158,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>MCP Server Starter Kit</h3>
         <p>Ship production-ready MCP servers with example servers, tests, and zero-dependency patterns.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">template</span><span class="badge">210 tests</span></div>
         <span class="price">$39</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -145,6 +166,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>n8n Workflow Template Pack</h3>
         <p>Reusable workflows for AI agents, API monitoring, and practical automation.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">templates</span><span class="badge">automation</span></div>
         <span class="price">$39</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -152,6 +174,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>Repo Health Scorecard</h3>
         <p>Grade any repository from A+ to F across 27 checks and 6 categories.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">CLI</span><span class="badge">audit kit</span></div>
         <span class="price">$24</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -159,6 +182,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>Solana Rent Reclaimer</h3>
         <p>Find SOL locked in empty token accounts while keeping wallet actions gated.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">CLI</span><span class="badge">wallet-safe</span></div>
         <span class="price">$19</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -166,6 +190,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>Solana Token Radar</h3>
         <p>A safety-first token discovery dashboard with a 7-signal scoring engine.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">webapp</span><span class="badge">risk scoring</span></div>
         <span class="price">$39</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -173,6 +198,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>CJS-to-ESM Migration Factory</h3>
         <p>A before/after reference for CommonJS to ESM migration with passing tests.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">template</span><span class="badge">37 tests</span></div>
         <span class="price">$19</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -180,6 +206,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <article class="card">
         <h3>MCP Server Tester CLI</h3>
         <p>Validate tools, schemas, responses, and performance for MCP servers.</p>
+        <div class="grow"></div>
         <div class="meta"><span class="badge">CLI</span><span class="badge">23KB tool</span></div>
         <span class="price">$29</span>
         <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
@@ -206,7 +233,8 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
     <span>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</span>
     <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a><a href="https://www.qualigen.net/" rel="noopener">Qualigen</a><a href="/posts/">Posts</a></span>
   </div>
+  <div class="container updated">Last updated: 2026-06-03 · Pipeline: Woodpecker CI · Deploy: GitHub Pages</div>
 </footer>
 </body>
 </html>
-<!-- touched 2026-06-03T20:03:57Z -->
+<!-- touched 2026-06-03T22:00:00Z -->
