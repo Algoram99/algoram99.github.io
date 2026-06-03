@@ -1,0 +1,28 @@
+when:
+  - push
+  - pull_request
+
+steps:
+  build:
+    image: alpine:3.20
+    commands:
+      - echo "Woodpecker CI pipeline running on algoram88/algoram88.github.io"
+      - echo "Branch: ${CI_COMMIT_BRANCH}  Commit: ${CI_COMMIT_SHA}"
+      - ls -la
+      - echo "---"
+      - head -5 index.html
+
+  # When GitHub Pages user-level disable is lifted, this step can replace
+  # the build step above to deploy the site via the official API:
+  #
+  # deploy:
+  #   image: alpine:3.20
+  #   secrets: [github_token]
+  #   commands:
+  #     - apk add --no-cache curl
+  #     - curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+  #         -H "Accept: application/vnd.github+json" \
+  #         https://api.github.com/repos/Algoram88/algoram88.github.io/pages/builds
+
+labels:
+  host: algoram88-mac
