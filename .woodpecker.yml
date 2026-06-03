@@ -1,6 +1,7 @@
 when:
-  - push
-  - pull_request
+  event:
+    - push
+    - pull_request
 
 steps:
   build:
