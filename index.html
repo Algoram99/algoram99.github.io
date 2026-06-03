@@ -1,97 +1,211 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-03 00:00 UTC -->
+<!-- built: 2026-06-03T19:35:07Z -->
 <html lang="en">
 <head>
-<!-- BUILD: 2026-06-02 00:22 UTC -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Algoram88 — Developer Tools & Automation</title>
-<meta name="description" content="Developer tools, trading automation, and AI agent utilities. CLI tools and kits built with zero dependencies.">
+<title>Algoram99 — Qualigen Developer Tools & AI Operations</title>
+<meta name="description" content="Algoram99 publishes Qualigen developer tools, AI-agent operations kits, and verification-first automation products for small teams shipping fast.">
+<meta property="og:title" content="Algoram99 — Qualigen Developer Tools">
+<meta property="og:description" content="Practical CLI tools, automation kits, and AI-agent operations infrastructure built with verification-first workflows.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://algoram99.github.io/">
 <style>
-:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; }
+:root {
+  --bg: #070b12;
+  --panel: #0d1421;
+  --panel-2: #111b2d;
+  --fg: #e6edf3;
+  --muted: #9fb0c4;
+  --accent: #58a6ff;
+  --accent-2: #7c3aed;
+  --green: #3fb950;
+  --orange: #f59e0b;
+  --border: #243044;
+  --shadow: 0 24px 80px rgba(0, 0, 0, .35);
+}
 * { box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
-h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.25rem; }
-.subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 1.1rem; }
-.count { color: var(--green); font-size: 0.9rem; margin-bottom: 1.5rem; }
-.product { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
-.product h3 { margin: 0 0 0.5rem 0; color: var(--accent); font-size: 1.1rem; }
-.product .tagline { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--fg); }
-.product .meta { margin: 0 0 0.75rem 0; font-size: 0.8rem; color: #8b949e; }
-.price { font-weight: bold; color: var(--green); font-size: 1.1rem; }
-.buy { background: #238636; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.9rem; }
-.buy:hover { background: #2ea043; }
-footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem; padding-bottom: 2rem; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(88, 166, 255, .18), transparent 34rem),
+    radial-gradient(circle at 85% 12%, rgba(124, 58, 237, .20), transparent 30rem),
+    var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+}
+a { color: inherit; }
+.container { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 0;
+  color: var(--muted);
+}
+.brand { display: inline-flex; align-items: center; gap: .7rem; text-decoration: none; font-weight: 800; color: var(--fg); }
+.mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+.nav-links { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: .95rem; }
+.nav-links a:hover { color: var(--fg); }
+.hero { padding: 4.5rem 0 3rem; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88, 166, 255, .10); border: 1px solid rgba(88, 166, 255, .28); border-radius: 999px; padding: .35rem .75rem; font-size: .9rem; }
+h1 { font-size: clamp(2.5rem, 8vw, 5.8rem); line-height: .95; letter-spacing: -.06em; margin: 1rem 0; max-width: 980px; }
+.lead { color: var(--muted); font-size: clamp(1.08rem, 2.2vw, 1.35rem); max-width: 780px; margin: 0 0 1.6rem; }
+.actions { display: flex; gap: .8rem; flex-wrap: wrap; margin: 2rem 0 0; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; text-decoration: none; border-radius: 12px; padding: .78rem 1rem; border: 1px solid var(--border); background: var(--panel); color: var(--fg); font-weight: 750; }
+.button.primary { background: linear-gradient(135deg, #238636, #2ea043); border-color: rgba(63, 185, 80, .6); }
+.button:hover { transform: translateY(-1px); border-color: rgba(88, 166, 255, .6); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; margin: 2.5rem 0 0; }
+.stat { background: rgba(13, 20, 33, .72); border: 1px solid var(--border); border-radius: 18px; padding: 1rem; }
+.stat strong { display: block; font-size: 1.55rem; color: var(--fg); }
+.stat span { color: var(--muted); font-size: .92rem; }
+.section { padding: 3rem 0; }
+.section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin: 0 0 1.25rem; }
+h2 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.6rem); letter-spacing: -.04em; }
+.section-head p { color: var(--muted); max-width: 520px; margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.card { background: linear-gradient(180deg, rgba(17, 27, 45, .96), rgba(13, 20, 33, .96)); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem; min-height: 230px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.card h3 { margin: 0 0 .45rem; font-size: 1.08rem; color: #dbeafe; }
+.card p { color: var(--muted); margin: .35rem 0; }
+.meta { display: flex; gap: .5rem; flex-wrap: wrap; margin: .8rem 0; }
+.badge { color: #bde3ff; background: rgba(88, 166, 255, .10); border: 1px solid rgba(88, 166, 255, .25); border-radius: 999px; padding: .2rem .55rem; font-size: .78rem; }
+.price { color: var(--green); font-size: 1.15rem; font-weight: 850; }
+.card .links { display: flex; gap: .7rem; margin-top: 1rem; }
+.card .links a { color: var(--accent); text-decoration: none; font-weight: 700; }
+.band { background: rgba(17, 27, 45, .68); border: 1px solid var(--border); border-radius: 22px; padding: 1.4rem; display: grid; grid-template-columns: 1.2fr .8fr; gap: 1rem; align-items: center; }
+.band p { color: var(--muted); margin: .4rem 0 0; }
+.checks { display: grid; gap: .55rem; color: var(--muted); }
+.checks span::before { content: "✓"; color: var(--green); font-weight: 900; margin-right: .5rem; }
+footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem 0 3rem; margin-top: 2rem; }
+.footer-grid { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.footer-grid a { color: var(--muted); margin-left: 1rem; text-decoration: none; }
+.footer-grid a:hover { color: var(--fg); }
+@media (max-width: 900px) { .stats, .grid, .band { grid-template-columns: 1fr; } .section-head { display: block; } }
 </style>
 </head>
 <body>
-<h1>Algoram88</h1>
-<p class="subtitle">Developer tools, CLI utilities, and AI agent infrastructure.</p>
-<p class="count">9 tools available</p>
-<div class="product">
-  <h3>Bounty Decision Dashboard</h3>
-  <p class="tagline">Know which bounties to build before you waste a single hour</p>
-  <p class="meta">CLI-TOOL</p>
-  <span class="price">$39</span>
-</div>
-<div class="product">
-  <h3>CronPulse CLI</h3>
-  <p class="tagline">Know the health of every cron job in 5 seconds</p>
-  <p class="meta">CLI · 97 comprehensive tests</p>
-  <span class="price">$29</span>
-</div>
-<div class="product">
-  <h3>MCP Server Starter Kit</h3>
-  <p class="tagline">Ship production-ready MCP servers in minutes. 9 tools, 3 servers, 210 tests, zero dependencies.</p>
-  <p class="meta">TEMPLATE · 210 comprehensive tests (65 core + 67 GitHub Issues + 78 HackerNews)</p>
-  <span class="price">$39</span>
-</div>
-<div class="product">
-  <h3>n8n Workflow Template Pack</h3>
-  <p class="tagline">10 ready-to-use n8n workflow templates for AI agents, API monitoring, and automation</p>
-  <p class="meta">TEMPLATES</p>
-  <span class="price">$39</span>
-</div>
-<div class="product">
-  <h3>Repo Health Scorecard</h3>
-  <p class="tagline">Grade any codebase A+ to F in seconds — 27 health checks, 6 categories</p>
-  <p class="meta">CLI</p>
-  <span class="price">$24</span>
-</div>
-<div class="product">
-  <h3>Solana Rent Reclaimer</h3>
-  <p class="tagline">Find and reclaim SOL locked in empty token accounts</p>
-  <p class="meta">CLI</p>
-  <span class="price">$19</span>
-</div>
-<div class="product">
-  <h3>Solana Token Radar</h3>
-  <p class="tagline">Safety-first Solana token discovery dashboard with 7-signal scoring engine</p>
-  <p class="meta">WEBAPP</p>
-  <span class="price">$39</span>
-</div>
-<div class="product">
-  <h3>CJS-to-ESM Migration Factory</h3>
-  <p class="tagline">Before/after reference for CommonJS → ESM migration with 37 passing tests</p>
-  <p class="meta">TEMPLATE</p>
-  <span class="price">$19</span>
-</div>
-<div class="product">
-  <h3>MCP Server Tester CLI</h3>
-  <p class="tagline">Validate any MCP server — tools, schemas, responses, performance. Grade A+ to F.</p>
-  <p class="meta">CLI · CLI tool (mcp-tester.js, 23KB)</p>
-  <span class="price">$29</span>
-</div>
-<footer>&copy; 2026 Algoram88. Built with automated infrastructure.</footer>
+<header class="container nav" aria-label="Site navigation">
+  <a class="brand" href="/" aria-label="Algoram99 home"><span class="mark">A9</span><span>Algoram99</span></a>
+  <nav class="nav-links">
+    <a href="#tools">Tools</a>
+    <a href="/posts/">Posts</a>
+    <a href="https://github.com/Algoram99" rel="noopener">GitHub</a>
+    <a href="https://www.qualigen.net/" rel="noopener">Qualigen</a>
+  </nav>
+</header>
+<main>
+  <section class="container hero">
+    <span class="eyebrow">Woodpecker-backed preview · Qualigen product surface</span>
+    <h1>Developer tools for operators shipping with AI agents.</h1>
+    <p class="lead">Algoram99 is the public GitHub home for Qualigen's automation kits: small, practical products for agent operations, CI reliability, codebase audits, and crypto-tooling guardrails.</p>
+    <div class="actions">
+      <a class="button primary" href="https://nepo6.gumroad.com/" rel="noopener">Browse products</a>
+      <a class="button" href="https://github.com/Algoram99/algoram99.github.io" rel="noopener">View source on Algoram99</a>
+      <a class="button" href="/posts/">Read shipping notes</a>
+    </div>
+    <div class="stats" aria-label="Operating proof points">
+      <div class="stat"><strong>9</strong><span>tool kits surfaced</span></div>
+      <div class="stat"><strong>0</strong><span>GitHub Actions workflows</span></div>
+      <div class="stat"><strong>1</strong><span>Woodpecker CI pipeline live</span></div>
+      <div class="stat"><strong>A9</strong><span>Algoram99 canonical links</span></div>
+    </div>
+  </section>
+
+  <section id="tools" class="container section">
+    <div class="section-head">
+      <h2>Current tool shelf</h2>
+      <p>These are production-oriented developer utilities and templates. Purchase links route through the Qualigen Gumroad storefront instead of fabricated per-product URLs.</p>
+    </div>
+    <div class="grid">
+      <article class="card">
+        <h3>Bounty Decision Dashboard</h3>
+        <p>Know which bounties to build before wasting implementation hours.</p>
+        <div class="meta"><span class="badge">CLI tool</span><span class="badge">decision support</span></div>
+        <span class="price">$39</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>CronPulse CLI</h3>
+        <p>Inspect cron-job health in seconds with a focused operator-first report.</p>
+        <div class="meta"><span class="badge">CLI</span><span class="badge">97 tests</span></div>
+        <span class="price">$29</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>MCP Server Starter Kit</h3>
+        <p>Ship production-ready MCP servers with example servers, tests, and zero-dependency patterns.</p>
+        <div class="meta"><span class="badge">template</span><span class="badge">210 tests</span></div>
+        <span class="price">$39</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>n8n Workflow Template Pack</h3>
+        <p>Reusable workflows for AI agents, API monitoring, and practical automation.</p>
+        <div class="meta"><span class="badge">templates</span><span class="badge">automation</span></div>
+        <span class="price">$39</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>Repo Health Scorecard</h3>
+        <p>Grade any repository from A+ to F across 27 checks and 6 categories.</p>
+        <div class="meta"><span class="badge">CLI</span><span class="badge">audit kit</span></div>
+        <span class="price">$24</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>Solana Rent Reclaimer</h3>
+        <p>Find SOL locked in empty token accounts while keeping wallet actions gated.</p>
+        <div class="meta"><span class="badge">CLI</span><span class="badge">wallet-safe</span></div>
+        <span class="price">$19</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>Solana Token Radar</h3>
+        <p>A safety-first token discovery dashboard with a 7-signal scoring engine.</p>
+        <div class="meta"><span class="badge">webapp</span><span class="badge">risk scoring</span></div>
+        <span class="price">$39</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>CJS-to-ESM Migration Factory</h3>
+        <p>A before/after reference for CommonJS to ESM migration with passing tests.</p>
+        <div class="meta"><span class="badge">template</span><span class="badge">37 tests</span></div>
+        <span class="price">$19</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+      <article class="card">
+        <h3>MCP Server Tester CLI</h3>
+        <p>Validate tools, schemas, responses, and performance for MCP servers.</p>
+        <div class="meta"><span class="badge">CLI</span><span class="badge">23KB tool</span></div>
+        <span class="price">$29</span>
+        <div class="links"><a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="band">
+      <div>
+        <h2>Verification-first infrastructure.</h2>
+        <p>This preview is deployed from the Algoram99 repository and validated by local self-hosted Woodpecker CI. GitHub Actions remains intentionally absent.</p>
+      </div>
+      <div class="checks" aria-label="Safety and verification checks">
+        <span>Links target Algoram99 for GitHub surfaces.</span>
+        <span>Qualigen.net production deploy path remains untouched.</span>
+        <span>No secrets, tokens, or wallet material in static assets.</span>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="container footer-grid">
+    <span>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</span>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a><a href="https://www.qualigen.net/" rel="noopener">Qualigen</a><a href="/posts/">Posts</a></span>
+  </div>
+</footer>
 </body>
-</html><!-- v2 2026-05-31T08:52:12Z -->
-<!-- build trigger 1780240911 -->
-<!-- v2 build 1780240976 -->
-<!-- build-trigger-1780241167 -->
-
-
-<!-- Auto-update 1780311197 -->
-<!-- updated $(date +%s) -->
-<!-- trigger 1780460034 -->
-<!-- webhook test 1780460117 -->
-<!-- final trigger 1780460218 -->
+</html>
