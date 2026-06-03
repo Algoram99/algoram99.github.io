@@ -6,8 +6,9 @@ steps:
   build:
     image: alpine:3.20
     commands:
-      - echo "Woodpecker CI pipeline running on algoram88/algoram88.github.io"
-      - echo "Branch: ${CI_COMMIT_BRANCH}  Commit: ${CI_COMMIT_SHA}"
+      - echo "Woodpecker CI pipeline running on algoram99/algoram99.github.io"
+      - echo "Branch and commit from env vars follow"
+      - env | grep -E "^CI_COMMIT_(BRANCH|SHA)=" | sort
       - ls -la
       - echo "---"
       - head -5 index.html
