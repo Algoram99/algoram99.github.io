@@ -3,12 +3,47 @@ when:
     - push
     - pull_request
     - manual
+    - cron
 
 steps:
+  check_diff:
+    image: alpine:3.20
+    when:
+      event: [cron]
+    commands:
+      - 'echo "[check_diff] cron tick — comparing HEAD to origin/main"'
+      - 'git fetch origin main'
+      - 'git diff --quiet origin/main HEAD && { echo "[check_diff] no new commits, exiting early"; exit 78; } || echo "[check_diff] new commits detected, proceeding"'
+    depends_on: []
+
   build:
     image: alpine:3.20
+    when:
+      event: [push, pull_request, manual]
+      depends_on: [check_diff]
+      if:
+        steps:
+          check_diff:
+            outcome: [success, failure, skipped]
     commands:
       - echo 'Woodpecker CI pipeline running on algoram99/algoram99.github.io'
+      - printenv CI_COMMIT_BRANCH
+      - printenv CI_COMMIT_SHA
+      - ls -la
+      - echo '---'
+      - head -5 index.html
+
+  build_cron:
+    image: alpine:3.20
+    when:
+      event: [cron]
+      depends_on: [check_diff]
+      if:
+        steps:
+          check_diff:
+            outcome: [success]
+    commands:
+      - echo 'Woodpecker CI cron pipeline running on algoram99/algoram99.github.io'
       - printenv CI_COMMIT_BRANCH
       - printenv CI_COMMIT_SHA
       - ls -la
