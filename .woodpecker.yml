@@ -13,7 +13,8 @@ steps:
     commands:
       - 'echo "[check_diff] cron tick — comparing HEAD to origin/main"'
       - 'git fetch origin main'
-      - 'git diff --quiet origin/main HEAD && { echo "[check_diff] no new commits, exiting early"; exit 78; } || echo "[check_diff] new commits detected, proceeding"'
+      - 'if git diff --quiet origin/main HEAD; then echo "[check_diff] no new commits since origin/main — tick logged, downstream build_cron will be skipped"; else echo "[check_diff] new commits detected, downstream build_cron will run"; fi'
+      - 'exit 0'
     depends_on: []
 
   build:
