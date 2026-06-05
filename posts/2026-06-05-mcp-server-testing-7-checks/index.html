@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-05T03:35:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Server Testing: 7 Checks That Catch Tool Failures Before Release — Algoram99</title>
+<meta name="description" content="A practical verification stack for Model Context Protocol servers: schema validation, idempotency probes, error envelopes, latency budgets, payload boundaries, transport round-trips, and security surface checks. Each check ships with code, anti-patterns, and a copy-paste test you can run today.">
+<meta name="keywords" content="MCP server testing, validate MCP tools, MCP tool schema, MCP verification, test MCP server, Model Context Protocol testing, MCP server best practices">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="MCP Server Testing: 7 Checks That Catch Tool Failures Before Release">
+<meta property="og:description" content="Practical verification stack for Model Context Protocol servers — schema, idempotency, errors, latency, payload, transport, and security checks, with copy-paste test code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-05-mcp-server-testing-7-checks/">
+<meta property="article:published_time" content="2026-06-05T03:35:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agent Infrastructure">
+<meta property="article:tag" content="MCP">
+<meta property="article:tag" content="verification">
+<meta property="article:tag" content="AI agents">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "MCP Server Testing: 7 Checks That Catch Tool Failures Before Release",
+  "description": "A practical verification stack for Model Context Protocol servers covering schema validation, idempotency, error envelopes, latency, payload boundaries, transport, and security.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-05T03:35:00Z",
+  "dateModified": "2026-06-05T03:35:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-05-mcp-server-testing-7-checks/"
+  },
+  "keywords": "MCP server testing, validate MCP tools, MCP tool schema, MCP verification, test MCP server, Model Context Protocol testing"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --orange: #f59e0b; --red: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.7; }
+main { width: min(820px, calc(100% - 40px)); margin: 0 auto; padding: 2.5rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; transition: color .15s; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1.25rem; }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.1; letter-spacing: -.04em; margin: 0 0 1rem; }
+.lead { color: var(--muted); font-size: 1.15rem; max-width: 720px; }
+.meta-line { color: rgba(159,176,196,.7); font-size: .9rem; margin: 1.5rem 0 2.5rem; }
+h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -.03em; margin: 2.5rem 0 .9rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+h3 { font-size: 1.2rem; color: #dbeafe; margin: 1.8rem 0 .6rem; }
+p, li { color: #d2dbe7; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace; font-size: .9em; background: rgba(124,58,237,.12); color: #e0d4ff; padding: .12em .35em; border-radius: 5px; }
+pre { background: #0a0f1a; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.15rem; overflow-x: auto; line-height: 1.5; font-size: .88rem; margin: 1rem 0 1.4rem; }
+pre code { background: transparent; color: var(--fg); padding: 0; font-size: inherit; }
+.callout { background: rgba(88,166,255,.06); border: 1px solid rgba(88,166,255,.22); border-left: 3px solid var(--accent); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.callout.warn { background: rgba(245,158,11,.06); border-color: rgba(245,158,11,.28); border-left-color: var(--orange); }
+.callout.danger { background: rgba(248,81,73,.06); border-color: rgba(248,81,73,.28); border-left-color: var(--red); }
+.callout strong { color: #dbeafe; }
+.tag { display: inline-flex; border: 1px solid rgba(88,166,255,.28); background: rgba(88,166,255,.10); color: #bde3ff; border-radius: 999px; padding: .18rem .55rem; font-size: .76rem; margin-right: .3rem; }
+.product { display: block; background: linear-gradient(180deg, rgba(17,27,45,.95), rgba(13,20,33,.95)); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.product strong { color: #dbeafe; }
+footer { color: var(--muted); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1.5rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; Algoram99 posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> · <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">MCP · verification · AI agent infrastructure</span>
+  <h1>MCP Server Testing: 7 Checks That Catch Tool Failures Before Release</h1>
+  <p class="lead">Most MCP server outages don't come from a missing tool. They come from a tool that <em>claims</em> to work, returns a 200, and silently corrupts the agent's next decision. Here's a verification stack that catches those failures before your users do.</p>
+  <div class="meta-line">Published 2026-06-05 · ~12 min read · Algoram99</div>
+
+  <div class="callout">
+    <strong>TL;DR.</strong> A reliable MCP server passes seven classes of checks: (1) JSON Schema validity for every tool input and output, (2) idempotency on repeat invocation, (3) stable error envelopes, (4) latency budgets per tool, (5) payload size boundaries, (6) transport round-trips, and (7) security surface review (no shell-out, no path traversal, no silent credential logging). Each section below has a copy-paste test you can run against any MCP server in under five minutes.
+  </div>
+
+  <h2>Why MCP testing is its own discipline</h2>
+  <p>The Model Context Protocol is intentionally thin: a JSON-RPC surface where an LLM client calls <code>tools/call</code> and gets a <code>result</code> or an <code>error</code> back. That thinness is a strength for interop, and a trap for verification. There is no canonical "MCP test framework." Most teams inherit their habits from REST testing, where a 200 means success, schema is a nice-to-have, and idempotency is a database concern.</p>
+  <p>None of those assumptions survive contact with an LLM agent. A 200 from <code>tools/call</code> is not a guarantee that the agent can use the result — the response could be the wrong shape, a stringified stack trace masquerading as a tool result, or a payload so large that the model truncates it before reasoning about it. The seven checks below cover the failure modes that show up in production traces but never in unit tests.</p>
+
+  <h2>Check 1 — JSON Schema validity for inputs and outputs</h2>
+  <p>Every tool you expose must publish a JSON Schema in its <code>inputSchema</code> field, and the result payload must match the <code>outputSchema</code> you declared (or, if you didn't declare one, the structural shape your tool returns must still be stable). Most teams write a schema once, then drift from it as the implementation evolves.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li>For every tool, <code>tools/list</code> returns a non-empty <code>inputSchema</code> with <code>type: "object"</code> and at least one <code>properties</code> entry.</li>
+    <li>For every <code>required</code> field, omitting it returns a JSON-RPC error with <code>code: -32602</code> (Invalid params), not a 500 or a stringified stack.</li>
+    <li>For every output, the <code>structuredContent</code> field parses against the declared <code>outputSchema</code> with no missing keys and no extra keys (if your schema uses <code>additionalProperties: false</code>).</li>
+  </ul>
+
+  <h3>Copy-paste test (Node.js)</h3>
+<pre><code>import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import ajv from "ajv";
+
+const client = new Client({ name: "schema-verify", version: "1.0.0" });
+await client.connect(transport);
+
+const { tools } = await client.listTools();
+const validator = new ajv({ allErrors: true, strict: false });
+
+let failures = 0;
+for (const tool of tools) {
+  if (!tool.inputSchema || tool.inputSchema.type !== "object") {
+    console.error(`FAIL  ${tool.name}: missing or non-object inputSchema`);
+    failures++;
+    continue;
+  }
+  if (!validator.compile(tool.inputSchema)) {
+    console.error(`FAIL  ${tool.name}: inputSchema is not a valid JSON Schema`);
+    failures++;
+    continue;
+  }
+  // Probe a required-field violation
+  try {
+    await client.callTool({ name: tool.name, arguments: {} });
+    console.error(`FAIL  ${tool.name}: accepted empty arguments without error`);
+    failures++;
+  } catch (err) {
+    if (err.code !== -32602) {
+      console.error(`FAIL  ${tool.name}: wrong error code for missing required: ${err.code}`);
+      failures++;
+    }
+  }
+}
+process.exit(failures === 0 ? 0 : 1);</code></pre>
+
+  <div class="callout warn">
+    <strong>Anti-pattern.</strong> Returning <code>{ ok: true, data: null }</code> with no error code on a schema violation. The agent treats <code>ok: true</code> as success and proceeds to act on <code>null</code>. Always throw a structured error with the right JSON-RPC code.
+  </div>
+
+  <h2>Check 2 — Idempotency on repeat invocation</h2>
+  <p>Agents retry. Sometimes the retry is intentional, sometimes the model decides to "double check" by calling the same tool twice. If your tool creates a side effect on the first call, the second call must be a no-op (or a clearly-tagged conflict error) — not a duplicate write, double charge, or repeat email.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li>Call the same tool twice with the same arguments in quick succession. The second call must either return the same result (idempotent) or return a structured "already executed" error.</li>
+    <li>For mutating tools, the second call should NOT increment any external counter (database row count, payment, log line, etc.).</li>
+    <li>If you use an <code>idempotency_key</code> parameter, two calls with the same key must produce the same result regardless of intermediate state.</li>
+  </ul>
+
+  <h3>Copy-paste test</h3>
+<pre><code>const args = { path: "/tmp/idem-test.txt", content: "hello" };
+const r1 = await client.callTool({ name: "fs.write", arguments: args });
+const r2 = await client.callTool({ name: "fs.write", arguments: args });
+assert.deepEqual(r1.structuredContent, r2.structuredContent,
+  "Repeat call must return identical result");</code></pre>
+
+  <div class="callout warn">
+    <strong>Anti-pattern.</strong> Using timestamp or random ID inside the tool to "deduplicate" calls. The agent doesn't see that internal ID. Either accept an explicit <code>idempotency_key</code> argument or make the operation genuinely idempotent at the resource layer.
+  </div>
+
+  <h2>Check 3 — Stable, machine-parseable error envelopes</h2>
+  <p>When a tool fails, the agent needs to recover. A raw exception string is not recoverable. A JSON-RPC error with a stable code, a human-readable message, and an optional <code>data</code> field is recoverable.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li>Every error path returns a <code>code</code> in the standard JSON-RPC range, plus a domain-specific code in <code>data.code</code> if you need finer granularity.</li>
+    <li>The <code>message</code> field is human-readable (the model uses it for self-correction) but never contains stack traces, file paths from the server host, or credentials.</li>
+    <li>Errors are deterministic: the same bad input produces the same error code, not a different one each time.</li>
+  </ul>
+
+  <h3>Copy-paste test</h3>
+<pre><code>// Trigger a known failure (e.g. reading a non-existent file)
+let err;
+try {
+  await client.callTool({ name: "fs.read", arguments: { path: "/nope/missing.txt" } });
+} catch (e) { err = e; }
+
+assert.ok(err, "Expected an error for missing file");
+assert.equal(err.code, -32602, "Wrong JSON-RPC code");
+assert.ok(err.message.length > 0 && err.message.length &lt; 500,
+  "Message should be informative but not a stack trace");
+assert.ok(!/at \w+\.js:\d+/.test(err.message),
+  "Message leaked a stack trace");</code></pre>
+
+  <div class="callout danger">
+    <strong>Anti-pattern.</strong> Including the server's absolute path in the error message. <code>"ENOENT: no such file or directory, open '/home/ubuntu/.mcp/secrets/keys.json'"</code> is a real-world example we have seen. The agent echoes this to the user. Use a generic <code>"resource not found"</code> message and put the actual path in a redacted <code>data.requested_path</code> field.
+  </div>
+
+  <h2>Check 4 — Latency budgets per tool</h2>
+  <p>An MCP tool that takes 30 seconds to return will cause the agent to either time out, hallucinate a result, or hang the entire conversation. Each tool needs a documented latency budget, and your tests should assert it.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li>Run each tool 10 times, measure p50, p95, and p99 latency.</li>
+    <li>Assert p95 is below your documented budget (e.g. 2 seconds for a lookup, 10 seconds for a generation).</li>
+    <li>For long-running tools, verify the server actually streams progress or accepts cancellation rather than holding the connection open.</li>
+  </ul>
+
+  <h3>Copy-paste test</h3>
+<pre><code>const samples = [];
+for (let i = 0; i &lt; 10; i++) {
+  const t0 = performance.now();
+  await client.callTool({ name: "search.lookup", arguments: { q: "test" } });
+  samples.push(performance.now() - t0);
+}
+samples.sort((a, b) => a - b);
+const p95 = samples[Math.floor(samples.length * 0.95)];
+assert.ok(p95 &lt; 2000, `p95 ${p95.toFixed(0)}ms exceeds 2s budget`);</code></pre>
+
+  <div class="callout">
+    <strong>Tip.</strong> A latency check that runs once and asserts a single number is theater. Real budgets are p95 over a sample size, and they should be measured in CI, not just locally.
+  </div>
+
+  <h2>Check 5 — Payload size boundaries</h2>
+  <p>LLMs have context windows. An MCP tool that returns a 4 MB JSON blob to a model with a 200 K token context will silently truncate or fail to fit. The fix is not "make the tool return less" — the fix is to make the tool return the right amount, and to fail loudly when the result is too large for the declared contract.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li>For tools that read files or query large lists, test with empty input, normal input, and a deliberately oversized input.</li>
+    <li>Assert that oversize results are truncated to a sane limit AND return a <code>truncated: true</code> flag in the structured content.</li>
+    <li>Assert the result payload never exceeds a documented per-tool byte ceiling (e.g. 256 KB for a single tool response).</li>
+  </ul>
+
+  <h3>Copy-paste test</h3>
+<pre><code>const r = await client.callTool({ name: "log.tail", arguments: { lines: 1_000_000 } });
+const bytes = Buffer.byteLength(JSON.stringify(r.structuredContent));
+assert.ok(bytes &lt; 256 * 1024, `Result ${bytes} bytes exceeds 256 KB cap`);
+assert.equal(r.structuredContent.truncated, true,
+  "Oversize request must be marked truncated");</code></pre>
+
+  <h2>Check 6 — Transport round-trips</h2>
+  <p>MCP runs over stdio, HTTP+SSE, and streamable HTTP. Each transport has different failure modes: stdio buffers, SSE timeouts, HTTP connection reuse. Your tests must cover the actual transport your client uses, not just the local in-memory transport.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li>Spawn the server as a subprocess and verify stdio transport works with non-trivial messages (large payloads, unicode, binary).</li>
+    <li>For HTTP transports, verify the server handles connection close mid-response gracefully and that reconnection resumes the conversation state correctly.</li>
+    <li>Verify the server enforces a <code>Content-Length</code> header for stdio messages and doesn't rely on EOF as a delimiter.</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>Anti-pattern.</strong> Testing only with <code>InMemoryTransport</code> from the SDK. It will not catch the most common production bug: a server that works fine in tests but hangs the first time it receives a 64 KB payload over real stdio because the developer never set <code>readBufferSize</code>.
+  </div>
+
+  <h2>Check 7 — Security surface review</h2>
+  <p>The most expensive MCP failures are not crashes — they are security incidents. An MCP server is, by definition, a way for an LLM to call code on a user's machine. That code path must be tight.</p>
+
+  <h3>What to test</h3>
+  <ul>
+    <li><strong>No shell-out.</strong> No tool wraps <code>child_process.exec</code>, <code>os.system</code>, or <code>subprocess.Popen</code> with a string built from tool arguments. Use <code>execFile</code> with an argv array, or just don't shell out.</li>
+    <li><strong>No path traversal.</strong> File-reading tools must canonicalize and resolve paths, then verify the resolved path is inside an allowed root. <code>../</code> must not escape.</li>
+    <li><strong>No silent credential logging.</strong> Grep your tool implementation for <code>console.log</code>, <code>logger.info</code>, and structured log fields that touch the request object. If the user passes a token, the server must never echo it back to the agent.</li>
+    <li><strong>No DNS rebinding on HTTP transports.</strong> Verify the server validates the <code>Origin</code> header and binds to localhost only, or runs behind a reverse proxy that does.</li>
+  </ul>
+
+  <h3>Copy-paste test (path traversal)</h3>
+<pre><code>// The tool should refuse to read outside the allowed root
+try {
+  await client.callTool({
+    name: "fs.read",
+    arguments: { path: "../../../../etc/passwd" }
+  });
+  assert.fail("Tool must reject path traversal");
+} catch (err) {
+  assert.equal(err.code, -32602, "Wrong error code for traversal");
+}</code></pre>
+
+  <h2>Putting it all together</h2>
+  <p>Seven checks sounds like a lot, but the implementation is small. A single test file per tool, run on every PR, catches the failure modes that would otherwise show up in user-reported bugs three days after release.</p>
+  <p>The shape of the harness matters less than the discipline: every tool gets the same seven checks, every PR runs them, every regression is caught before it ships. If you want a starting point, the open-source <a href="https://github.com/Algoram99" rel="noopener">Algoram99</a> repositories include reference implementations of each check, and the Algoram99 <em>MCP Server Tester CLI</em> runs all seven against any MCP server in a single command.</p>
+
+  <div class="product">
+    <strong>Algoram99 · MCP Server Tester CLI</strong><br>
+    Validates tools, schemas, responses, error envelopes, and latency budgets for any MCP server. 23 KB, zero config, runs in CI. <a href="https://nepo6.gumroad.com/" rel="noopener">Available on the storefront ($29)</a> alongside the <em>MCP Server Starter Kit</em> ($39) for teams building their first server.
+  </div>
+
+  <h2>What we left out</h2>
+  <p>Two checks we did not cover because they deserve their own posts: <strong>prompt-injection resistance</strong> (an MCP server should never treat tool input as instructions to itself) and <strong>cross-tool side effects</strong> (calling tool A should not silently invalidate state that tool B depends on). Both are real, both are out of scope for a single checklist, and both are on the Algoram99 shipping roadmap.</p>
+  <p>If you ship MCP servers, run these seven checks today. The 30 minutes you spend wiring them into CI will save you the 30 hours you would otherwise spend triaging a postmortem.</p>
+
+  <footer>
+    <p>Algoram99 / Qualigen · verification-first AI agent infrastructure · <a href="/posts/">more posts</a> · <a href="https://nepo6.gumroad.com/" rel="noopener">storefront</a></p>
+    <p style="color: rgba(159,176,196,.6); font-size: .85rem;">Pipeline: Woodpecker CI · Deploy: GitHub Pages · Last updated 2026-06-05</p>
+  </footer>
+</main>
+</body>
+</html>
+<!-- touched 2026-06-05T03:35:00Z -->
