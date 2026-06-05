@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-03T22:00:00Z -->
+<!-- built: 2026-06-05T03:45:00Z -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -101,6 +101,7 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
 <header class="container nav" aria-label="Site navigation">
   <a class="brand" href="/" aria-label="Algoram99 home"><span class="mark">A9</span><span>Algoram99</span></a>
   <nav class="nav-links">
+    <a href="#fit">Find fit</a>
     <a href="#tools">Tools</a>
     <a href="/posts/">Posts</a>
     <a href="https://github.com/Algoram99" rel="noopener">GitHub</a>
@@ -131,6 +132,72 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
       <span class="dot blue">9 products listed</span>
       <span class="dot orange">Self-hosted pipeline</span>
     </div>
+  </section>
+
+  <section id="fit" class="container section" style="padding-top:1.5rem;">
+    <div class="section-head">
+      <h2>Find your fit in 10 seconds.</h2>
+      <p>Match the operator pain to the tool. Each row points to the same Qualigen Gumroad storefront — pick the card, then go buy.</p>
+    </div>
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:rgba(13,20,33,.55);">
+      <table style="width:100%;border-collapse:collapse;min-width:640px;font-size:.95rem;">
+        <thead>
+          <tr style="text-align:left;background:rgba(17,27,45,.7);">
+            <th style="padding:.75rem .9rem;color:#dbeafe;border-bottom:1px solid var(--border);">If you need to…</th>
+            <th style="padding:.75rem .9rem;color:#dbeafe;border-bottom:1px solid var(--border);">Pick this tool</th>
+            <th style="padding:.75rem .9rem;color:#dbeafe;border-bottom:1px solid var(--border);">Why it pays for itself</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Stop picking low-EV bounties before you waste a weekend</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">Bounty Decision Dashboard</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">Heatmap + EV calc across 30+ active programs in one CLI pass.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Know whether a cron job will catch fire before it does</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">CronPulse CLI</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">Zero-dep operator report on health, drift, and silent failures.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Ship a working MCP server without writing 200 lines of glue</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">MCP Server Starter Kit</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">Example servers + tests + zero-dep patterns. 210 passing tests included.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Wire repeatable automations (agents, alerts, API checks)</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">n8n Workflow Template Pack</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">10 ready-to-use flows, drop-in import.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Grade any repo's hygiene in 5 seconds</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">Repo Health Scorecard</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">A+ to F across 27 checks, 6 categories, zero dependencies.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Reclaim SOL locked in empty token accounts</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">Solana Rent Reclaimer</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">Read-only scanner — wallet actions stay gated behind your approval.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Score a new Solana token for rug risk before you ape</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">Solana Token Radar</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">7-signal safety engine, webapp dashboard.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);">Migrate a CommonJS repo to ESM without breaking prod</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">CJS-to-ESM Migration Factory</td>
+            <td style="padding:.7rem .9rem;border-bottom:1px solid var(--border);color:var(--muted);">Before/after reference repo with 37 passing tests.</td>
+          </tr>
+          <tr>
+            <td style="padding:.7rem .9rem;">Validate any MCP server's tools, schemas, and latency</td>
+            <td style="padding:.7rem .9rem;color:var(--green);font-weight:700;">MCP Server Tester CLI</td>
+            <td style="padding:.7rem .9rem;color:var(--muted);">23KB binary, schema + error + perf checks in 5 seconds.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--muted);margin:1rem 0 0;font-size:.92rem;">All tools route through the <a href="https://nepo6.gumroad.com/" rel="noopener" style="color:var(--accent);">Qualigen storefront</a>. New here? Start with the <a href="https://nepo6.gumroad.com/" rel="noopener" style="color:var(--accent);">Free Sample Pack</a> to see real excerpts first.</p>
   </section>
 
   <section id="tools" class="container section">
@@ -233,8 +300,8 @@ footer { border-top: 1px solid var(--border); color: var(--muted); padding: 2rem
     <span>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</span>
     <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a><a href="https://www.qualigen.net/" rel="noopener">Qualigen</a><a href="/posts/">Posts</a></span>
   </div>
-  <div class="container updated">Last updated: 2026-06-03 · Pipeline: Woodpecker CI · Deploy: GitHub Pages</div>
+  <div class="container updated">Last updated: 2026-06-05 · Pipeline: Woodpecker CI · Deploy: GitHub Pages</div>
 </footer>
 </body>
 </html>
-<!-- touched 2026-06-03T22:00:00Z -->
+<!-- touched 2026-06-05T03:45:00Z -->
