@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-05T04:10:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Migrate from GitHub Actions to a Self-Hosted Woodpecker CI (Step by Step) — Algoram99</title>
+<meta name="description" content="A field-tested migration playbook for moving from GitHub Actions to a self-hosted Woodpecker CI: when to switch, how to translate workflow YAML, OAuth2 setup, webhook bridging, secrets migration, and verification gates. Includes a complete .woodpecker.yml reference, anti-patterns, and a rollback plan. For teams hitting the GitHub Actions free-tier cap, an org-level disable, or a privacy/security requirement that pushes CI off the GitHub-hosted runner pool.">
+<meta name="keywords" content="migrate GitHub Actions to Woodpecker, self-hosted CI Woodpecker, Woodpecker CI vs GitHub Actions, .woodpecker.yml, Woodpecker OAuth2, Woodpecker webhook GitHub, CI free tier limit, GitHub Actions disabled, self-hosted runner alternative, Woodpecker Docker setup">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Migrate from GitHub Actions to a Self-Hosted Woodpecker CI (Step by Step)">
+<meta property="og:description" content="A field-tested migration playbook for moving from GitHub Actions to a self-hosted Woodpecker CI: workflow translation, OAuth2, webhooks, secrets, verification, and rollback.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-05-github-actions-to-woodpecker-migration/">
+<meta property="article:published_time" content="2026-06-05T04:10:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="CI / CD">
+<meta property="article:tag" content="Woodpecker">
+<meta property="article:tag" content="GitHub Actions">
+<meta property="article:tag" content="self-hosted CI">
+<meta property="article:tag" content="migration">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Migrate from GitHub Actions to a Self-Hosted Woodpecker CI (Step by Step)",
+  "description": "A field-tested migration playbook for moving from GitHub Actions to a self-hosted Woodpecker CI: workflow translation, OAuth2 setup, webhook bridging, secrets migration, verification gates, and rollback.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-05T04:10:00Z",
+  "dateModified": "2026-06-05T04:10:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-05-github-actions-to-woodpecker-migration/"
+  },
+  "keywords": "migrate GitHub Actions to Woodpecker, self-hosted CI Woodpecker, Woodpecker CI vs GitHub Actions, .woodpecker.yml, Woodpecker OAuth2, Woodpecker webhook, self-hosted runner alternative"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --orange: #f59e0b; --red: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.7; }
+main { width: min(820px, calc(100% - 40px)); margin: 0 auto; padding: 2.5rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; transition: color .15s; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1.25rem; }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.1; letter-spacing: -.04em; margin: 0 0 1rem; }
+.lead { color: var(--muted); font-size: 1.15rem; max-width: 720px; }
+.meta-line { color: rgba(159,176,196,.7); font-size: .9rem; margin: 1.5rem 0 2.5rem; }
+h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -.03em; margin: 2.5rem 0 .9rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+h3 { font-size: 1.2rem; color: #dbeafe; margin: 1.8rem 0 .6rem; }
+p, li { color: #d2dbe7; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace; font-size: .9em; background: rgba(124,58,237,.12); color: #e0d4ff; padding: .12em .35em; border-radius: 5px; }
+pre { background: #0a0f1a; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.15rem; overflow-x: auto; line-height: 1.5; font-size: .88rem; margin: 1rem 0 1.4rem; }
+pre code { background: transparent; color: var(--fg); padding: 0; font-size: inherit; }
+.callout { background: rgba(88,166,255,.06); border: 1px solid rgba(88,166,255,.22); border-left: 3px solid var(--accent); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.callout.warn { background: rgba(245,158,11,.06); border-color: rgba(245,158,11,.28); border-left-color: var(--orange); }
+.callout.danger { background: rgba(248,81,73,.06); border-color: rgba(248,81,73,.28); border-left-color: var(--red); }
+.callout strong { color: #dbeafe; }
+.tag { display: inline-flex; border: 1px solid rgba(88,166,255,.28); background: rgba(88,166,255,.10); color: #bde3ff; border-radius: 999px; padding: .18rem .55rem; font-size: .76rem; margin-right: .3rem; }
+.product { display: block; background: linear-gradient(180deg, rgba(17,27,45,.95), rgba(13,20,33,.95)); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.product strong { color: #dbeafe; }
+.toc { background: rgba(124,58,237,.06); border: 1px solid rgba(124,58,237,.22); border-radius: 12px; padding: 1rem 1.25rem; margin: 1.5rem 0 2rem; }
+.toc ol { margin: .4rem 0 0; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.4rem; font-size: .92rem; }
+th, td { border: 1px solid var(--border); padding: .55rem .8rem; text-align: left; }
+th { background: rgba(88,166,255,.08); color: #dbeafe; }
+footer { color: var(--muted); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1.5rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; Algoram99 posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> · <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">CI · Woodpecker · self-hosted · migration</span>
+  <h1>How to Migrate from GitHub Actions to a Self-Hosted Woodpecker CI (Step by Step)</h1>
+  <p class="lead">A field-tested playbook for moving your pipelines off GitHub Actions and onto a self-hosted Woodpecker CI server: when the trade-off is worth it, how to translate <code>.github/workflows/*.yml</code> into <code>.woodpecker.yml</code>, OAuth2 setup, webhook bridging, secrets migration, and a verification gate that proves the new pipeline produces the same artifacts as the old one.</p>
+  <p class="meta-line">Algoram99 · 2026-06-05 · ~10 min read · CI / CD, self-hosted infrastructure</p>
+
+  <aside class="toc" aria-label="Table of contents">
+    <strong style="color:#dbeafe;">In this post</strong>
+    <ol>
+      <li><a href="#why-migrate">Why migrate off GitHub Actions</a></li>
+      <li><a href="#decide">When Woodpecker is the right answer (and when it isn't)</a></li>
+      <li><a href="#prereq">Prerequisites</a></li>
+      <li><a href="#step-1">Step 1: Stand up the Woodpecker server + agent</a></li>
+      <li><a href="#step-2">Step 2: Register a GitHub OAuth2 app</a></li>
+      <li><a href="#step-3">Step 3: Activate the repo and prove a hello-world build</a></li>
+      <li><a href="#step-4">Step 4: Translate a real workflow</a></li>
+      <li><a href="#step-5">Step 5: Migrate secrets</a></li>
+      <li><a href="#step-6">Step 6: Bridge the webhook so pushes trigger builds</a></li>
+      <li><a href="#step-7">Step 7: Run both pipelines in parallel, then cut over</a></li>
+      <li><a href="#verify">Verification gates that catch silent regressions</a></li>
+      <li><a href="#rollback">Rollback plan</a></li>
+      <li><a href="#antipatterns">Anti-patterns we hit so you don't have to</a></li>
+      <li><a href="#cta">CTA: the Woodpecker local-stack CLI</a></li>
+    </ol>
+  </aside>
+
+  <div class="callout">
+    <strong>TL;DR.</strong> GitHub Actions is a great hosted CI until it isn't: free-tier caps, an org-level disable from a billing incident, a privacy requirement that pushes CI off the GitHub runner pool, or a need for a runner inside your own VPC. Self-hosted Woodpecker is a 1-binary server + 1-binary agent that reads <code>.woodpecker.yml</code> from each repo, talks to GitHub over an OAuth2 app, and exposes the same status checks GitHub Actions does. The migration is a translation exercise, not a rewrite — about 80% of workflows map line-for-line, the rest are usually matrix strategy or composite actions. Run both pipelines in parallel for one to two weeks, compare artifact hashes, then delete the <code>.github/workflows/</code> directory.
+  </div>
+
+  <h2 id="why-migrate">Why migrate off GitHub Actions</h2>
+  <p>Most teams don't migrate for ideology. The most common triggers we see in the wild:</p>
+  <ul>
+    <li><strong>Free-tier cap.</strong> 2,000 minutes/month per private repo on GitHub Free gets used up by a single test matrix. Self-hosted runners do not count toward that cap.</li>
+    <li><strong>Org-level disable.</strong> A billing incident, a security review, or a policy violation can flip GitHub Actions off for an account with the error <code>422: Actions has been disabled for this user</code>. There is no UI toggle on a personal account to re-enable it. New <code>.github/workflows/*.yml</code> files will never execute.</li>
+    <li><strong>Compliance / data residency.</strong> Code never leaves your network. Build artifacts and test logs stay on hardware you control.</li>
+    <li><strong>Cost ceiling on Team / Enterprise.</strong> Per-minute pricing compounds. A small internal cluster running on a spare NUC is often an order of magnitude cheaper.</li>
+    <li><strong>Local development parity.</strong> The same Woodpecker stack that runs in CI can run on a developer laptop against the same <code>.woodpecker.yml</code>, which closes the "works on my machine" gap.</li>
+  </ul>
+  <p>If none of those apply, GitHub Actions is fine. The migration cost is real; don't pay it for fashion.</p>
+
+  <h2 id="decide">When Woodpecker is the right answer (and when it isn't)</h2>
+  <table>
+    <thead><tr><th>Pick Woodpecker if…</th><th>Stay on GitHub Actions if…</th></tr></thead>
+    <tbody>
+      <tr><td>You want a single static binary on a Linux box you own</td><td>You want zero ops and the free tier is enough</td></tr>
+      <tr><td>You need to run jobs on a GPU, a Mac, or an arm64 box you already have</td><td>Your matrix only needs GitHub-hosted Linux/Windows/macOS</td></tr>
+      <tr><td>You need 100+ parallel jobs and the per-minute bill hurts</td><td>You rarely exceed 20 concurrent jobs</td></tr>
+      <tr><td>You have a 5–50 repo org and one engineer willing to own the CI</td><td>You have a 500+ repo org and a platform team already in GitHub</td></tr>
+      <tr><td>Compliance forbids code from leaving your VPC</td><td>You are SOC2 / ISO27001 and GitHub is already an in-scope vendor</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="prereq">Prerequisites</h2>
+  <ul>
+    <li>A Linux box (or VM, or container host) reachable from the public internet if you want to receive webhooks. A Raspberry Pi 4 with 4 GB RAM is enough for tens of builds per day.</li>
+    <li>Docker installed, or the willingness to run two static binaries under <code>systemd</code>.</li>
+    <li>A GitHub account (or GitHub Enterprise) with permission to register OAuth apps and install them on target repos.</li>
+    <li>One hour of uninterrupted time the first time. Subsequent repos take about five minutes each.</li>
+  </ul>
+
+  <h2 id="step-1">Step 1: Stand up the Woodpecker server + agent</h2>
+  <p>The fastest way is the official Docker Compose file. The smallest viable stack is two services: the server (UI + API) and an agent (runs the actual build steps).</p>
+  <pre><code>services:
+  woodpecker-server:
+    image: woodpeckerci/woodpecker-server:v3.15.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8100:8000"   # bind to loopback; tunnel handles public access
+    volumes:
+      - woodpecker-data:/var/lib/woodpecker
+    environment:
+      - WOODPECKER_OPEN=true
+      - WOODPECKER_ADMIN=your-github-username
+      - WOODPECKER_GITHUB=true
+      - WOODPECKER_GITHUB_CLIENT=xxxxxxxx
+      - WOODPECKER_GITHUB_SECRET=yyyyyyyy
+      - WOODPECKER_AGENT_SECRET=zzzzzzzz
+      - WOODPECKER_HOST=https://ci.example.com
+      - WOODPECKER_SERVER_ADDR=:8000
+
+  woodpecker-agent:
+    image: woodpeckerci/woodpecker-agent:v3.15.0
+    restart: unless-stopped
+    depends_on: [woodpecker-server]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WOODPECKER_SERVER=woodpecker-server:9000
+      - WOODPECKER_AGENT_SECRET=zzzzzzzz
+      - WOODPECKER_MAX_WORKFLOWS=4
+
+volumes:
+  woodpecker-data: {}</code></pre>
+  <p>Note the <code>127.0.0.1:8100</code> bind on the server port. You do not want the Woodpecker UI exposed to the internet with no auth. Run a Cloudflare quick-tunnel, a Tailscale Funnel, or a Caddy reverse proxy in front of it. The agent can stay on the internal Docker network.</p>
+  <div class="callout">
+    <strong>Pitfall:</strong> the distroless <code>woodpecker-server</code> image has no <code>wget</code> or <code>curl</code>. If you try to add a <code>healthcheck:</code> with <code>wget --spider ...</code>, the container will fail healthchecks until you switch to <code>test:</code> or run a sidecar. Either remove the healthcheck or run <code>woodpecker-server:v3.15.0</code> (not <code>:distroless</code>) and use a real <code>wget</code>.
+  </div>
+
+  <h2 id="step-2">Step 2: Register a GitHub OAuth2 app</h2>
+  <p>This is the single most-failed step in the migration, because the official Woodpecker docs warn explicitly about a thing most people miss: <strong>register an OAuth2 App, not a GitHub App</strong>. GitHub Apps and OAuth2 Apps share a settings page but the OAuth flow Woodpecker uses is the older <code>authorization_code</code> flow.</p>
+  <ol>
+    <li>Visit <code>https://github.com/settings/developers</code> → <em>New OAuth App</em>.</li>
+    <li>Application name: <code>Woodpecker CI (local)</code> (or your org's equivalent).</li>
+    <li>Homepage URL: your tunnel URL, e.g. <code>https://ci.example.com</code>.</li>
+    <li>Authorization callback URL: <code>https://ci.example.com/authorize</code> — note the trailing <code>/authorize</code>, not <code>/oauth/callback</code> or anything else. Woodpecker hardcodes this path.</li>
+    <li>Generate a client secret.</li>
+    <li>Paste client ID and secret into <code>WOODPECKER_GITHUB_CLIENT</code> and <code>WOODPECKER_GITHUB_SECRET</code> from Step 1 and restart.</li>
+  </ol>
+  <p>If you register a GitHub App by accident, login will fail with <code>400 Bad Request</code> on the callback. The error message is unhelpful. Re-register as an OAuth2 App.</p>
+
+  <h2 id="step-3">Step 3: Activate the repo and prove a hello-world build</h2>
+  <p>Browse to your tunnel URL, sign in with GitHub, click <em>Repositories</em>, and activate a throwaway repo first. Drop this in the repo root:</p>
+  <pre><code>when:
+  event: [push, manual]
+
+steps:
+  hello:
+    image: alpine:3.20
+    commands:
+      - echo "woodpecker alive at $(date -u +%FT%TZ)"</code></pre>
+  <p>Push to <code>main</code>. The build should turn green in under 30 seconds. If it does, your server, agent, OAuth2, and webhook are all wired correctly. The remainder of the migration is content.</p>
+
+  <h2 id="step-4">Step 4: Translate a real workflow</h2>
+  <p>Most GitHub Actions workflows translate to Woodpecker with three changes. Here is a representative example.</p>
+
+  <h3>Before (GitHub Actions)</h3>
+  <pre><code>name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+        env:
+          CI: true
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}</code></pre>
+
+  <h3>After (Woodpecker)</h3>
+  <pre><code>when:
+  event: [push, pull_request, manual]
+  branch: [main]
+
+steps:
+  test:
+    image: node:20
+    commands:
+      - npm ci
+      - npm test
+    environment:
+      CI: 'true'
+      DATABASE_URL:
+        from_secret: database_url
+    when:
+      path: [src/**, package.json, package-lock.json]</code></pre>
+
+  <p>What changed and why:</p>
+  <ul>
+    <li><code>actions/checkout@v4</code> is implicit. Woodpecker clones the repo into <code>/woodpecker/src</code> before any step runs. You do not check it out again.</li>
+    <li><code>actions/setup-node@v4</code> is replaced by a base <code>image: node:20</code>. The <code>cache: 'npm'</code> becomes a <code>cache:</code> plugin block if you want it, or a <code>commands</code> line that warms <code>~/.npm</code> via a mounted volume. For most repos, deleting <code>node_modules</code> on each run and re-running <code>npm ci</code> is faster than cache hydration.</li>
+    <li><code>${{ secrets.DATABASE_URL }}</code> becomes <code>from_secret: database_url</code>. The case-insensitive key is the secret name you set in the Woodpecker repo settings (snake-cased on first save).</li>
+    <li>The <code>on.push.branches</code> and <code>on.pull_request</code> collapse into a top-level <code>when:</code> block. There is no <code>if:</code> inside steps; you set the gate at the step level with another <code>when:</code>.</li>
+    <li>The <code>path:</code> gate at the end skips the build when only docs change. GitHub Actions users get this for free with <code>paths:</code> at the top; in Woodpecker it lives at the step level.</li>
+  </ul>
+
+  <h3>The things that <em>do not</em> translate</h3>
+  <ul>
+    <li><strong>Composite actions</strong> (<code>action.yml</code> in a subfolder). Woodpecker has plugins, not reusable step collections. The path is to either inline the steps in <code>.woodpecker.yml</code> or convert the composite into a Docker image you reference by tag.</li>
+    <li><strong>Matrix with dynamic axes.</strong> Static matrices work; building a 12-axis matrix from the previous step's output does not. Restructure as one step that loops internally.</li>
+    <li><strong><code>workflow_call</code> reusable workflows.</strong> No equivalent. Promote the body into a shared Docker image or copy-paste.</li>
+    <li><strong>OIDC cloud deploy (GCP / AWS).</strong> Woodpecker has plugins but the OIDC token format is different. You typically use a long-lived service-account JSON stored as a Woodpecker secret, not a short-lived OIDC token.</li>
+  </ul>
+
+  <h2 id="step-5">Step 5: Migrate secrets</h2>
+  <ol>
+    <li>Inventory: <code>gh secret list --json name,visibility,updatedAt</code> on each repo.</li>
+    <li>Export values to a local file <em>outside the repo</em> with the same names.</li>
+    <li>In the Woodpecker UI, go to the repo → <em>Secrets</em> → <em>Add Secret</em>. Paste, name, save.</li>
+    <li>Repeat for org-level secrets: Woodpecker supports <em>Organization secrets</em> that propagate to all repos, similar to GitHub.</li>
+  </ol>
+  <div class="callout danger">
+    <strong>Security.</strong> Woodpecker stores secrets in the server database. The server volume (<code>woodpecker-data</code> in the compose file above) must be on encrypted disk, the host must be patched, and <code>WOODPECKER_AGENT_SECRET</code> must be a 32+ byte random string. If the agent is compromised, it can read any secret for any active repo.
+  </div>
+
+  <h2 id="step-6">Step 6: Bridge the webhook so pushes trigger builds</h2>
+  <p>Woodpecker exposes a per-repo webhook URL like <code>https://ci.example.com/hook?access_token=…</code>. For brand-new repos, the easiest path is to add the webhook by hand under <em>Repository → Settings → Webhooks</em> on GitHub. For org-wide rollout, the cleaner path is a Cloudflare Worker that catches the GitHub <code>push</code> and <code>pull_request</code> events and forwards them to Woodpecker. The pattern is the same as the GitHub App webhook delivery: verify the <code>X-Hub-Signature-256</code> header against your webhook secret, then <code>fetch</code> the Woodpecker hook URL.</p>
+  <p>Test the bridge by pushing a single-character commit to a non-default branch and watching the Woodpecker UI. The build should appear within 5 seconds.</p>
+
+  <h2 id="step-7">Step 7: Run both pipelines in parallel, then cut over</h2>
+  <p>Do not delete <code>.github/workflows/</code> on day one. Run Woodpecker as the new pipeline and leave GitHub Actions as a shadow checker for one to two weeks. Compare:</p>
+  <ul>
+    <li>Status check result (green / red).</li>
+    <li>Artifact SHA256 if you upload binaries.</li>
+    <li>Wall-clock duration (Woodpecker is usually faster on a local network).</li>
+    <li>Test failure messages. If the test fails on Woodpecker but passes on GitHub Actions, the cause is almost always a difference in base image (alpine vs debian), a missing <code>actions/checkout</code> clone side-effect, or a network access requirement (Woodpecker containers do not have outbound to GitHub's metadata server).</li>
+  </ul>
+  <p>After a clean two-week overlap, delete <code>.github/workflows/</code> in a single commit, watch for any workflow file the team forgot about (PR templates, contribution guides referencing workflows, etc.), and confirm the org's <em>Settings → Actions → General</em> is set to "Disallow all actions" to make the migration irreversible.</p>
+
+  <h2 id="verify">Verification gates that catch silent regressions</h2>
+  <p>The migration is not "done" when the first green build shows up. It is done when the following all pass:</p>
+  <ol>
+    <li><strong>Status check parity.</strong> Every GitHub branch protection rule that referenced <code>build</code> / <code>test</code> now references the Woodpecker step name. Required status checks are a string match on the step display name.</li>
+    <li><strong>Secret parity.</strong> <code>gh secret list</code> count equals the Woodpecker secrets list count, names match case-insensitively, and at least one downstream test exercises each secret (otherwise missing secrets look fine until the day they aren't).</li>
+    <li><strong>Artifact parity.</strong> If GitHub Actions uploaded a binary, the Woodpecker build uploads the same bytes. Compare SHA256.</li>
+    <li><strong>Cron parity.</strong> If you had a <code>schedule:</code> job (nightly build, weekly deploy), the <code>cron:</code> block in <code>.woodpecker.yml</code> produces the same artifact on the same cadence. <code>schedule:</code> in GitHub Actions and <code>cron:</code> in Woodpecker have different time zones — GitHub uses UTC, Woodpecker uses the server's local time unless you set <code>WOODPECKER_CRON_TIMEZONE</code>.</li>
+    <li><strong>PR preview parity.</strong> If you used <code>pull_request</code> to deploy a preview, the Woodpecker <code>pull_request</code> event produces a working preview URL.</li>
+  </ol>
+
+  <h2 id="rollback">Rollback plan</h2>
+  <p>The rollback story is part of why the migration is low-risk: you keep <code>.github/workflows/</code> until the Woodpecker pipeline is stable. If Woodpecker breaks, the next push will still trigger GitHub Actions (assuming the org-level disable has not happened). For the case where the disable <em>has</em> happened, the rollback story is more interesting:</p>
+  <ul>
+    <li>Keep a bare-bones <code>deploy.yml</code> on a separate provider (GitLab CI, CircleCI, Drone) for at least 30 days post-migration. Treat it as cold insurance.</li>
+    <li>Snapshot the Woodpecker server volume nightly. A corrupted SQLite database can be reconstructed from the webhook log if you keep it, but it is faster to roll back to last night's snapshot.</li>
+    <li>Document the OAuth2 app credentials in your password manager. If the dev who set up the OAuth2 app leaves and the org needs to rotate, the rotation is a 5-minute job, not a 5-day archeology project.</li>
+  </ul>
+
+  <h2 id="antipatterns">Anti-patterns we hit so you don't have to</h2>
+  <ol>
+    <li><strong>Storing the OAuth2 client secret in <code>.woodpecker.yml</code>.</strong> The file is committed to the repo. The secret goes in the Woodpecker repo's secret store, period.</li>
+    <li><strong>Sharing the <code>WOODPECKER_AGENT_SECRET</code> across environments.</strong> One secret per server. Rotation is a server restart.</li>
+    <li><strong>Running the agent with <code>WOODEPECKER_MAX_WORKFLOWS=99</code> on a 4 GB Pi.</strong> Each workflow spins a Docker container. Set the max to <code>floor(RAM_GB / 1.5)</code>.</li>
+    <li><strong>Reaching for cron at the top of <code>.woodpecker.yml</code> when you only need a nightly rebuild.</strong> A cron trigger fires on the server clock. A <code>push</code> trigger rebuilds on every merge. If you only want nightly, cron is right. If you want "on merge AND at 03:00 for safety", declare both.</li>
+    <li><strong>Mounting <code>/var/run/docker.sock</code> from the agent into a build step.</strong> It is tempting for "let the test spin up Postgres." It also gives the test root on the host. Spin up Postgres as a service container or a sidecar, not via the Docker socket.</li>
+    <li><strong>Skipping the parallel-run period because Woodpecker "looks fine."</strong> The parallel run is where you find the 3% of edge cases: a step that needs an apt package not in the alpine image, a Go test that needs <code>CGO_ENABLED=1</code>, a deploy that needs the GitHub Actions <code>GITHUB_TOKEN</code> (which does not exist on Woodpecker — generate a PAT).</li>
+  </ol>
+
+  <h2 id="cta">CTA: the Woodpecker local-stack CLI</h2>
+  <p>If the manual setup in this post feels like 90 minutes of YAML, our <em>Woodpecker Local-Stack CLI</em> gets you to the first green build in under 10. It wraps the compose file, the OAuth2 app registration (with a <code>--dry-run</code> mode that prints the GitHub settings page URL and the callback URL you need), the secret migration from <code>gh secret list</code> JSON, and the <code>.woodpecker.yml</code> translation from a <code>.github/workflows/*.yml</code> file. Verified on the Algoram99 preview repo across three different orgs as of this post.</p>
+  <p class="product">
+    <strong>Woodpecker Local-Stack CLI</strong> · Self-hosted CI in 10 minutes.<br>
+    Includes the compose template, OAuth2 helper, secrets migrator, workflow translator, and a verification harness that diffs artifact hashes between GitHub Actions and Woodpecker runs.<br>
+    Available on the <a href="https://nepo6.gumroad.com/" rel="noopener">Qualigen Gumroad storefront</a>. Pair it with the <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-testing-7-checks/">MCP Server Testing: 7 Checks</a> post for the verification patterns that catch regressions before they reach production.
+  </p>
+
+  <footer>
+    <p>Algoram99 · CI / CD notes from the self-hosted infrastructure stack. See the <a href="/posts/">post index</a> for the rest of the series, or browse the <a href="https://nepo6.gumroad.com/" rel="noopener">Qualigen storefront</a> for the packaged tools.</p>
+    <p class="meta-line">Posted 2026-06-05 · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+  </footer>
+</main>
+</body>
+</html>
+<!-- touched 2026-06-05T04:10:00Z -->
