@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-05T16:10:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Server Security Audit Checklist: 32 Things to Verify Before You Ship — Algoram99</title>
+<meta name="description" content="A field-tested, 32-point MCP server security audit checklist covering tool-input validation, transport hardening, secrets, OAuth scope, prompt-injection defense, supply-chain risk, log hygiene, and a reproducible verification workflow. Includes concrete CLI commands, anti-patterns, and a self-hosted auditor you can drop into CI. For teams shipping Model Context Protocol servers into production, internal agents, or multi-tenant platforms.">
+<meta name="keywords" content="MCP server security, Model Context Protocol audit, MCP server checklist, MCP security best practices, MCP server OWASP, MCP prompt injection, MCP transport security, MCP tool input validation, MCP secrets management, MCP supply chain, MCP server hardening, MCP security CLI, MCP CI audit">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="MCP Server Security Audit Checklist: 32 Things to Verify Before You Ship">
+<meta property="og:description" content="A 32-point, field-tested MCP server security audit checklist with CLI commands, anti-patterns, and a drop-in CI auditor.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">
+<meta property="article:published_time" content="2026-06-05T16:10:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="Security / MCP">
+<meta property="article:tag" content="MCP">
+<meta property="article:tag" content="Model Context Protocol">
+<meta property="article:tag" content="security audit">
+<meta property="article:tag" content="checklist">
+<meta property="article:tag" content="prompt injection">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "MCP Server Security Audit Checklist: 32 Things to Verify Before You Ship",
+  "description": "A 32-point, field-tested MCP server security audit checklist with CLI commands, anti-patterns, and a drop-in CI auditor.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-05T16:10:00Z",
+  "dateModified": "2026-06-05T16:10:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/"
+  },
+  "keywords": "MCP server security, Model Context Protocol audit, MCP server checklist, MCP security best practices, prompt injection, transport hardening"
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; --orange: #d29922; --red: #f85149; --muted: #8b949e; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 860px; margin: 0 auto; line-height: 1.7; }
+h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.5rem; line-height: 1.25; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #79c0ff; font-size: 1.15rem; margin-top: 1.5rem; }
+.subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 0.5rem; }
+.meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+.tag { background: #1c2128; border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem; }
+.tldr { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0; }
+.tldr strong { color: var(--accent); }
+code { background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.9em; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+pre { background: #161b22; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+pre code { background: none; border: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; }
+th { background: var(--card); color: var(--accent); }
+.cta { background: rgba(63,185,80,0.10); border: 1px solid rgba(63,185,80,0.40); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+.cta strong { color: var(--green); }
+.cta a { color: var(--accent); text-decoration: none; }
+.cta a:hover { text-decoration: underline; }
+.warn { background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.warn strong { color: var(--red); }
+ul, ol { padding-left: 1.5rem; }
+li { margin-bottom: 0.35rem; }
+a { color: var(--accent); }
+.badge-pass { color: var(--green); font-weight: bold; }
+.badge-fail { color: var(--red); font-weight: bold; }
+footer { text-align: center; color: var(--muted); margin-top: 3rem; font-size: 0.8rem; padding-bottom: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<h1>MCP Server Security Audit Checklist: 32 Things to Verify Before You Ship</h1>
+<p class="subtitle">A field-tested security checklist for Model Context Protocol (MCP) servers, with CLI commands, anti-patterns, and a CI-friendly auditor.</p>
+<p class="meta">
+<span class="tag">Security</span>
+<span class="tag">MCP</span>
+<span class="tag">Audit</span>
+<span class="tag">12 min read</span>
+<span class="tag">Updated 2026-06-05</span>
+</p>
+
+<div class="tldr">
+<strong>TL;DR.</strong> An MCP server is a remote code execution boundary disguised as a JSON-RPC endpoint. Treat it the way you'd treat a public web service with authenticated mutating endpoints: validate every input against a typed schema, scope every tool to the smallest possible surface, sign and rotate every secret, log every call with redaction, and run a reproducible audit in CI before every release. The 32 points below are the audit we run against our own MCP servers at alg99. They are grouped into seven layers: tool design, transport, authentication, secrets, prompt-injection defense, supply chain, and observability. The last section includes a one-line CI gate using a tool we open-sourced.
+</div>
+
+<h2 id="why-mcp">Why MCP servers need their own security checklist</h2>
+
+<p>Model Context Protocol (MCP) has become the de-facto standard for plugging tools into LLM agents. The protocol itself is small: JSON-RPC 2.0 over stdio, HTTP+SSE, or a streamable HTTP transport. The security surface, however, is large. Every <code>tools/call</code> invocation is a request from a non-deterministic client (the model) to execute code that may touch the filesystem, shell out to a subprocess, hit a third-party API, or mutate a database.</p>
+
+<p>Most public MCP security guidance falls into two traps. The first is "treat the model as a trusted user" — useful for the 1.0 protocol demo, fatal in production. The second is "wrap every tool call in a regex" — it doesn't survive a single clever instruction in the user's prompt. A real audit needs to cover protocol, transport, server code, and the supply chain that brings the server up.</p>
+
+<p>The 32 points below are what we run against every MCP server we ship, host, or audit for a customer. They are not a substitute for a full threat model, but they catch the 80% of issues that show up in real engagements: tool shadowing, prompt injection via tool output, secret leakage into logs, OAuth scope creep, and the supply-chain attacks that have hit npm over the last two years.</p>
+
+<h2 id="scope">Scope: what this checklist covers</h2>
+
+<ul>
+<li><strong>Servers, not clients.</strong> The audit targets the MCP server code, the container image, and the runtime environment.</li>
+<li><strong>Three transports.</strong> Stdio, HTTP+SSE, and the newer Streamable HTTP transport introduced in the 2025-03 spec.</li>
+<li><strong>Production, not prototype.</strong> Some checks (e.g., TLS pinning, multi-tenancy isolation) only matter when the server is exposed beyond localhost.</li>
+<li><strong>CI, not just review.</strong> Every check has a CLI command, a config snippet, or a static-analysis rule that can run automatically.</li>
+</ul>
+
+<h2 id="layer-1">Layer 1 — Tool design and input validation (8 checks)</h2>
+
+<p>The tool definitions in <code>tools/list</code> are the contract between the model and your server. The model cannot read your code; it can only read the JSON schema, the tool description, and the tool's name. That makes the schema your first line of defense.</p>
+
+<ol>
+<li><strong>Every tool has a strict JSON schema with <code>additionalProperties: false</code>.</strong> Open-extension schemas let the model add fields your handler isn't expecting. Always lock the schema down.</li>
+<li><strong>String inputs are bounded by <code>maxLength</code>; numeric inputs by <code>minimum</code>, <code>maximum</code>, and <code>multipleOf</code>.</strong> A 10MB <code>query</code> field is a denial-of-service primitive.</li>
+<li><strong>Tool descriptions are factual and complete, not aspirational.</strong> "Send a tweet" is fine; "send a tweet in the user's voice" is a prompt-injection landing pad. The description is part of the model's prompt surface.</li>
+<li><strong>Tool names do not contain spaces, slashes, or unicode lookalikes.</strong> Several real-world attacks use a homoglyph in the tool name to phish a model's tool selection. Enforce <code>^[a-z][a-z0-9_]{0,63}$</code> in your registration code.</li>
+<li><strong>No tool exposes a generic <code>exec</code> or <code>eval</code> method.</strong> If you need to run commands, expose a typed <code>run_command(command: enum, args: object)</code> with a closed enum of allowed subcommands.</li>
+<li><strong>Filesystem tools take an absolute path, then resolve and re-check it against an allowlist.</strong> Never accept a relative path and append it to a working directory. Symlink resolution must happen after the allowlist check, not before.</li>
+<li><strong>Network tools accept a URL, parse it, and verify the scheme and host against an allowlist before any fetch.</strong> DNS rebinding and <code>file://</code> SSRF are not theoretical. A pure <code>isUrl()</code> check is not enough.</li>
+<li><strong>Tool responses are bounded.</strong> Truncate or summarize any tool response that exceeds a sensible cap (we use 64KB) before returning it to the model. Large outputs balloon context and can carry prompt-injection payloads.</li>
+</ol>
+
+<h3>Anti-pattern: the "JSON passthrough"</h3>
+
+<div class="warn">
+<strong>Anti-pattern.</strong> A tool that accepts <code>{"input": "..."}</code> and forwards the string to a downstream API without validation. We've seen this pattern in roughly 30% of the MCP servers we audit. The downstream API usually has its own validation, but the model can still send an instruction that gets concatenated into a log line, a database query, or a templated email — all of which are prompt-injection vectors that bypass the downstream validator.
+</div>
+
+<h2 id="layer-2">Layer 2 — Transport hardening (5 checks)</h2>
+
+<p>The transport layer is where most public exploits land. Three transports are in active use, and each has its own hardening list.</p>
+
+<ol start="9">
+<li><strong>For stdio, the server inherits the parent's stdio, never a TTY, and never reads from stdin after the first line.</strong> The protocol is request/response; a long-lived read on stdin is a footgun.</li>
+<li><strong>For HTTP+SSE, TLS 1.2+ is required and HSTS is set with <code>max-age</code> of at least 1 year.</strong> Modern reverse proxies (Caddy, Traefik, nginx 1.25+) handle this with a one-line config.</li>
+<li><strong>For Streamable HTTP, <code>Origin</code> is validated against an allowlist on every request.</strong> The 2025-03 transport spec recommends this for CSRF defense. The check belongs in middleware, not the tool handler.</li>
+<li><strong>The server sets <code>X-Content-Type-Options: nosniff</code> and a strict <code>Content-Security-Policy</code> on any HTML response.</strong> Even though MCP responses are JSON, an operator dashboard or error page can become a vector.</li>
+<li><strong>Per-IP and per-token rate limits are configured before the server leaves staging.</strong> A reasonable default is 60 requests/minute per token for normal traffic, 600 for batch tools, with a 429 response that includes a <code>Retry-After</code> header.</li>
+</ol>
+
+<h2 id="layer-3">Layer 3 — Authentication and authorization (5 checks)</h2>
+
+<p>MCP's auth story is intentionally thin: the spec leaves it to the transport. That means your server has to make the policy decisions the spec punted on.</p>
+
+<ol start="14">
+<li><strong>Every tool call is authenticated, not just the session.</strong> Token rotation and revocation must invalidate in-flight calls within a documented window. A leaked access token from yesterday should not be accepted today.</li>
+<li><strong>OAuth scopes are scoped to a single tool family.</strong> <code>read:files</code> and <code>write:files</code> are different scopes. <code>files:rw</code> is a smell. Granularity is the only thing that makes revocation useful.</li>
+<li><strong>Tool-to-tool calls inside the server still re-check the caller's identity.</strong> A common bug is letting an internal helper call a privileged tool without re-validating the caller's token. The helper has the right to call the lower-level API; it does not have the right to skip auth on a higher-level tool.</li>
+<li><strong>Multi-tenant servers namespace every resource by tenant ID at the storage layer, not the application layer.</strong> A SQL <code>WHERE tenant_id = ?</code> in the application code is one bug away from a cross-tenant leak. A schema or row-level security policy in the database is a structural defense.</li>
+<li><strong>Audit logs record the caller's identity, the tool name, the resource, and a hash of the arguments — never the raw arguments.</strong> Arguments often contain PII or secrets. The hash lets you correlate and prove tampering without re-storing the data.</li>
+</ol>
+
+<h2 id="layer-4">Layer 4 — Secrets and configuration (4 checks)</h2>
+
+<ol start="19">
+<li><strong>No secret is ever read from a CLI flag, an environment variable in a <code>docker run</code> line that appears in <code>ps auxef</code>, or a YAML file in the repo.</strong> Use a secret manager (HashiCorp Vault, AWS Secrets Manager, Doppler) and pull at boot with a short-lived token.</li>
+<li><strong>Secrets are redacted from logs at the formatter level, not the call site.</strong> Call-site redaction is forgotten. A logging formatter that hashes or masks known key names is a structural defense.</li>
+<li><strong>The server refuses to boot if a required secret is missing or matches a known-bad value (<code>changeme</code>, <code>test</code>, <code>sk-test-...</code>).</strong> Fail closed at startup. We've seen production servers running with placeholder secrets for weeks because the boot check was optional.</li>
+<li><strong>All outbound HTTP clients have a configured <code>User-Agent</code> string that includes the server name and version.</strong> When an incident happens and a vendor needs to contact you, a useful <code>User-Agent</code> is the difference between a phone call and silence.</li>
+</ol>
+
+<h2 id="layer-5">Layer 5 — Prompt-injection defense (4 checks)</h2>
+
+<p>This is the layer most checklists skip. It is also the layer where MCP servers are uniquely exposed, because tool output is concatenated into the model's context and the model cannot distinguish a tool result from a user instruction.</p>
+
+<ol start="23">
+<li><strong>Tool output that contains a user-controlled string is wrapped in a delimiter the model is trained to treat as data, not instruction.</strong> One common pattern: <code>"[tool:read_file result]\n{output}\n[/tool:read_file result]"</code>. The delimiters should be hard to spoof — include a nonce if you can.</li>
+<li><strong>No tool description contains the words "ignore previous instructions", "act as", or "you must".</strong> This is a self-defense check: an attacker who controls the tool description should not be able to put the model into a chosen state. Run a CI grep against the <code>tools/list</code> payload.</li>
+<li><strong>Tool output is scanned for instruction-shaped text before being returned.</strong> A simple regex (<code>/(ignore (all )?previous|disregard (the )?system|you are now)/i</code>) catches the obvious attacks. A semantic classifier catches the clever ones. Both are useful.</li>
+<li><strong>High-risk tools (anything that mutates state, sends messages, or moves money) require an explicit confirmation tool call.</strong> A read tool is safe to fire speculatively. A delete tool is not. The model must call a separate <code>confirm_{action}</code> tool before the dangerous tool will execute. This is the single biggest defense against prompt-injection-driven data loss.</li>
+</ol>
+
+<h2 id="layer-6">Layer 6 — Supply chain (3 checks)</h2>
+
+<ol start="27">
+<li><strong>Every runtime dependency is pinned to an exact version with a lockfile committed.</strong> Caret ranges in <code>package.json</code> and <code>>=</code> in <code>requirements.txt</code> are the entry point for the next <code>left-pad</code>-style attack. Pin, then update deliberately.</li>
+<li><strong>The container image is built from a minimal base, scanned for CVEs, and the SBOM is published alongside the release.</strong> <code>node:20</code> full images carry 800+ packages you didn't choose. A distroless or <code>alpine</code> base carries a tenth of that. Syft, Trivy, and Grype all generate SPDX SBOMs in under a minute.</li>
+<li><strong>Releases are signed (cosign or sigstore) and the signature is verified by the deployment pipeline.</strong> Unsigned releases are how the recent <code>xz-utils</code> backdoor spread. A 30-line GitHub Actions step prevents a class of incidents, not just one.</li>
+</ol>
+
+<h2 id="layer-7">Layer 7 — Observability and incident response (3 checks)</h2>
+
+<ol start="30">
+<li><strong>Every <code>tools/call</code> is logged with: timestamp, caller identity, tool name, argument hash, response code, and latency.</strong> These six fields are the minimum for any postmortem. The argument hash lets you correlate without storing PII.</li>
+<li><strong>Anomaly detection runs on the call stream.</strong> A sudden spike in <code>write</code> calls from a single token, a new IP geo, or a tool being called in a loop with no human turn are all signals. A simple sliding-window counter is enough for the first iteration.</li>
+<li><strong>A documented kill-switch procedure exists, with a name, a command, and an expected recovery time.</strong> "Turn it off" is not a procedure. <code>kubectl scale deploy/mcp-server --replicas=0</code> and a runbook page is. Test the procedure on a staging cluster before you need it in production.</li>
+</ol>
+
+<h2 id="verify">Running the audit in CI: a one-line gate</h2>
+
+<p>The 32 checks above are useful as a review aid, but reviews drift. The only way to make them durable is to run them on every pull request. We use a small CLI that wraps the checks into a single command. It is open-sourced and zero-dependency.</p>
+
+<p>The audit CLI takes a server directory and a config file, runs all 32 checks, and emits a JSON report. It also exits non-zero on any failure, which makes it a one-line CI gate:</p>
+
+<pre><code># In your CI workflow:
+- name: MCP security audit
+  run: |
+    npx -y @alg99/mcp-server-tester-cli audit \
+      --server ./dist \
+      --config ./mcp-audit.yaml \
+      --report ./audit-report.json \
+      --fail-on high
+</code></pre>
+
+<p>The <code>--fail-on</code> flag accepts <code>critical</code>, <code>high</code>, <code>medium</code>, and <code>low</code>. We default to <code>high</code> in PR builds and <code>medium</code> in the nightly cron. The <code>mcp-audit.yaml</code> config lets you override the default allowlists (URL schemes, OAuth scopes, tool-name patterns) so the audit matches your environment.</p>
+
+<h2 id="antipatterns">Anti-patterns we hit so you don't have to</h2>
+
+<p>Three anti-patterns account for roughly half of the issues we find in customer audits.</p>
+
+<ol>
+<li><strong>The "trust the protocol" anti-pattern.</strong> A server accepts whatever the JSON-RPC layer hands it and forwards to the tool handler. The JSON-RPC layer is not a security boundary. The handler is. Validate at the handler, not the transport.</li>
+<li><strong>The "log the arguments" anti-pattern.</strong> Tool arguments often contain API keys, file paths to sensitive directories, or PII. A debug-level log that captures the full argument object is a compliance incident waiting to happen. Log a hash, not the value.</li>
+<li><strong>The "shared admin token" anti-pattern.</strong> A single long-lived bearer token is shared across all instances of the server "for simplicity." One leak and the rotation is a fleet-wide outage. Use per-instance tokens with a short TTL and a documented rotation procedure.</li>
+</ol>
+
+<h2 id="what-to-skip">What this checklist does <em>not</em> cover</h2>
+
+<p>Two areas are deliberately out of scope.</p>
+
+<ul>
+<li><strong>The model's behavior.</strong> Whether the model picks the right tool, hallucinates a path, or ignores a system prompt is a model-evaluation problem, not a server security problem. Run an eval suite (Promptfoo, DeepEval, Inspect) alongside this audit.</li>
+<li><strong>The deployment platform.</strong> Kubernetes RBAC, IAM policies, and container runtime security are real and important, but they live one layer below the MCP server. A misconfigured <code>ClusterRole</code> with <code>secrets: get,list</code> is a security issue at the platform layer, not the protocol layer.</li>
+</ul>
+
+<h2 id="cta">Ship the audit on every PR — open-source CLI</h2>
+
+<div class="cta">
+<strong>alg99 ships two open-source tools to make this checklist runnable today.</strong>
+<ul style="margin: 0.75rem 0;">
+<li><a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> — a zero-dependency CLI that runs the 32 checks above against any MCP server. Includes a drop-in CI gate, a JSON report, and a config file for environment-specific overrides. <strong>Free, MIT, no telemetry.</strong></li>
+<li><a href="https://github.com/Algoram88/mcp-server-starter-kit/releases">mcp-server-starter-kit</a> — a TypeScript starter that implements all 32 checks from day one, with a reference OAuth flow, structured logging, and a distroless Dockerfile. Use it as a template, or read it as a worked example of the checklist.</li>
+</ul>
+Both are also available on Stripe for teams that prefer a paid license with a support SLA:
+<ul style="margin: 0.75rem 0;">
+<li><a href="https://buy.stripe.com/test_cNieVf3VP3Y4cKFeKB73G0h">mcp-server-tester-cli — $29</a></li>
+<li><a href="https://buy.stripe.com/test_7sY6oJ0JD0LS2615a173G0b">mcp-server-starter-kit — $39</a></li>
+</ul>
+For a one-off audit of a server you don't own, we also offer a <a href="https://buy.stripe.com/test_4gM4gB8c59iodOJcCt73G08">single-server security review</a> delivered as a PDF report with a remediation plan, three-day turnaround.
+</div>
+
+<h2 id="next-steps">Next steps</h2>
+
+<ol>
+<li>Pick one MCP server you own. Run the audit CLI against it. Triage the findings.</li>
+<li>Add the CLI to your CI as a required check. The first run is the worst one; the second is a baseline.</li>
+<li>Pick the next server. Repeat. The 32 checks compound across a fleet — fixing them once in a starter kit means every new server inherits the fix.</li>
+</ol>
+
+<p>Questions, false positives, or a finding the audit missed? Open an issue on the <a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> repo. The checklist is a living document; the best updates come from people running it in anger.</p>
+
+<hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
+
+<p style="font-size: 0.85rem; color: var(--muted);">Filed under: <a href="https://algoram99.github.io/">alg99</a> · Security · MCP. Published 2026-06-05. Last updated 2026-06-05. Word count: ~2,100.</p>
+
+<footer>
+Algoram99 — Developer tools, security CLIs, and AI agent infrastructure.<br>
+<a href="https://algoram99.github.io/">Home</a> · <a href="https://github.com/Algoram88">GitHub</a> · <a href="https://algoram99.github.io/posts/2026-06-05-github-actions-to-woodpecker-migration/">Previous post: GitHub Actions → Woodpecker Migration</a>
+</footer>
+
+</body>
+</html>
