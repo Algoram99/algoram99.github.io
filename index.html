@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-03 UTC -->
+<!-- built: 2026-06-05T15:01:00Z -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -26,6 +26,11 @@ h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.25rem; }
 .price { font-weight: bold; color: var(--green); font-size: 1rem; }
 .buy { background: #238636; color: white; border: none; border-radius: 6px; padding: 0.4rem 0.9rem; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.85rem; }
 .buy:hover { background: #2ea043; }
+.stripe { background: #5b21b6; color: white; border: none; border-radius: 6px; padding: 0.4rem 0.7rem; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.78rem; margin-left: 0.35rem; }
+.stripe:hover { background: #7c3aed; }
+.actions-row { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
+.stripe-note { background: rgba(88,166,255,0.10); border: 1px solid rgba(88,166,255,0.32); border-radius: 10px; padding: 0.85rem 1rem; margin: 1.5rem 0; color: var(--fg); font-size: 0.9rem; }
+.stripe-note strong { color: var(--accent); }
 .free { color: var(--green); font-weight: bold; font-size: 0.85rem; }
 footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem; padding-bottom: 2rem; }
 </style>
@@ -43,6 +48,10 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <button class="cat-btn" onclick="filter('devtools')">Dev Tools</button>
   <button class="cat-btn" onclick="filter('crypto')">Crypto</button>
   <button class="cat-btn" onclick="filter('free')">Free</button>
+</div>
+
+<div class="stripe-note">
+  <strong>Stripe checkout is live.</strong> 9 featured tools now have direct buy links (test mode). Stripe account must be switched to live mode in the Dashboard to receive real payments. The Stripe links are added to each product card below alongside the existing GitHub release link.
 </div>
 
 <div class="grid">
@@ -100,7 +109,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <h3>CronPulse</h3>
   <p class="tagline">Monitor every cron job in 5 seconds. Health checks, drift detection, and alerting for scheduled tasks.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">DevOps</span></div>
-  <div class="bottom-row"><span class="price">$29</span><a class="buy" href="https://github.com/Algoram88/cronpulse-cli/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/cronpulse-cli/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_4gM9AVcsldyEaCxeKB73G0a">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="devtools">
@@ -114,28 +123,28 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <h3>MCP Server Starter Kit</h3>
   <p class="tagline">Ship production-ready MCP servers in minutes. 9 tools, 3 servers, 210 tests, zero dependencies.</p>
   <div class="meta"><span class="tag">Template</span><span class="tag">MCP</span></div>
-  <div class="bottom-row"><span class="price">$39</span><a class="buy" href="https://github.com/Algoram88/mcp-server-starter-kit/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$39</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/mcp-server-starter-kit/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_7sY6oJ0JD0LS2615a173G0b">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="mcp">
   <h3>MCP Server Tester</h3>
   <p class="tagline">Validate any MCP server: tools, schemas, responses, performance. Grade A+ to F.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">MCP</span></div>
-  <div class="bottom-row"><span class="price">$29</span><a class="buy" href="https://github.com/Algoram88/mcp-server-tester-cli/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/mcp-server-tester-cli/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_cNieVf3VP3Y4cKFeKB73G0h">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="devtools">
   <h3>Repo Health Scorecard</h3>
   <p class="tagline">Grade any codebase A+ to F in seconds. 27 health checks across 6 categories.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">DevOps</span></div>
-  <div class="bottom-row"><span class="price">$24</span><a class="buy" href="https://github.com/Algoram88/repo-health-scorecard/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$24</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/repo-health-scorecard/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_7sY6oJ9g9eCIeSN1XP73G0d">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="devtools">
   <h3>Bounty Decision Dashboard</h3>
   <p class="tagline">Score and rank bounty opportunities across Algora, Huntr, and GitHub bounties before you waste a single hour.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">Business</span></div>
-  <div class="bottom-row"><span class="price">$39</span><a class="buy" href="https://github.com/Algoram88/bounty-decision-dashboard/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$39</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/bounty-decision-dashboard/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_3cIdRb0JD8ek7ql7i973G09">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="devtools">
@@ -149,7 +158,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <h3>Solana Token Radar</h3>
   <p class="tagline">Safety-first Solana token discovery dashboard with 7-signal scoring engine.</p>
   <div class="meta"><span class="tag">Webapp</span><span class="tag">Crypto</span></div>
-  <div class="bottom-row"><span class="price">$39</span><a class="buy" href="https://github.com/Algoram88/solana-token-radar/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$39</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/solana-token-radar/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_28EcN763X5285id5a173G0f">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="crypto">
@@ -163,21 +172,21 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <h3>Solana Rent Reclaimer</h3>
   <p class="tagline">Find and reclaim SOL locked in empty token accounts.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">Crypto</span></div>
-  <div class="bottom-row"><span class="price">$19</span><a class="buy" href="https://github.com/Algoram88/sol-rent-reclaimer/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$19</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/sol-rent-reclaimer/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_aFadRb8c5528h0V45X73G0e">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="devtools">
   <h3>n8n Workflow Template Pack</h3>
   <p class="tagline">10 ready-to-use n8n workflow templates for AI agents, API monitoring, and automation.</p>
   <div class="meta"><span class="tag">Templates</span><span class="tag">Automation</span></div>
-  <div class="bottom-row"><span class="price">$39</span><a class="buy" href="https://github.com/Algoram88/n8n-workflow-template-pack/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$39</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/n8n-workflow-template-pack/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_5kQ4gB9g92U04e931T73G0c">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="devtools">
   <h3>CJS-to-ESM Migration Factory</h3>
   <p class="tagline">Before/after reference for CommonJS to ESM migration with 37 passing tests.</p>
   <div class="meta"><span class="tag">Template</span><span class="tag">Migration</span></div>
-  <div class="bottom-row"><span class="price">$19</span><a class="buy" href="https://github.com/Algoram88/migration-factory-sample-01/releases">GitHub</a></div>
+  <div class="bottom-row"><span class="price">$19</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram88/migration-factory-sample-01/releases">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_00w8wRfEx7ag5id5a173G0g">Stripe</a></div></div>
 </div>
 
 <div class="product" data-cat="agent devtools">
