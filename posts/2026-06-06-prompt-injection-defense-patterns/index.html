@@ -494,7 +494,7 @@ steps:
 <p>The first two are static: they read your tool registry, your agent config, and your prompt files, and check that the patterns are wired. The third is dynamic: it runs the 14-pattern test fixtures against a real model and confirms the response is the expected refusal or reframe. The test fixtures themselves are the patterns — they encode the attack, the expected defense, and the expected outcome in a form the CI can run.</p>
 
 <div class="cta">
-<strong>Ship the gate today.</strong> The <a href="https://github.com/Algoram88/agent-safety-audit-cli/releases">Agent Safety Audit CLI</a> runs patterns 1, 3, 5, 9, 10 statically against your agent config. The <a href="https://github.com/Algoram88/mcp-poison-scanner-cli/releases">MCP Poison Scanner</a> covers patterns 4, 5, 7, 8 for MCP servers. The <a href="https://github.com/Algoram88/security-pattern-detector-cli/releases">Security Pattern Detector</a> covers the secret-leakage half of pattern 8. All three are zero-dependency, MIT-licensed, and run in CI on a 2-core box in under 10 seconds. Pair them with a Woodpecker gate (see our <a href="/posts/2026-06-05-github-actions-to-woodpecker-migration/">migration post</a>) and you have a 14-pattern deploy control without writing the test fixtures yourself.
+<strong>Ship the gate today.</strong> The <a href="https://github.com/Algoram99">Agent Safety Audit CLI</a> runs patterns 1, 3, 5, 9, 10 statically against your agent config. The <a href="https://github.com/Algoram99">MCP Poison Scanner</a> covers patterns 4, 5, 7, 8 for MCP servers. The <a href="https://github.com/Algoram99">Security Pattern Detector</a> covers the secret-leakage half of pattern 8. All three are zero-dependency, MIT-licensed, and run in CI on a 2-core box in under 10 seconds. Pair them with a Woodpecker gate (see our <a href="/posts/2026-06-05-github-actions-to-woodpecker-migration/">migration post</a>) and you have a 14-pattern deploy control without writing the test fixtures yourself.
 </div>
 
 <h2 id="anti-patterns">Anti-patterns — what we tried and abandoned</h2>
@@ -533,7 +533,7 @@ steps:
 <ol>
   <li>Pick the three patterns that match your highest-risk surface. For a code agent with shell and file access, start with P06, P09, P10, P11. For a RAG agent that reads the web, start with P01, P04, P07, P08. For a multi-agent orchestration platform, start with P05, P11, P14.</li>
   <li>Add a test fixture for each pattern to your CI. The fixture is three lines: the attack input, the expected refusal/reframe/redaction, and the assertion.</li>
-  <li>Add a static scanner to your merge gate. <a href="https://github.com/Algoram88/agent-safety-audit-cli/releases">Agent Safety Audit</a> covers the config-time half of the catalog and runs in under 10 seconds.</li>
+  <li>Add a static scanner to your merge gate. <a href="https://github.com/Algoram99">Agent Safety Audit</a> covers the config-time half of the catalog and runs in under 10 seconds.</li>
   <li>Schedule a quarterly prompt and tool review. The audit log (P14) is what makes the review tractable.</li>
   <li>When a new model ships, rerun the test fixtures. The patterns are model-agnostic; the fixtures are not. A model upgrade is a known regression vector.</li>
 </ol>

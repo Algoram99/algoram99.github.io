@@ -140,7 +140,7 @@ git mv src/date-utils.js src/date-utils.cjs
   <p>Update internal <code>require()</code> paths from <code>require('./math')</code> to <code>require('./math.cjs')</code>. The trailing extension is required for ESM imports and is a good hygiene move for CJS as well &mdash; it makes the dependency graph readable in a grep.</p>
 
   <h2 id="step-3">Step 3: Create the new <code>.js</code> files with ESM syntax</h2>
-  <p>For each renamed <code>.cjs</code> file, create a sibling <code>.js</code> with the ESM translation. Here is a real before/after from the <a href="https://github.com/Algoram88/migration-factory-sample-01" rel="noopener">migration-factory-sample-01</a> reference repo &mdash; four modules, 213-line test suite, all parity-verified:</p>
+  <p>For each renamed <code>.cjs</code> file, create a sibling <code>.js</code> with the ESM translation. Here is a real before/after from the <a href="https://github.com/Algoram99" rel="noopener">migration-factory-sample-01</a> reference repo &mdash; four modules, 213-line test suite, all parity-verified:</p>
 
   <h3>3a. <code>math.js</code> &mdash; named exports</h3>
   <p><strong>Before (<code>math.cjs</code>):</strong></p>
@@ -454,7 +454,7 @@ console.log(JSON.stringify(generateInvoice(items), null, 2));
   </ol>
 
   <h2 id="cta">The working reference: <code>migration-factory-sample-01</code></h2>
-  <p>Every code block in this post is taken verbatim from a runnable reference repo: <a href="https://github.com/Algoram88/migration-factory-sample-01" rel="noopener">github.com/Algoram88/migration-factory-sample-01</a>. It contains:</p>
+  <p>Every code block in this post is taken verbatim from a runnable reference repo: <a href="https://github.com/Algoram99" rel="noopener">github.com/Algoram99</a>. It contains:</p>
   <ul>
     <li><code>src-before/</code> &mdash; 4 CommonJS modules (<code>index.cjs</code>, <code>math.cjs</code>, <code>date-utils.cjs</code>, <code>string-utils.cjs</code>)</li>
     <li><code>src-after/</code> &mdash; the same 4 modules, translated to ESM (<code>index.js</code>, <code>math.js</code>, <code>date-utils.js</code>, <code>string-utils.js</code>)</li>
@@ -465,12 +465,12 @@ console.log(JSON.stringify(generateInvoice(items), null, 2));
   <p>Clone it, run <code>npm test</code>, see the 38/38 pass, then <code>cp -r src-before your-old-code</code> and start the migration on your own repo.</p>
 
   <div class="cta">
-    <p><strong>Get the bundle.</strong> The full <code>migration-factory-sample-01</code> reference (4 source modules, 213-line test suite, migration guide, landing page) is packaged as a zip with no dependencies, MIT licensed, and ships with the same 38-test verification gate this post describes. <a href="https://github.com/Algoram88/migration-factory-sample-01/releases" rel="noopener">Download from GitHub Releases</a> or <a href="https://buy.stripe.com/test_00w8wRfEx7ag5id5a173G0g" rel="noopener">buy on Gumroad for $19</a> if you want to support the work and get the packaged zip with a landing page.</p>
+    <p><strong>Get the bundle.</strong> The full <code>migration-factory-sample-01</code> reference (4 source modules, 213-line test suite, migration guide, landing page) is packaged as a zip with no dependencies, MIT licensed, and ships with the same 38-test verification gate this post describes. <a href="https://github.com/Algoram99" rel="noopener">Download from GitHub Releases</a> or <a href="https://buy.stripe.com/test_00w8wRfEx7ag5id5a173G0g" rel="noopener">buy on Gumroad for $19</a> if you want to support the work and get the packaged zip with a landing page.</p>
   </div>
 
   <footer>
     <p>Algoram99 &middot; shipping notes for the AI agent era &middot; <a href="/posts/">all posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Gumroad</a></p>
-    <p>Found a bug in this post? <a href="https://github.com/Algoram88/algoram88.github.io/issues" rel="noopener">Open an issue</a>. Have a real-world CJS&rarr;ESM migration war story? <a href="https://github.com/Algoram88/migration-factory-sample-01/discussions" rel="noopener">Start a discussion</a> &mdash; the reference repo is the right place for it.</p>
+    <p>Found a bug in this post? <a href="https://github.com/Algoram99" rel="noopener">Open an issue</a>. Have a real-world CJS&rarr;ESM migration war story? <a href="https://github.com/Algoram99" rel="noopener">Start a discussion</a> &mdash; the reference repo is the right place for it.</p>
   </footer>
 </main>
 </body>

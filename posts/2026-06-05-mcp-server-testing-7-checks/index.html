@@ -98,7 +98,7 @@ footer { text-align: center; color: var(--muted); margin-top: 3rem; font-size: 0
 
 <h2 id="why-mcp-test">Why MCP servers need their own test stack</h2>
 <p>Most MCP server testing advice in the wild falls into one of two traps. The first is "just unit-test your tool handlers" — useful, but it leaves the protocol, the transport, the error envelope, and the schema surface untested. The model interacts with your server through JSON-RPC; if that contract drifts, no amount of unit-testing your internal logic will catch it. The second trap is "spin up an LLM and run it end-to-end" — slow, expensive, flaky, and useless as a CI gate. The model is the system under test only for evaluation, not for verification.</p>
-<p>A real MCP test stack lives one layer below the model. It speaks raw JSON-RPC, asserts on the protocol contract, treats your server as a black box, and catches the regressions that show up the moment a tool's schema, an error code, or a transport detail changes. The 7 checks below are the ones we run. They map to the <a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> we ship, but every check is small enough to re-implement in your own harness if you prefer.</p>
+<p>A real MCP test stack lives one layer below the model. It speaks raw JSON-RPC, asserts on the protocol contract, treats your server as a black box, and catches the regressions that show up the moment a tool's schema, an error code, or a transport detail changes. The 7 checks below are the ones we run. They map to the <a href="https://github.com/Algoram99">mcp-server-tester-cli</a> we ship, but every check is small enough to re-implement in your own harness if you prefer.</p>
 
 <h2 id="scope">Scope: what these 7 checks cover</h2>
 <ul>
@@ -302,8 +302,8 @@ for (const block of r.result.content) {
 <div class="cta">
 <strong>alg99 ships two open-source tools to make this suite runnable today.</strong>
 <ul style="margin: 0.75rem 0;">
-<li><a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> — a zero-dependency CLI that runs all 7 checks against any MCP server. Includes a drop-in CI gate, a JSON report, and a config file for environment-specific overrides. <strong>Free, MIT, no telemetry.</strong></li>
-<li><a href="https://github.com/Algoram88/mcp-server-starter-kit/releases">mcp-server-starter-kit</a> — a TypeScript starter that passes the 7-check suite out of the box, with a reference OAuth flow, structured logging, idempotency-key middleware, and a distroless Dockerfile. Use it as a template, or read it as a worked example.</li>
+<li><a href="https://github.com/Algoram99">mcp-server-tester-cli</a> — a zero-dependency CLI that runs all 7 checks against any MCP server. Includes a drop-in CI gate, a JSON report, and a config file for environment-specific overrides. <strong>Free, MIT, no telemetry.</strong></li>
+<li><a href="https://github.com/Algoram99">mcp-server-starter-kit</a> — a TypeScript starter that passes the 7-check suite out of the box, with a reference OAuth flow, structured logging, idempotency-key middleware, and a distroless Dockerfile. Use it as a template, or read it as a worked example.</li>
 </ul>
 Both are also available on Stripe for teams that prefer a paid license with a support SLA:
 <ul style="margin: 0.75rem 0;">
@@ -320,7 +320,7 @@ For a one-off test of a server you don't own, we also offer a <a href="https://b
 <li>Wire the 7-check suite into the <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">32-point security audit</a> we published earlier. The two complement each other: the 7-check suite runs on every PR, the security audit runs nightly and on release.</li>
 </ol>
 
-<p>Questions, false positives, or a finding the suite missed? Open an issue on the <a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> repo. The 7-check suite is a living document; the best updates come from people running it in anger.</p>
+<p>Questions, false positives, or a finding the suite missed? Open an issue on the <a href="https://github.com/Algoram99">mcp-server-tester-cli</a> repo. The 7-check suite is a living document; the best updates come from people running it in anger.</p>
 
 <hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
 
@@ -328,7 +328,7 @@ For a one-off test of a server you don't own, we also offer a <a href="https://b
 
 <footer>
 Algoram99 — Developer tools, security CLIs, and AI agent infrastructure.<br>
-<a href="https://algoram99.github.io/">Home</a> · <a href="https://github.com/Algoram88">GitHub</a> · <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">Related: MCP Security Audit Checklist</a>
+<a href="https://algoram99.github.io/">Home</a> · <a href="https://github.com/Algoram99">GitHub</a> · <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">Related: MCP Security Audit Checklist</a>
 </footer>
 
 </body>
