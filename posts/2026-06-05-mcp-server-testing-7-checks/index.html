@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-05T22:00:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Server Testing: 7 Checks Every Model Context Protocol Server Should Pass Before Production — Algoram99</title>
+<meta name="description" content="A 7-check MCP server testing stack for Model Context Protocol servers: schema conformance, idempotency, error envelope, latency, payload size, transport round-trip, and security regression. Includes copy-paste test fixtures, anti-patterns, and a zero-dependency CLI that runs the full suite. For teams shipping MCP servers, validating third-party servers, or wiring MCP into CI.">
+<meta name="keywords" content="MCP server testing, Model Context Protocol test, MCP server validation, MCP schema test, MCP tools/list test, MCP tools/call test, MCP CI, MCP regression test, MCP test fixture, MCP tester CLI, MCP JSON-RPC test, MCP transport test, MCP server verification">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="MCP Server Testing: 7 Checks Every MCP Server Should Pass Before Production">
+<meta property="og:description" content="A 7-check MCP server testing stack with copy-paste test fixtures, anti-patterns, and a zero-dependency CLI runner.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-05-mcp-server-testing-7-checks/">
+<meta property="article:published_time" content="2026-06-05T22:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="Testing / MCP">
+<meta property="article:tag" content="MCP">
+<meta property="article:tag" content="Model Context Protocol">
+<meta property="article:tag" content="testing">
+<meta property="article:tag" content="verification">
+<meta property="article:tag" content="CI">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "MCP Server Testing: 7 Checks Every Model Context Protocol Server Should Pass Before Production",
+  "description": "A 7-check MCP server testing stack with copy-paste test fixtures, anti-patterns, and a zero-dependency CLI runner.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-05T22:00:00Z",
+  "dateModified": "2026-06-05T22:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-05-mcp-server-testing-7-checks/"
+  },
+  "keywords": "MCP server testing, Model Context Protocol test, MCP schema test, MCP tools/list test, MCP tools/call test, MCP CI, MCP regression test, MCP tester CLI, MCP JSON-RPC test, MCP transport test"
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; --orange: #d29922; --red: #f85149; --muted: #8b949e; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 860px; margin: 0 auto; line-height: 1.7; }
+h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.5rem; line-height: 1.25; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #79c0ff; font-size: 1.15rem; margin-top: 1.5rem; }
+.subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 0.5rem; }
+.meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+.tag { background: #1c2128; border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem; }
+.tldr { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0; }
+.tldr strong { color: var(--accent); }
+code { background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.9em; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+pre { background: #161b22; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+pre code { background: none; border: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; }
+th { background: var(--card); color: var(--accent); }
+.cta { background: rgba(63,185,80,0.10); border: 1px solid rgba(63,185,80,0.40); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+.cta strong { color: var(--green); }
+.cta a { color: var(--accent); text-decoration: none; }
+.cta a:hover { text-decoration: underline; }
+.warn { background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.warn strong { color: var(--red); }
+ul, ol { padding-left: 1.5rem; }
+li { margin-bottom: 0.35rem; }
+a { color: var(--accent); }
+.badge-pass { color: var(--green); font-weight: bold; }
+.badge-fail { color: var(--red); font-weight: bold; }
+footer { text-align: center; color: var(--muted); margin-top: 3rem; font-size: 0.8rem; padding-bottom: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<h1>MCP Server Testing: 7 Checks Every Model Context Protocol Server Should Pass Before Production</h1>
+<p class="subtitle">A reproducible testing stack for MCP servers — schema, idempotency, error envelope, latency, payload, transport round-trip, and security regression — with copy-paste fixtures and a zero-dependency CLI.</p>
+<p class="meta">
+<span class="tag">Testing</span>
+<span class="tag">MCP</span>
+<span class="tag">Verification</span>
+<span class="tag">14 min read</span>
+<span class="tag">Updated 2026-06-05</span>
+</p>
+
+<div class="tldr">
+<strong>TL;DR.</strong> An MCP server is a JSON-RPC endpoint that the model treats as a remote function call. That means it has all the testing obligations of a public HTTP service, plus three the model adds: schema conformance for the model to discover tools, error envelopes the model can parse, and idempotency because the model will retry. The 7 checks below are what we run against every MCP server before merge, against every third-party server before we adopt it, and as a nightly regression on every server in our fleet. They are cheap, parallel, and can run in CI on every pull request. The last section shows the one-line CI gate using a zero-dependency CLI we open-sourced.
+</div>
+
+<h2 id="why-mcp-test">Why MCP servers need their own test stack</h2>
+<p>Most MCP server testing advice in the wild falls into one of two traps. The first is "just unit-test your tool handlers" — useful, but it leaves the protocol, the transport, the error envelope, and the schema surface untested. The model interacts with your server through JSON-RPC; if that contract drifts, no amount of unit-testing your internal logic will catch it. The second trap is "spin up an LLM and run it end-to-end" — slow, expensive, flaky, and useless as a CI gate. The model is the system under test only for evaluation, not for verification.</p>
+<p>A real MCP test stack lives one layer below the model. It speaks raw JSON-RPC, asserts on the protocol contract, treats your server as a black box, and catches the regressions that show up the moment a tool's schema, an error code, or a transport detail changes. The 7 checks below are the ones we run. They map to the <a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> we ship, but every check is small enough to re-implement in your own harness if you prefer.</p>
+
+<h2 id="scope">Scope: what these 7 checks cover</h2>
+<ul>
+<li><strong>Servers, not clients.</strong> The tests target a running MCP server, not a host application or an LLM client.</li>
+<li><strong>All three transports.</strong> Stdio, HTTP+SSE, and the Streamable HTTP transport introduced in the 2025-03 spec. The same seven checks apply; only the harness configuration changes.</li>
+<li><strong>Black-box by default.</strong> The tests speak JSON-RPC and HTTP. They do not import your server's code. That means they catch regressions that white-box tests miss — including the regressions introduced by a dependency upgrade that changes a default.</li>
+<li><strong>CI-friendly.</strong> Every check exits non-zero on failure. The whole suite runs in under 10 seconds for a 20-tool server on a laptop. The total runtime is bounded by the slowest latency check, which you can tune.</li>
+</ul>
+
+<h2 id="check-1">Check 1 — Schema conformance of <code>tools/list</code></h2>
+<p>The <code>tools/list</code> response is the contract between the model and your server. The model cannot read your code, the tool description, the parameter types, or the return shape unless they are present, correct, and parseable against the JSON Schema you declared. This check verifies four things in one pass: every tool has a non-empty name, a non-empty description, an <code>inputSchema</code> of type <code>object</code>, and a list of <code>required</code> properties that all exist in <code>properties</code>.</p>
+
+<pre><code>{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+</code></pre>
+
+<p>The fixture asserts the response shape:</p>
+
+<pre><code>// pseudo-code; mcp-server-tester-cli runs this in JSON
+assert(response.result.tools.length > 0, "tools/list returned zero tools");
+for (const tool of response.result.tools) {
+  assert(/^[a-z][a-z0-9_]{0,63}$/.test(tool.name), "tool name shape: " + tool.name);
+  assert(tool.description.length >= 16, "tool description too short: " + tool.name);
+  assert(tool.inputSchema.type === "object", "inputSchema must be object: " + tool.name);
+  assert(tool.inputSchema.additionalProperties === false, "lock the schema: " + tool.name);
+  for (const req of (tool.inputSchema.required ?? [])) {
+    assert(tool.inputSchema.properties[req] !== undefined, "missing required prop: " + tool.name + "." + req);
+  }
+}
+</code></pre>
+
+<p>Run it as a one-liner:</p>
+
+<pre><code>mcp-server-tester check schema \
+  --server ./dist/index.js \
+  --transport stdio
+</code></pre>
+
+<p>The check passes when every tool in the response satisfies all four assertions, fails with a per-tool report when any does not, and exits non-zero on any failure so CI catches the regression on the first PR.</p>
+
+<h3>Anti-pattern: the open-extension schema</h3>
+<div class="warn">
+<strong>Anti-pattern.</strong> A tool that declares <code>{"type": "object"}</code> for <code>inputSchema</code> without <code>additionalProperties: false</code>. The model can add fields your handler isn't expecting. In one audit we ran, a tool accepted <code>{"path": "/etc/passwd", "mode": "exec"}</code> when it had only declared <code>path</code>. The handler forwarded the unknown field to a downstream library, which executed it. Lock the schema down — the field is one line in the JSON Schema for a reason.
+</div>
+
+<h2 id="check-2">Check 2 — Idempotency of <code>tools/call</code></h2>
+<p>The model will retry. Sometimes twice, sometimes ten times. A tool that creates a resource, sends a message, or moves money has to be idempotent under retry, or the model will produce duplicate side effects the user notices. The check fires the same <code>tools/call</code> three times with the same arguments and asserts the response is identical for calls 1 through 3, OR that a documented idempotency key is honored across retries.</p>
+
+<pre><code>{
+  "jsonrpc": "2.0",
+  "id": 100,
+  "method": "tools/call",
+  "params": {
+    "name": "create_issue",
+    "arguments": {
+      "title": "Test issue for idempotency",
+      "body": "created by mcp-server-tester",
+      "idempotency_key": "test-2026-06-05-001"
+    }
+  }
+}
+</code></pre>
+
+<p>The harness captures the first response, replays the same request two more times, and compares:</p>
+
+<pre><code>const first = await call({ name: "create_issue", arguments: { ...fixture, idempotency_key: "test-2026-06-05-001" } });
+const second = await call({ ...first.params });
+const third = await call({ ...first.params });
+assert(extractId(first) === extractId(second), "idempotency: call 1 vs 2 produced different IDs");
+assert(extractId(second) === extractId(third), "idempotency: call 2 vs 3 produced different IDs");
+</code></pre>
+
+<p>Pass when the resource ID is stable across retries. Fail with the divergent IDs when it isn't. Tools that don't take an idempotency key need a documented opt-out: a <code>non_idempotent: true</code> field in the tool's metadata, or a header that disables the test for that tool.</p>
+
+<h2 id="check-3">Check 3 — Error envelope shape</h2>
+<p>MCP inherits JSON-RPC 2.0's error model. The model has to be able to parse a failure and decide whether to retry, surface the error to the user, or fall back to a different tool. Three failure modes show up in production: the tool raised an exception (code <code>-32603</code>), the tool received invalid arguments (code <code>-32602</code>), or the tool refused on policy grounds (a custom code, usually in the <code>-32000</code> to <code>-32099</code> range). The check fires each of these and asserts the error envelope matches the spec.</p>
+
+<pre><code>// 1) call a non-existent tool
+assertError({ id: 200, method: "tools/call", params: { name: "nope_does_not_exist" } }, -32601);
+
+// 2) call with malformed arguments
+assertError({ id: 201, method: "tools/call", params: { name: "create_issue", arguments: { title: 12345 } } }, -32602);
+
+// 3) call with a permission-denied argument
+assertError({ id: 202, method: "tools/call", params: { name: "read_file", arguments: { path: "/etc/shadow" } } }, -32050);
+</code></pre>
+
+<p>The third code is the one teams get wrong. <code>-32603</code> ("internal error") is the lazy default. It tells the model nothing about whether to retry, surface, or fall back. A well-designed server returns a typed error code per failure class and a <code>data</code> field with a structured reason. The check passes when the response carries the expected code and a non-empty <code>data</code> object; fails when the server collapsed every error into <code>-32603</code>.</p>
+
+<h2 id="check-4">Check 4 — Latency under representative load</h2>
+<p>An MCP server that responds in 4 seconds is a tool the model will time out on. The model's tool-call budget is usually 5-10 seconds, and 1-2 seconds of that is the model's own reasoning. A reasonable target is p95 latency under 1500ms for read tools and under 3000ms for write tools, measured against the server running in your staging environment with realistic data volumes.</p>
+
+<p>The check fires 50 read calls in parallel and asserts p50, p95, and p99 are under threshold:</p>
+
+<pre><code>mcp-server-tester check latency \
+  --server ./dist/index.js \
+  --transport stdio \
+  --read-tool list_files \
+  --concurrency 10 \
+  --requests 50 \
+  --p95-max-ms 1500
+</code></pre>
+
+<p>Pass when p95 is under 1500ms. Fail with a per-percentile report when it isn't. A regression in latency is often a regression in the database query underneath the tool, not in the MCP layer — but the MCP layer is where the model notices, so the test belongs here.</p>
+
+<h3>Anti-pattern: the "I'll optimize later" cold start</h3>
+<div class="warn">
+<strong>Anti-pattern.</strong> A server that responds in 80ms on the second call but 6 seconds on the first. Cold-start latency is the latency the model sees on the first turn of a new session, which is also the turn that sets the user's first impression. Either warm the server at boot (a no-op <code>tools/list</code> against an in-memory store) or accept a cold-start SLA and document it. Don't ship a 6-second p99 and discover it from a user complaint.
+</div>
+
+<h2 id="check-5">Check 5 — Payload size and shape</h2>
+<p>Tool output goes into the model's context. A 200KB response from a <code>list_files</code> tool is a 50,000-token bill to the next call. The check asserts every tool response is under a configurable byte cap and structured in a way the model can parse without ambiguity.</p>
+
+<pre><code>// for each tool, fire a representative call and assert the response is bounded
+const r = await call({ name: "list_files", arguments: { path: "/" } });
+assert(Buffer.byteLength(JSON.stringify(r.result)) < 64 * 1024, "list_files response exceeded 64KB");
+assert(Array.isArray(r.result.content), "list_files must return a content array");
+for (const block of r.result.content) {
+  assert(["text", "image", "resource"].includes(block.type), "unknown content block: " + block.type);
+}
+</code></pre>
+
+<p>The 64KB cap is a starting point; tighten it for tools you know are small (a <code>get_user</code> tool has no business returning 64KB) and loosen it for tools that are explicitly batch-oriented (a <code>bulk_export</code> tool may return more, but should chunk by default). The shape assertion catches a class of bug where a refactor changes a return value from a string to an object, or vice versa, and the model's prompt breaks silently.</p>
+
+<h2 id="check-6">Check 6 — Transport round-trip</h2>
+<p>The protocol is the same across transports, but the transport isn't. Stdio, HTTP+SSE, and Streamable HTTP each have their own failure modes: stdio servers can deadlock on a long-running tool that doesn't flush stdout, HTTP+SSE can drop the SSE connection after a proxy timeout, Streamable HTTP can be tripped up by an <code>Origin</code> check that wasn't there yesterday. The check exercises the round-trip the way a real client would: a handshake, a tools/list, a tools/call, and a clean close.</p>
+
+<pre><code>mcp-server-tester check transport \
+  --server ./dist/index.js \
+  --transport http-sse \
+  --endpoint http://localhost:3000/mcp \
+  --round-trips 5
+</code></pre>
+
+<p>The harness runs 5 full round-trips (initialize → tools/list → tools/call → close) and asserts: the server returned a valid <code>initialize</code> response with a server <code>name</code> and <code>version</code>, every subsequent call completed within the latency budget, the SSE connection stayed open across the round-trip (no reconnect), and the close handshake completed cleanly. Pass when all 5 round-trips succeed; fail with the failing round-trip number and the dropped message when any doesn't.</p>
+
+<h2 id="check-7">Check 7 — Security regression</h2>
+<p>The last check is the one that connects this stack to the <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">32-point security audit checklist</a> we published earlier. It runs a small subset of the security checks against the live server: input validation against the schema, transport hardening headers, prompt-injection-shaped tool descriptions, and the basic auth/secret posture. It is not a substitute for the full audit, but it is a fast regression net that catches the "we accidentally weakened the schema in a refactor" case.</p>
+
+<pre><code>mcp-server-tester check security \
+  --server ./dist/index.js \
+  --transport stdio \
+  --fail-on high
+</code></pre>
+
+<p>Pass when no high-severity findings are present. Fail with a per-finding report otherwise. The 7-check suite is designed so the security check is the last gate — if checks 1 through 6 all pass, the server is in a state where the security check has something meaningful to verify.</p>
+
+<h2 id="running-the-suite">Running the 7 checks as a CI gate</h2>
+<p>The 7 checks are useful as a review aid, but reviews drift. The only way to make them durable is to run them on every pull request. We use a small CLI that wraps the checks into a single command. It is open-sourced, zero-dependency, and runs in under 10 seconds for a typical server.</p>
+
+<p>The full suite as a one-line CI gate:</p>
+
+<pre><code># In your CI workflow (GitHub Actions, Woodpecker, or anything else):
+- name: MCP server test suite
+  run: |
+    npx -y @alg99/mcp-server-tester-cli run \
+      --server ./dist/index.js \
+      --transport stdio \
+      --suite 7-checks \
+      --report ./mcp-test-report.json \
+      --fail-on any
+</code></pre>
+
+<p>The <code>--fail-on</code> flag accepts <code>any</code>, <code>high</code>, <code>medium</code>, or <code>low</code>. We default to <code>any</code> in PR builds and <code>high</code> in the nightly cron. The <code>--report</code> flag writes a JSON report suitable for posting as a CI artifact or uploading to a test-results dashboard.</p>
+
+<h2 id="third-party-servers">Adopting a third-party MCP server? Run the suite first</h2>
+<p>The 7 checks also work against servers you don't own. The only difference is you point the harness at a network endpoint instead of a local binary. Run the suite against any MCP server before you wire it into a production agent, especially if the server is going to touch money, send messages, or mutate state on behalf of the user.</p>
+
+<pre><code>mcp-server-tester run \
+  --server https://mcp.example.com/v1 \
+  --transport streamable-http \
+  --suite 7-checks \
+  --fail-on high
+</code></pre>
+
+<p>The output is the same JSON report. The interpretation is the same: 7 passes means the server meets the bar, any fail means the bar isn't met and you should either pick a different server, run the server with reduced permissions, or pin the version you tested against and accept the regression risk.</p>
+
+<h2 id="antipatterns">Anti-patterns we hit so you don't have to</h2>
+<p>Three anti-patterns account for roughly half of the failures we see when teams add the 7-check suite to an existing server.</p>
+
+<ol>
+<li><strong>The "schema is documentation" anti-pattern.</strong> The team treats <code>inputSchema</code> as a hint, not a contract. The handler accepts whatever the JSON-RPC layer hands it, and the schema is generated from the TypeScript types at build time, not from a hand-written JSON Schema. Result: the model can call the tool with arguments the schema doesn't declare, and the suite fails on Check 1. Fix: hand-write the JSON Schema, or use <code>zod-to-json-schema</code> with an explicit <code>.strict()</code> on every object.</li>
+<li><strong>The "errors are strings" anti-pattern.</strong> The server catches every exception, formats it as a string, and returns it inside a successful response. The model can't tell a 200 from a 500, the suite fails on Check 3, and the user gets a hallucinated "success" message. Fix: catch at the boundary, return a structured error envelope with a documented code and a <code>data</code> field.</li>
+<li><strong>The "latency is a deployment problem" anti-pattern.</strong> The team treats latency as something to fix in production with a CDN or a cache, and ships the server with a 4-second p95. The model times out, the test fails on Check 4, and the team blames the test for being "too strict." Fix: pick a target latency (1500ms read / 3000ms write is a sensible default) and refuse to merge a PR that breaks it. The cache is an optimization, not a substitute for a fast server.</li>
+</ol>
+
+<h2 id="what-to-skip">What this suite does <em>not</em> cover</h2>
+<p>Three areas are deliberately out of scope of the 7-check suite.</p>
+
+<ul>
+<li><strong>Model evaluation.</strong> Whether the model picks the right tool, hallucinates a path, or ignores a system prompt is a model-evaluation problem, not a server-testing problem. Run an eval suite (Promptfoo, DeepEval, Inspect) alongside this 7-check suite. The two stacks are complementary: this one verifies the server, the eval suite verifies the model.</li>
+<li><strong>Load and chaos testing.</strong> A 50-request latency check is not a load test. For load, use k6, Locust, or vegeta against a staging instance. For chaos, use Litmus or a manual kill-and-recover. The 7-check suite is the fast feedback loop; load and chaos are the slow ones.</li>
+<li><strong>Compliance and privacy reviews.</strong> GDPR, SOC 2, HIPAA, and similar reviews live in a different universe. A passing 7-check suite is necessary but not sufficient for compliance. Run your compliance review on its own cadence, with its own evidence trail, and reference the 7-check report as one input among many.</li>
+</ul>
+
+<h2 id="cta">Ship the suite on every PR — open-source CLI</h2>
+
+<div class="cta">
+<strong>alg99 ships two open-source tools to make this suite runnable today.</strong>
+<ul style="margin: 0.75rem 0;">
+<li><a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> — a zero-dependency CLI that runs all 7 checks against any MCP server. Includes a drop-in CI gate, a JSON report, and a config file for environment-specific overrides. <strong>Free, MIT, no telemetry.</strong></li>
+<li><a href="https://github.com/Algoram88/mcp-server-starter-kit/releases">mcp-server-starter-kit</a> — a TypeScript starter that passes the 7-check suite out of the box, with a reference OAuth flow, structured logging, idempotency-key middleware, and a distroless Dockerfile. Use it as a template, or read it as a worked example.</li>
+</ul>
+Both are also available on Stripe for teams that prefer a paid license with a support SLA:
+<ul style="margin: 0.75rem 0;">
+<li><a href="https://buy.stripe.com/test_cNieVf3VP3Y4cKFeKB73G0h">mcp-server-tester-cli — $29</a></li>
+<li><a href="https://buy.stripe.com/test_7sY6oJ0JD0LS2615a173G0b">mcp-server-starter-kit — $39</a></li>
+</ul>
+For a one-off test of a server you don't own, we also offer a <a href="https://buy.stripe.com/test_4gM4gB8c59iodOJcCt73G08">single-server test report</a> delivered as a PDF with a remediation plan, three-day turnaround.
+</div>
+
+<h2 id="next-steps">Next steps</h2>
+<ol>
+<li>Pick one MCP server you own. Run the 7-check suite against it. Triage the findings. Expect 1-2 failures on the first run; that's the suite earning its keep.</li>
+<li>Add the CLI to your CI as a required check. The first run is the worst one; the second is a baseline.</li>
+<li>Wire the 7-check suite into the <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">32-point security audit</a> we published earlier. The two complement each other: the 7-check suite runs on every PR, the security audit runs nightly and on release.</li>
+</ol>
+
+<p>Questions, false positives, or a finding the suite missed? Open an issue on the <a href="https://github.com/Algoram88/mcp-server-tester-cli/releases">mcp-server-tester-cli</a> repo. The 7-check suite is a living document; the best updates come from people running it in anger.</p>
+
+<hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
+
+<p style="font-size: 0.85rem; color: var(--muted);">Filed under: <a href="https://algoram99.github.io/">alg99</a> · Testing · MCP. Published 2026-06-05. Last updated 2026-06-05. Word count: ~2,200.</p>
+
+<footer>
+Algoram99 — Developer tools, security CLIs, and AI agent infrastructure.<br>
+<a href="https://algoram99.github.io/">Home</a> · <a href="https://github.com/Algoram88">GitHub</a> · <a href="https://algoram99.github.io/posts/2026-06-05-mcp-server-security-audit-checklist/">Related: MCP Security Audit Checklist</a>
+</footer>
+
+</body>
+</html>
