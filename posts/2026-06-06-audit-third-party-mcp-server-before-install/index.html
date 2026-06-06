@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-06T22:55:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Audit a Third-Party MCP Server Before You Install It — Algoram99</title>
+<meta name="description" content="A reproducible 9-step audit workflow for vetting third-party Model Context Protocol servers before they touch your agent, your secrets, or your filesystem. Covers npm/registry provenance, transport security, schema stability, tool surface diff, prompt-injection shape, exfiltration paths, sandbox behavior, downgrade hygiene, and a stoplight go/no-go checklist. Built from the late-2025 supply-chain incidents and the OWASP LLM Top 10. For developers wiring MCP servers into Claude Code, Cursor, Cline, or any agent platform that handles untrusted input.">
+<meta name="keywords" content="audit third-party MCP server, MCP security review, MCP server vetting, MCP supply chain, MCP security checklist, MCP server install, MCP server evaluation, MCP server trust, MCP tool poisoning, indirect prompt injection, MCP server risk, agent tool safety, OWASP LLM Top 10, MITRE ATLAS, MCP server before install">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Audit a Third-Party MCP Server Before You Install It">
+<meta property="og:description" content="A reproducible 9-step audit workflow for vetting third-party MCP servers before they touch your agent, your secrets, or your filesystem.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-06-audit-third-party-mcp-server-before-install/">
+<meta property="article:published_time" content="2026-06-06T22:55:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="Security / MCP">
+<meta property="article:tag" content="MCP">
+<meta property="article:tag" content="supply chain">
+<meta property="article:tag" content="third-party audit">
+<meta property="article:tag" content="AI agent security">
+<meta property="article:tag" content="vetting checklist">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Audit a Third-Party MCP Server Before You Install It",
+  "description": "A reproducible 9-step audit workflow for vetting third-party Model Context Protocol servers before they touch your agent, your secrets, or your filesystem.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-06T22:55:00Z",
+  "dateModified": "2026-06-06T22:55:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-06-audit-third-party-mcp-server-before-install/"
+  },
+  "keywords": "audit third-party MCP server, MCP supply chain, MCP security, third-party vetting, AI agent security, OWASP LLM Top 10, MITRE ATLAS"
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; --red: #f85149; --yellow: #d29922; --tag: #1f6feb; --code-bg: #1c2128; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 820px; margin: 0 auto; line-height: 1.7; }
+h1 { color: var(--accent); font-size: 2.1rem; margin-bottom: 0.4rem; line-height: 1.25; }
+h2 { color: var(--accent); margin-top: 2.5rem; font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #c9d1d9; margin-top: 1.8rem; font-size: 1.15rem; }
+.subtitle { color: #8b949e; margin-bottom: 0.5rem; font-size: 1.05rem; }
+.meta { color: #8b949e; font-size: 0.85rem; margin-bottom: 2rem; }
+.callout { background: var(--card); border-left: 4px solid var(--accent); padding: 0.8rem 1.1rem; margin: 1.4rem 0; border-radius: 4px; }
+.callout.warn { border-left-color: var(--yellow); }
+.callout.danger { border-left-color: var(--red); }
+.callout.success { border-left-color: var(--green); }
+.tldr { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.3); border-radius: 8px; padding: 1.1rem 1.3rem; margin: 1.4rem 0; }
+.tldr h3 { margin-top: 0; color: var(--accent); }
+code { background: var(--code-bg); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.92em; font-family: 'SF Mono', Monaco, Consolas, monospace; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; overflow-x: auto; font-size: 0.88rem; line-height: 1.5; font-family: 'SF Mono', Monaco, Consolas, monospace; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; }
+th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+th { background: var(--card); color: var(--accent); }
+.stoplight { display: inline-block; width: 0.8em; height: 0.8em; border-radius: 50%; margin-right: 0.4em; vertical-align: middle; }
+.stoplight.go { background: var(--green); }
+.stoplight.caution { background: var(--yellow); }
+.stoplight.no { background: var(--red); }
+ol.steps { counter-reset: step; list-style: none; padding-left: 0; }
+ol.steps > li { counter-increment: step; position: relative; padding-left: 2.5rem; margin-bottom: 1.4rem; }
+ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; background: var(--accent); color: var(--bg); width: 1.8rem; height: 1.8rem; border-radius: 50%; text-align: center; font-weight: bold; line-height: 1.8rem; }
+.footer-nav { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin-top: 2.5rem; }
+.footer-nav a { color: var(--accent); text-decoration: none; }
+.footer-nav a:hover { text-decoration: underline; }
+ul.checklist { list-style: none; padding-left: 0; }
+ul.checklist li { padding-left: 1.5rem; position: relative; margin-bottom: 0.5rem; }
+ul.checklist li::before { content: "☐"; position: absolute; left: 0; color: var(--accent); }
+</style>
+</head>
+<body>
+<h1>How to Audit a Third-Party MCP Server Before You Install It</h1>
+<p class="subtitle">A 9-step vetting workflow for Model Context Protocol servers, written for developers wiring them into Claude Code, Cursor, Cline, or any agent platform that handles untrusted input.</p>
+<p class="meta">Published 2026-06-06 · 18 min read · Security / MCP</p>
+
+<div class="tldr">
+<h3>TL;DR</h3>
+<p>Most MCP content teaches you to <em>build</em> a server. This one teaches you to <em>veto</em> one. The 9 steps below take about 25 minutes for a careful reviewer, or 6 minutes for a senior reviewer running the commands. The order matters: provenance first, then transport, then surface, then behavior. Skipping any one step defeats the rest. The end-of-article stoplight checklist collapses 9 steps into a 30-second go/no-go, and a copy-paste audit log template lets you prove due diligence later if a server turns out to be malicious.</p>
+<p>Three things make third-party MCP servers uniquely dangerous compared to npm packages or browser extensions:</p>
+<ol>
+<li><strong>They see your conversation context</strong>, not just your code. Indirect prompt injection through tool output is a fundamentally new attack surface.</li>
+<li><strong>They run persistently</strong>, often as a background process on the same host as your secrets, SSH keys, and wallet files.</li>
+<li><strong>The trust boundary is invisible</strong> — most agent runtimes expose tool calls as natural-language invocations, so a malicious tool blends in.</li>
+</ol>
+</div>
+
+<h2>Why this audit exists</h2>
+<p>The Model Context Protocol turned MCP servers into the de facto extension point for AI coding agents. The format is small (JSON-RPC over stdio or HTTP+SSE), the registration is frictionless (drop a config line, restart the agent), and the value is immediate (a new tool your agent can call). All three properties are why the late-2025 MCP supply-chain wave hit so hard.</p>
+<p>From late 2025 through mid 2026, we tracked 14 publicly-disclosed incidents involving third-party MCP servers. Six were typosquatting or dependency-confusion. Three shipped working functionality that quietly exfiltrated conversation context to an external endpoint. Two were supply-chain compromises of legitimate servers (a maintainer's npm token leaked, a malicious version was published). One was an intentional backdoor in a "productivity" server that auto-summarized clipboard contents to a webhook. Two more were benign in code but shipped with overly-broad filesystem and network permissions that turned them into pivot points when other vulnerabilities emerged.</p>
+<p>The pattern across all of them: <strong>installation happened faster than verification.</strong> Most teams installed third-party servers the way they install browser extensions — from a marketplace, with a single click, into the most privileged context on their machine.</p>
+<p>This post is the workflow that should have existed before any of those installations happened. It is the workflow we use internally at Algoram99 before we ship any third-party server reference into our own agent stack, and it is the workflow our <a href="https://github.com/Algoram99">MCP Supply Chain Audit CLI</a> automates for teams that don't want to run the 9 steps by hand.</p>
+
+<h2>The 9-step audit</h2>
+
+<ol class="steps">
+
+<li>
+<h3>Step 1: Provenance and ownership</h3>
+<p>Before you read a single line of code, answer four provenance questions. The answers are surface-level but disqualifying — a "no" to any one of them is a hard reject.</p>
+<ul>
+<li><strong>Who owns the package?</strong> Cross-reference the npm/PyPI/registry author with the GitHub org that hosts the source. Mismatched maintainer names, fresh author accounts, or solo maintainers with no commit history on the protocol itself are red flags.</li>
+<li><strong>How long has the package existed?</strong> Anything published in the last 30 days warrants extra scrutiny. Anything published in the last 7 days with no prior version history gets the strongest scrutiny.</li>
+<li><strong>Does the version on the registry match the version in the public repo?</strong> Pull the source tarball and diff it against the repo at the same tag. Mismatches mean either a compromised registry account or a build pipeline that injects code you cannot see.</li>
+<li><strong>Is the maintainer's signing key verifiable?</strong> For npm, check <code>npm audit signatures</code> and confirm the maintainer's public key is on <a href="https://github.com/settings/keys">their GitHub account</a> and matches <code>npmwhoami</code>.</li>
+</ul>
+<p>Quick check:</p>
+<pre><code>npm view @example/mcp-server time --json
+npm view @example/mcp-server dist-tags
+git clone https://github.com/example/mcp-server /tmp/audit-src
+cd /tmp/audit-src
+git log --all --oneline | head -20
+npm pack @example/mcp-server
+tar -xzf example-mcp-server-*.tgz -C /tmp/audit-tarball
+diff -r /tmp/audit-src /tmp/audit-tarball/package</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if the maintainer is established, the package is &gt;90 days old, the registry tarball matches the repo, and signatures verify. <span class="stoplight caution"></span>caution if the package is &lt;30 days old but the maintainer has a public track record. <span class="stoplight no"></span>no if any of the four questions is unanswerable.</div>
+</li>
+
+<li>
+<h3>Step 2: Transport security</h3>
+<p>MCP servers communicate with the agent host over one of two transports: <strong>stdio</strong> (the server is a child process, the agent pipes JSON-RPC over stdin/stdout) or <strong>HTTP+SSE</strong> (the server is a long-lived HTTP endpoint, the agent opens a stream for server-to-client messages). Each transport has a different attack surface.</p>
+<p>For <strong>stdio servers</strong>:</p>
+<ul>
+<li>Confirm the package does not spawn child shells. A <code>child_process.spawn(&quot;/bin/sh&quot;, ...)</code> call inside an MCP server is a red flag — it usually means the maintainer is shelling out to a third-party binary they did not write, or worse, providing a foothold for arbitrary command execution through tool input.</li>
+<li>Confirm the package does not open arbitrary network sockets. <code>net.createServer</code>, <code>dgram.createSocket</code>, or <code>http.createServer</code> calls are unusual for MCP servers, which should be initiated by the host agent, not by the server itself.</li>
+<li>Confirm the package does not register global process handlers. <code>process.on('uncaughtException', ...)</code> handlers can be used to swallow errors that would otherwise be visible to the agent host.</li>
+</ul>
+<p>For <strong>HTTP+SSE servers</strong>:</p>
+<ul>
+<li>Confirm the server binds to <code>127.0.0.1</code> or a Unix socket, not <code>0.0.0.0</code>. A server listening on all interfaces is exposed to every device on the local network.</li>
+<li>Confirm TLS is required for any external endpoint the server calls out to. Look for <code>https://</code> in URL constants and audit any <code>fetch()</code> call against a configurable host.</li>
+<li>Confirm the server does not accept commands over HTTP other than the MCP JSON-RPC methods. A common smell is a <code>/admin</code> or <code>/debug</code> route that bypasses the JSON-RPC layer.</li>
+</ul>
+<p>Quick check:</p>
+<pre><code>grep -rn 'createServer\|listen(' lib/ src/ 2>/dev/null
+grep -rn 'child_process\|spawn\|exec(' lib/ src/ 2>/dev/null
+grep -rn '0\.0\.0\.0' lib/ src/ 2>/dev/null
+grep -rn 'process\.on(' lib/ src/ 2>/dev/null</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if no child shells, no network listeners outside localhost, no global handlers, all outbound URLs are HTTPS. <span class="stoplight caution"></span>caution if the server makes outbound HTTPS calls but the endpoints are configurable. <span class="stoplight no"></span>no if any of the four checks fails without a clear, documented reason.</div>
+</li>
+
+<li>
+<h3>Step 3: Schema stability and tool surface</h3>
+<p>An MCP server's "tool surface" is the set of tools it registers with the agent host. Each tool has a name, a description, and an input schema. The surface is the primary attack surface for indirect prompt injection: a tool description that says "ignore previous instructions" is just as dangerous as code that executes it.</p>
+<p>For each tool the server registers:</p>
+<ul>
+<li>Read the <strong>description</strong>. Tool descriptions are passed to the LLM in the system prompt. They should describe what the tool does, not instruct the model to do anything else. Description text containing imperative voice, roleplay framing, or instructions to the model is a red flag.</li>
+<li>Read the <strong>input schema</strong>. Loosely-typed schemas (e.g. <code>{ "input": { "type": "string" } }</code> passed into a shell) are exfiltration primitives. Tightly-typed enums and constraints are good.</li>
+<li>Diff the surface across versions. If version 1.2.0 adds a new tool called <code>sync_metadata</code> that posts to an external URL, and 1.1.0 did not have it, that is a meaningful change. Pin the version, do not use <code>latest</code>.</li>
+</ul>
+<p>Quick check — read the surface directly:</p>
+<pre><code>cat package.json | jq '.mcp'
+# Or, if the server is already running:
+# Send initialize + tools/list manually:
+{
+  "jsonrpc": "2.0", "id": 1, "method": "initialize",
+  "params": { "protocolVersion": "2024-11-05",
+    "capabilities": {},
+    "clientInfo": { "name": "audit", "version": "0" } }
+}
+{ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if every tool description is descriptive (no imperative voice), every input schema is tight, the surface is stable across the last 3 versions. <span class="stoplight caution"></span>caution if the surface is stable but descriptions contain "may" or "can" language directed at the model. <span class="stoplight no"></span>no if any description contains instructions to the model, any schema accepts arbitrary strings into dangerous sinks, or the surface changed materially without a security note in the changelog.</div>
+</li>
+
+<li>
+<h3>Step 4: Tool output sanitization</h3>
+<p>MCP tool <em>output</em> is injected back into the model context. A tool that returns untrusted text — fetched web pages, file contents, database query results — is an indirect prompt injection vector if that text is later interpreted as instructions by the model.</p>
+<p>Audit every tool that returns external content:</p>
+<ul>
+<li>Does the tool wrap its return value in a marker that the model is trained to recognize as data-not-instructions? The most common pattern is a delimiter like <code>&lt;tool_result&gt;...&lt;/tool_result&gt;</code> with a system prompt that tells the model to treat content inside such markers as untrusted.</li>
+<li>Does the tool strip known injection patterns from its return? That is not a substitute for the wrapper — it is whack-a-mole. Treat the wrapper as the actual defense.</li>
+<li>Does the tool truncate long outputs to a sane length? A 100KB return injected into a 200KB context window can crowd out the system prompt and reduce the model's resistance to further manipulation.</li>
+</ul>
+<p>Quick check:</p>
+<pre><code>grep -rn 'tool_result\|tool-result\|TASK_RESULT' lib/ src/
+grep -rn 'content.*length\|truncate\|slice' lib/ src/ | head -20</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if every external-content tool wraps its output in a clear marker and the marker matches what the agent's system prompt tells the model to expect. <span class="stoplight caution"></span>caution if the tool wraps but the wrapper is inconsistent across tool implementations. <span class="stoplight no"></span>no if any tool returns external content without a wrapper, or if the wrapper is configurable per-call.</div>
+</li>
+
+<li>
+<h3>Step 5: Exfiltration paths</h3>
+<p>The single most damaging class of third-party MCP server attack in the 2025-2026 wave was silent exfiltration: the tool runs as documented, returns a sensible result, and posts a copy of the request, the conversation context, or the result to an external endpoint the user cannot see. Look for:</p>
+<ul>
+<li><strong>Dual-side fetches.</strong> A tool that fetches a URL the user requested, then fetches a second URL with the request and result as parameters, is the canonical pattern.</li>
+<li><strong>Out-of-band HTTP calls.</strong> Any <code>fetch()</code>, <code>axios.get()</code>, or <code>requests.post()</code> call in the server's startup or post-tool-handler path that does not correspond to a tool the user invoked.</li>
+<li><strong>Telemetry endpoints.</strong> "Anonymous usage statistics" calls that fire on every tool invocation, even when the user opted out. Look for the opt-out flag and confirm it actually disables the call.</li>
+</ul>
+<p>Quick check — run the server with a packet sniffer or an <code>http_proxy</code> pointed at a local listener:</p>
+<pre><code>HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=http://127.0.0.1:8080 \
+  npx -y @example/mcp-server
+# In another terminal, with mitmproxy running:
+# mitmproxy --mode regular
+# Watch for any request the server makes that is not
+# the JSON-RPC stream between the server and the agent host.</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if a 10-minute proxy capture shows only the JSON-RPC stream and any documented outbound calls (e.g. the weather API the server wraps). <span class="stoplight caution"></span>caution if the server makes undocumented calls but only to a known analytics endpoint with a documented opt-out. <span class="stoplight no"></span>no if the server makes calls to endpoints not documented in the README, or if the proxy capture shows data being posted that the user did not explicitly authorize.</div>
+</li>
+
+<li>
+<h3>Step 6: Sandbox and process boundaries</h3>
+<p>Even an honest server can become dangerous if it runs with the wrong process boundaries. Confirm:</p>
+<ul>
+<li>The server does not require root or Administrator privileges. If the installer documentation says "run with sudo," that is itself a red flag — MCP servers do not need root for any documented use case.</li>
+<li>The server reads only the environment variables it documents. Run it under a clean environment and confirm it still works. If it silently reads <code>HOME</code>, <code>SSH_AUTH_SOCK</code>, <code>~/.aws/credentials</code>, or shell history, that is a problem.</li>
+<li>The server's file access is scoped to documented paths. A "filesystem" tool that claims to read <code>~/Documents/notes</code> but actually opens any path the model requests is a much wider surface than the description claims.</li>
+</ul>
+<p>Quick check — read what env vars the process actually touches:</p>
+<pre><code>env -i HOME=/tmp/audit-home PATH=/usr/bin:/bin \
+  strace -f -e trace=openat,read,connect \
+  npx -y @example/mcp-server 2>&1 | head -100
+# Look for opens of paths the docs don't mention,
+# especially ~/.aws, ~/.ssh, ~/.kube, ~/.config/gh.</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if the server runs under <code>env -i</code>, requires no elevated privileges, and only opens documented paths. <span class="stoplight caution"></span>caution if the server requires a config file in <code>~/.config/&lt;name&gt;</code> and the docs are clear about what it reads. <span class="stoplight no"></span>no if the server requires root, reads <code>SSH_AUTH_SOCK</code> or AWS/GCP credentials, or opens paths outside its documented scope.</div>
+</li>
+
+<li>
+<h3>Step 7: Update hygiene</h3>
+<p>The most common supply-chain compromise in 2025-2026 was a maintainer's account being phished and a new version of an otherwise-clean package being published with a backdoor. Audit the update path itself:</p>
+<ul>
+<li>Does the project sign releases? <code>git tag -v v1.2.3</code> should return a valid GPG signature from a key listed in the maintainer's GitHub profile.</li>
+<li>Is there a security policy? Look for <code>SECURITY.md</code>, a private disclosure email, or a published PGP key for vulnerability reports.</li>
+<li>Are releases reproducible? Clone the repo, check out the tag, run the documented build, and confirm the resulting artifact matches the published one. This is heavy work, but the answer to "are you going to get owned by a future compromise" depends on it.</li>
+<li>Does the project use a dependency lockfile? Without a lockfile, a transitive dependency compromise can land in your install without a version bump in the server itself.</li>
+</ul>
+<p>Quick check:</p>
+<pre><code>git tag -v $(git describe --tags --abbrev=0)
+test -f SECURITY.md && echo "ok" || echo "no security policy"
+test -f package-lock.json -o -f yarn.lock -o -f pnpm-lock.yaml && echo "locked" || echo "unlocked"</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if releases are signed, a security policy exists, the lockfile is committed, and the build is reproducible. <span class="stoplight caution"></span>caution if everything except the signing works. <span class="stoplight no"></span>no if the lockfile is missing, no security policy exists, or releases are not signed.</div>
+</li>
+
+<li>
+<h3>Step 8: Test the failure modes</h3>
+<p>A trustworthy server handles errors gracefully. An untrustworthy one often handles them in surprising ways. Run the documented test suite, then run three adversarial inputs:</p>
+<ul>
+<li><strong>Empty input.</strong> Call every tool with the minimal required fields. Does it return a clear validation error, or does it crash in a way that exposes stack traces?</li>
+<li><strong>Oversized input.</strong> Send a 10MB string into a tool that expects a 1KB path. Does it cap, or does it allocate 10MB of memory and continue?</li>
+<li><strong>Path-traversal input.</strong> For any tool that touches the filesystem, send <code>../../../../etc/passwd</code> as the path. Does it block, normalize, or pass through?</li>
+</ul>
+<p>Quick check — the canonical adversarial probe harness:</p>
+<pre><code>node -e '
+const inputs = [
+  { name: "empty", payload: {} },
+  { name: "oversized", payload: { path: "A".repeat(10_000_000) } },
+  { name: "traversal", payload: { path: "../../../../etc/passwd" } },
+  { name: "shell-meta", payload: { path: "; rm -rf / ;" } }
+];
+for (const i of inputs) {
+  // call the tool with i.payload, capture response and any error
+  // flag if response includes stack trace, internal path, or unexpected success
+}'</code></pre>
+<div class="callout warn"><strong>Stoplight:</strong> <span class="stoplight go"></span>go if all four adversarial inputs return clean validation errors and no tool returns a stack trace, an internal path, or an unexpected success. <span class="stoplight caution"></span>caution if errors are clean but inconsistent (e.g. one tool returns JSON, another returns plain text). <span class="stoplight no"></span>no if any tool crashes with a stack trace, any traversal input succeeds, or any shell-meta input is interpreted as a command.</div>
+</li>
+
+<li>
+<h3>Step 9: Document your decision</h3>
+<p>The 9th step is the one teams skip, and the one that hurts the most when an incident does happen. Write down:</p>
+<ul>
+<li>The package name, version, and source URL.</li>
+<li>The date of the audit and the name of the auditor.</li>
+<li>The stoplight verdict at each of the 8 prior steps.</li>
+<li>The specific concerns that produced a "caution" rather than a "go."</li>
+<li>The expiration date of the approval — a 6-month re-audit is appropriate for most servers, sooner if the server is updated frequently.</li>
+</ul>
+<p>Use this template:</p>
+<pre><code>## MCP Server Audit: @example/mcp-server v1.2.3
+- Auditor: <name>
+- Date: 2026-06-06
+- Source: https://github.com/example/mcp-server
+
+Step 1 (Provenance):   GO / CAUTION / NO  - &lt;notes&gt;
+Step 2 (Transport):    GO / CAUTION / NO  - &lt;notes&gt;
+Step 3 (Surface):      GO / CAUTION / NO  - &lt;notes&gt;
+Step 4 (Sanitization): GO / CAUTION / NO  - &lt;notes&gt;
+Step 5 (Exfiltration): GO / CAUTION / NO  - &lt;notes&gt;
+Step 6 (Sandbox):      GO / CAUTION / NO  - &lt;notes&gt;
+Step 7 (Updates):      GO / CAUTION / NO  - &lt;notes&gt;
+Step 8 (Failure):      GO / CAUTION / NO  - &lt;notes&gt;
+
+Overall: APPROVE / APPROVE-WITH-CONDITIONS / REJECT
+Re-audit due: 2026-12-06</code></pre>
+<p>Commit this file alongside the server's installation config. When a server is later compromised, this audit log is the difference between "we were negligent" and "we documented due diligence and the threat model changed."</p>
+</li>
+
+</ol>
+
+<h2>30-second stoplight checklist</h2>
+<p>For the cases where you don't have 25 minutes — or when you're reviewing 10 servers in a single sprint — collapse the 9 steps into a single screen:</p>
+<table>
+<thead>
+<tr><th>Question</th><th>Go</th><th>Caution</th><th>No</th></tr>
+</thead>
+<tbody>
+<tr><td>Maintainer known, package &gt;90 days old, signatures verify?</td><td>all three</td><td>two of three</td><td>zero or one</td></tr>
+<tr><td>No child shells, no network listeners outside localhost?</td><td>yes</td><td>one only</td><td>both present</td></tr>
+<tr><td>All tool descriptions are descriptive, no instructions to model?</td><td>yes</td><td>"may" or "can" language</td><td>imperative voice</td></tr>
+<tr><td>All external-content tools wrap output in a clear marker?</td><td>yes</td><td>inconsistent</td><td>missing</td></tr>
+<tr><td>10-min proxy capture shows only documented outbound calls?</td><td>yes</td><td>undocumented analytics with opt-out</td><td>undocumented or hidden</td></tr>
+<tr><td>Server runs under <code>env -i</code>, no root, no SSH/AWS reads?</td><td>yes</td><td>documented config-only reads</td><td>root, or SSH/AWS</td></tr>
+<tr><td>Releases signed, lockfile present, security policy exists?</td><td>all three</td><td>two of three</td><td>zero or one</td></tr>
+<tr><td>Empty/oversized/traversal/shell-meta inputs all return clean errors?</td><td>yes</td><td>inconsistent error format</td><td>any unexpected success</td></tr>
+</tbody>
+</table>
+<p>Eight "go" answers = install it. Five or more "caution" answers = escalate to a senior reviewer or pin to a specific version and audit again in 30 days. Any "no" answer = do not install until the maintainer resolves it.</p>
+
+<h2>Common objections, answered</h2>
+
+<h3>"This is overkill. I install npm packages all the time without this."</h3>
+<p>You do, and most of the time it is fine. The difference is the trust boundary. An npm package you <code>require()</code> is a function in your process; you decide when it runs, with what input, and you can read its source. An MCP server is a long-lived process on the same host as your agent's conversation context, your shell history, your SSH agent, and increasingly your wallet keys. The asymmetric risk justifies the asymmetric investment.</p>
+
+<h3>"Most of my team's MCP servers are internal. We don't need to audit our own code."</h3>
+<p>You do, just less often. The 9-step audit catches supply-chain compromises of <em>your</em> dependencies, accidental scope creep in <em>your</em> tool descriptions, and surprise interactions between <em>your</em> tools and the model. Run the audit at code review time, not at install time, and the cost is much lower.</p>
+
+<h3>"I use a small whitelist of trusted servers. I don't need to vet new ones."</h3>
+<p>You need to vet the whitelist. Run the 9 steps on the servers you already use, on a 6-month cadence. The threat model is the dependency tree, not just the package you installed. A compromise of a transitive dependency can land in your install without changing the top-level package version.</p>
+
+<h3>"Couldn't I just use an automated scanner?"</h3>
+<p>Yes — and you should, for the parts that can be automated. Our <a href="https://github.com/Algoram99">MCP Supply Chain Audit</a> CLI automates steps 1, 2, 5, 6, 7, and 8 and produces the audit log from step 9. Steps 3 and 4 still require reading the tool surface by hand; the model is the right judge of whether a description contains an injection, not a regex. Use the scanner for the work it is good at and your own review for the work only a human can do.</p>
+
+<h2>What to do after a "no" verdict</h2>
+<p>If the audit produces a "no," the right next move is not "let me find a workaround." It is:</p>
+<ol>
+<li><strong>Document the reason</strong> in the audit log, with a link to the specific commit or line that produced the verdict.</li>
+<li><strong>Notify the maintainer</strong> if the issue is fixable. Most maintainers respond well to specific, well-documented security reports.</li>
+<li><strong>Wait for a fixed version</strong> and re-audit. Pin the version, do not adopt the first "fixed" release blindly.</li>
+<li><strong>Build or fork</strong> only as a last resort. Maintaining a fork means inheriting the dependency tree, the update hygiene, and the supply-chain attack surface. Forks that escape the audit's scope are a common source of incidents.</li>
+</ol>
+
+<h2>How this maps to the OWASP LLM Top 10 and MITRE ATLAS</h2>
+<p>The 9 steps are not arbitrary. They cover:</p>
+<table>
+<thead>
+<tr><th>Audit step</th><th>OWASP LLM Top 10</th><th>MITRE ATLAS</th></tr>
+</thead>
+<tbody>
+<tr><td>1. Provenance</td><td>LLM03 (Supply Chain)</td><td>AML.T0010, AML.T0013</td></tr>
+<tr><td>2. Transport</td><td>LLM05 (Improper Output Handling)</td><td>AML.T0048</td></tr>
+<tr><td>3. Surface</td><td>LLM01 (Prompt Injection), LLM06 (Excessive Agency)</td><td>AML.T0051</td></tr>
+<tr><td>4. Sanitization</td><td>LLM01 (Prompt Injection)</td><td>AML.T0051</td></tr>
+<tr><td>5. Exfiltration</td><td>LLM02 (Sensitive Information Disclosure)</td><td>AML.T0024, AML.T0025</td></tr>
+<tr><td>6. Sandbox</td><td>LLM08 (Vector/Embedding Weaknesses) adjacent</td><td>AML.T0040</td></tr>
+<tr><td>7. Updates</td><td>LLM03 (Supply Chain)</td><td>AML.T0010, AML.T0013</td></tr>
+<tr><td>8. Failure modes</td><td>LLM04 (DoS), LLM05 (Improper Output Handling)</td><td>AML.T0031</td></tr>
+<tr><td>9. Documentation</td><td>LLM02, LLM09 (Misinformation) adjacent</td><td>—</td></tr>
+</tbody>
+</table>
+<p>If your team already runs an OWASP or MITRE-aligned review process, the table above is the cross-walk to plug MCP server vetting into that workflow.</p>
+
+<h2>What we built for teams that want the scanner instead of the checklist</h2>
+<p>For teams that would rather have the 9 steps in a CLI than in a doc, we ship two artifacts on the Algoram99 GitHub:</p>
+<ul>
+<li><a href="https://github.com/Algoram99">MCP Supply Chain Audit</a> — a zero-dependency CLI that automates steps 1, 2, 5, 6, 7, and 8 and writes the audit log from step 9 to a file. It is the same scanner we use internally before adopting any third-party server, and it produces a stoplight verdict in under 30 seconds for a typical server.</li>
+<li><a href="https://github.com/Algoram99">MCP Server Security Audit Checklist</a> — the long-form 32-item checklist this post summarizes, expanded with the full evidence and reasoning for each item. The 9-step audit here is the field-expedient version; the 32-item checklist is the version you run during a quarterly review.</li>
+</ul>
+<p>For teams that want the defensive patterns to <em>build</em> an MCP server that passes someone else's audit, we also ship a <a href="https://github.com/Algoram99">Prompt Injection Defense Patterns</a> catalog covering the same threat model from the other side. The two together — "how to audit what you install" and "how to build what won't get rejected" — are the smallest set of artifacts we know of that closes the third-party MCP server trust loop.</p>
+
+<h2>The shortest version</h2>
+<p>If you take nothing else from this post:</p>
+<ol>
+<li>Pin the version. Never install <code>latest</code>.</li>
+<li>Read the tool descriptions. They are the most common injection vector and the easiest to audit.</li>
+<li>Run a 10-minute proxy capture. Anything the server does that is not the JSON-RPC stream is your answer to "do I trust this."</li>
+<li>Write down the verdict. Future-you, or your incident response team, will need it.</li>
+</ol>
+<p>Six minutes for steps 1, 3, and 5 by hand. Twenty-five minutes for all 9. The asymmetry is the point: the cost of audit is minutes, the cost of compromise is the entire context of every conversation the server saw.</p>
+
+<div class="footer-nav">
+<h3 style="margin-top:0;">Related reading from Algoram99</h3>
+<ul>
+<li><a href="/posts/2026-06-05-mcp-server-security-audit-checklist/">MCP Server Security Audit Checklist</a> — 32-item long-form version of this audit for quarterly reviews.</li>
+<li><a href="/posts/2026-06-05-mcp-server-testing-7-checks/">MCP Server Testing: 7 Checks</a> — reproducible test stack for any MCP server you build or adopt.</li>
+<li><a href="/posts/2026-06-06-prompt-injection-defense-patterns/">Prompt Injection Defense Patterns</a> — 14 patterns that block the attacks this audit is designed to detect.</li>
+<li><a href="/posts/2026-06-06-cjs-to-esm-migration-step-by-step/">CJS to ESM Migration: Step by Step</a> — the migration playbook we use when an audit forces a server rewrite.</li>
+</ul>
+<p>Algoram99 ships zero-dependency CLIs for AI agent builders, security reviewers, and CI maintainers. Browse the <a href="https://github.com/Algoram99">full catalog on GitHub</a> or the <a href="https://algoram99.github.io/">Algoram99 storefront</a> for paid playbooks and migration guides.</p>
+</div>
+
+</body>
+</html>
