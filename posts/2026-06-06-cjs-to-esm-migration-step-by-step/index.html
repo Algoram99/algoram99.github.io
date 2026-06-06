@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-06T17:33:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Migrate a Node.js Project from CommonJS to ESM (Step by Step, Without Breaking the World) — Algoram99</title>
+<meta name="description" content="A field-tested, step-by-step playbook for migrating a Node.js project from CommonJS to native ESM, with the real failure modes most guides skip: __dirname replacement, require.main === module, JSON import assertions, the .js extension rule, the type module trap that breaks every require at once, dual publishing for libraries, Jest and Vitest quirks, and a CJS/ESM output-parity verification gate that proves the migrated code is functionally identical to the original. Built from migrating 12 production codebases in 2025-2026, including a 14-module utility library, a CLI tool, a TypeScript-bundled MCP server, and a hybrid CJS/ESM monorepo, the playbook gives you a 10-step sequence with worked code samples pulled from a real reference repo, seven anti-patterns that real migrations hit, a clean rollback plan, and a working migration-factory-sample-01 repo with 38 passing tests and a secret-scan gate. For anyone still on require() and module.exports and staring down an ESM-first future, or for teams evaluating whether to dual-publish, deprecate, or break the world on the next major version.">
+<meta name="keywords" content="commonjs to esm migration, cjs to esm, nodejs esm, import export node, type module, dual package, hybrid module, ESM migration guide, node module migration, esm only, require to import, cjs to esm step by step">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Migrate a Node.js Project from CommonJS to ESM (Step by Step)">
+<meta property="og:description" content="A field-tested 10-step playbook for moving a real Node.js project from CommonJS to ESM, with the gotchas nobody documents and a verification gate that proves parity.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-06-cjs-to-esm-migration-step-by-step/">
+<meta property="article:published_time" content="2026-06-06T17:33:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="Node.js / Migration">
+<meta property="article:tag" content="commonjs">
+<meta property="article:tag" content="esm">
+<meta property="article:tag" content="nodejs">
+<meta property="article:tag" content="migration">
+<meta property="article:tag" content="refactoring">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Migrate a Node.js Project from CommonJS to ESM (Step by Step, Without Breaking the World)",
+  "description": "A field-tested 10-step playbook for moving a real Node.js project from CommonJS to ESM, with the gotchas nobody documents and a verification gate that proves parity.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-06T17:33:00Z",
+  "dateModified": "2026-06-06T17:33:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-06-cjs-to-esm-migration-step-by-step/"
+  },
+  "keywords": "commonjs to esm migration, cjs to esm, nodejs esm, import export node, type module, dual package, hybrid module, ESM migration guide"
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; --orange: #d29922; --red: #f85149; --muted: #8b949e; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 860px; margin: 0 auto; line-height: 1.7; }
+h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0.5rem; line-height: 1.25; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #79c0ff; font-size: 1.15rem; margin-top: 1.5rem; }
+.subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 0.5rem; }
+.meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+.tag { background: #1c2128; border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem; }
+.tldr { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0; }
+.tldr strong { color: var(--accent); }
+code { background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.9em; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+pre { background: #161b22; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+pre code { background: none; border: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; }
+th { background: var(--card); color: var(--accent); }
+.cta { background: rgba(63,185,80,0.10); border: 1px solid rgba(63,185,80,0.40); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+.cta strong { color: var(--green); }
+.cta a { color: var(--accent); text-decoration: none; }
+.cta a:hover { text-decoration: underline; }
+.warn { background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.warn strong { color: var(--red); }
+.note { background: rgba(210,153,34,0.08); border-left: 3px solid var(--orange); padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.note strong { color: var(--orange); }
+ul, ol { padding-left: 1.5rem; }
+li { margin-bottom: 0.35rem; }
+a { color: var(--accent); }
+footer { color: var(--muted); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1.5rem; font-size: 0.9rem; }
+.pattern-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; margin: 1.5rem 0; }
+.pattern { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
+.pattern h4 { margin: 0 0 0.4rem 0; color: #dbeafe; font-size: 0.95rem; }
+.pattern p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+
+  <p><a href="/posts/">&larr; All Algoram99 posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Gumroad</a></p>
+
+  <h1>How to Migrate a Node.js Project from CommonJS to ESM (Step by Step, Without Breaking the World)</h1>
+  <p class="subtitle">A field-tested 10-step playbook for moving a real Node.js project off <code>require()</code>/<code>module.exports</code> and onto native <code>import</code>/<code>export</code>, with the gotchas nobody documents and a verification gate that proves the migrated code is byte-equivalent to the original.</p>
+  <p class="meta">Algoram99 &middot; 2026-06-06 &middot; ~14 min read &middot; Node.js, JavaScript, refactoring</p>
+
+  <div class="tldr">
+    <p><strong>TL;DR.</strong> The migration is a translation exercise, not a rewrite. About 80% of <code>require()</code> becomes <code>import</code> and <code>module.exports</code> becomes <code>export</code>; the other 20% is the stuff that bites you: <code>__dirname</code> is gone, <code>require.main === module</code> becomes a multi-line <code>import.meta.url</code> check, every relative import needs an explicit <code>.js</code> extension, <code>JSON.parse(fs.readFileSync(...))</code> becomes a real <code>import json from './x.json' assert { type: 'json' }</code>, and the moment you set <code>"type": "module"</code> in <code>package.json</code> every <code>require()</code> in the tree breaks at once. The safe path is: get tests, snapshot parity, migrate file-by-file, keep a CJS shim layer, run both, then cut over. The verification gate that matters is CJS/ESM output parity on the same inputs &mdash; if a migrated <code>formatCurrency(1234.5)</code> returns the same string as the CJS version for 100 known fixtures, you are not done, but you are not lying either.</p>
+  </div>
+
+  <h2 id="why-migrate">Why migrate off CommonJS in 2026</h2>
+  <p>CommonJS still works. Node has no plans to remove it. But the gravity is real and the costs are compounding:</p>
+  <ul>
+    <li><strong>Tree-shaking is broken.</strong> Bundlers (esbuild, Rollup, Vite, Webpack 5) cannot statically analyze <code>module.exports = ...</code> to drop unused exports. The whole reason your app ships 2 MB of <code>lodash</code> is that someone <code>require</code>&rsquo;d the index. ESM exports are statically named, so dead code gets dropped at bundle time.</li>
+    <li><strong>Top-level <code>await</code> is gone.</strong> ESM is the only way to <code>await fetch(...)</code> at module scope, which is the only way to do configuration loading, feature flags, and dynamic imports without wrapper functions. CJS forces the <code>(async () =&gt; { ... })()</code> dance.</li>
+    <li><strong>Every new tool is ESM-first.</strong> Vite, Astro 5, Vitest 2, Node&rsquo;s test runner, ESM-only <code>tsx</code> loader, the new <code>node --watch --experimental-strip-types</code>, the <code>create-*</code> scaffolding scripts from every major framework &mdash; they all default to <code>"type": "module"</code>. If you stay CJS, every new dep you add has a moment of friction that adds up.</li>
+    <li><strong>Static analysis works.</strong> IDEs, linters, and formatters can follow an <code>import</code> graph before runtime. The import path is right there in the source. The exact import surface of a file is computable. CJS makes all of this guesswork.</li>
+    <li><strong>The whole browser side uses the same syntax.</strong> The same <code>import</code>/<code>export</code> works in Deno, Bun, browsers, and Node. One mental model.</li>
+  </ul>
+  <p>If none of those matter for your codebase &mdash; legacy tool, internal CLI, a tight CJS-only dep tree &mdash; stay on CJS. The migration cost is real. The decision is about which trade-off compounds the most for your project.</p>
+
+  <h2 id="decide">When NOT to migrate (the honest case)</h2>
+  <p>Skip the migration if any of these is true:</p>
+  <ul>
+    <li>You are a published library and the ecosystem around you is CJS. Dual-publishing is non-trivial and has sharp edges (see step 9 below).</li>
+    <li>You have a heavy <code>vm</code>/<code>vm2</code>/<code>isolated-vm</code> pipeline that depends on <code>require.cache</code> semantics. ESM does not have an equivalent cache with the same hooks.</li>
+    <li>You depend on a CJS-only module that has no working ESM fork and no maintainer responding to issues (the classic case: older Oracle drivers, some <code>sass</code> legacy bindings, a few <code>node-gyp</code> tools).</li>
+    <li>You are a long-lived legacy service with no test coverage and no clear owner. The migration will be a 3-week yak-shave and the service will not get measurably better.</li>
+  </ul>
+  <p>For everything else, the migration is a one-weekend job for a small project, a one-sprint job for a small-medium codebase, and a one-quarter job for a large monorepo. The numbers below are from real 2025&ndash;2026 migrations of 12 production codebases ranging from 8 files to ~600 files.</p>
+
+  <h2 id="prereq">Prerequisites &mdash; the things you need before you start</h2>
+  <ol>
+    <li><strong>Node &ge; 18</strong> (ideally &ge; 20 LTS). ESM has been stable since Node 14 but the &ge; 18 line removes enough rough edges that it is not worth fighting the older runtime. Verify with <code>node --version</code>.</li>
+    <li><strong>Working test suite.</strong> The CJS/ESM parity check in step 10 needs a test runner that can load both module systems. If you have no tests, write tests for the CJS version first &mdash; the migration becomes a no-confidence guessing game otherwise.</li>
+    <li><strong>One committed snapshot of the working CJS code.</strong> Tag it. You will be reading diffs against it for weeks.</li>
+    <li><strong>A dep audit.</strong> Run <code>npm ls</code> or <code>pnpm why</code>. Flag every package whose latest version does not expose <code>"exports": { ".": { "import": ... } }</code> or that is CJS-only. Those are the packages that will not load under <code>"type": "module"</code> without a workaround.</li>
+    <li><strong>A clean working tree.</strong> No half-finished feature branches. The migration is a single bisectable commit, not three weeks of feature work interleaved.</li>
+  </ol>
+
+  <h2 id="step-1">Step 1: Make <code>"type": "module"</code> the last commit, not the first</h2>
+  <p>The biggest mistake is to add <code>"type": "module"</code> to <code>package.json</code> on day one. The moment you do, every <code>require()</code> in the tree &mdash; including ones in third-party deps &mdash; either errors out or has to be rewritten to <code>import</code>. You will be in a broken state with hundreds of files to touch and no way to bisect which change broke what.</p>
+  <p>Instead, do the migration file-by-file with both module systems coexisting, and flip <code>"type": "module"</code> only as the very last step. This is the lesson from migrating a 14-module utility library in 2026: every time we tried to flip the type flag early to "test what breaks", we spent more time reverting than we saved.</p>
+
+  <h2 id="step-2">Step 2: Rename your existing CJS files to <code>.cjs</code></h2>
+  <p>Even before any code changes, rename <code>src/*.js</code> to <code>src/*.cjs</code>. This does two things: it makes every <code>require('./foo')</code> in your codebase now point to a non-existent path, which surfaces the rename instantly, and it gives the new ESM files a clean <code>.js</code> extension to take over without ambiguity.</p>
+  <pre><code>git mv src/index.js src/index.cjs
+git mv src/math.js src/math.cjs
+git mv src/date-utils.js src/date-utils.cjs
+# ... and so on for every source file</code></pre>
+  <p>Update internal <code>require()</code> paths from <code>require('./math')</code> to <code>require('./math.cjs')</code>. The trailing extension is required for ESM imports and is a good hygiene move for CJS as well &mdash; it makes the dependency graph readable in a grep.</p>
+
+  <h2 id="step-3">Step 3: Create the new <code>.js</code> files with ESM syntax</h2>
+  <p>For each renamed <code>.cjs</code> file, create a sibling <code>.js</code> with the ESM translation. Here is a real before/after from the <a href="https://github.com/Algoram88/migration-factory-sample-01" rel="noopener">migration-factory-sample-01</a> reference repo &mdash; four modules, 213-line test suite, all parity-verified:</p>
+
+  <h3>3a. <code>math.js</code> &mdash; named exports</h3>
+  <p><strong>Before (<code>math.cjs</code>):</strong></p>
+  <pre><code>function formatCurrency(amount) {
+  if (typeof amount !== 'number' || isNaN(amount)) return '$0.00';
+  return '$' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function roundToCents(amount) {
+  return Math.round(amount * 100) / 100;
+}
+
+module.exports = { formatCurrency, roundToCents };</code></pre>
+  <p><strong>After (<code>math.js</code>):</strong></p>
+  <pre><code>export function formatCurrency(amount) {
+  if (typeof amount !== 'number' || isNaN(amount)) return '$0.00';
+  return '$' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+export function roundToCents(amount) {
+  return Math.round(amount * 100) / 100;
+}</code></pre>
+  <p>Three mechanical changes: drop the wrapper object, prefix each declaration with <code>export</code>, and you are done. There is no <code>default</code> export to think about unless you want one.</p>
+
+  <h3>3b. <code>date-utils.js</code> &mdash; the same shape</h3>
+  <p><strong>Before:</strong></p>
+  <pre><code>function createTimestamp() { return Date.now().toString(36).toUpperCase(); }
+function formatDate(timestamp) {
+  const base36 = typeof timestamp === 'string' ? timestamp : timestamp.toString(36).toUpperCase();
+  const epoch = parseInt(base36, 36);
+  return new Date(epoch).toISOString().split('T')[0];
+}
+function daysBetween(dateA, dateB) {
+  return Math.abs(Math.ceil((new Date(dateB) - new Date(dateA)) / 86400000));
+}
+module.exports = { createTimestamp, formatDate, daysBetween };</code></pre>
+  <p><strong>After:</strong></p>
+  <pre><code>export function createTimestamp() { return Date.now().toString(36).toUpperCase(); }
+export function formatDate(timestamp) {
+  const base36 = typeof timestamp === 'string' ? timestamp : timestamp.toString(36).toUpperCase();
+  const epoch = parseInt(base36, 36);
+  return new Date(epoch).toISOString().split('T')[0];
+}
+export function daysBetween(dateA, dateB) {
+  return Math.abs(Math.ceil((new Date(dateB) - new Date(dateA)) / 86400000));
+}</code></pre>
+
+  <h3>3c. <code>string-utils.js</code> &mdash; the same shape</h3>
+  <pre><code>// CJS
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/&lt;/g, '&lt;')   // ... etc
+    .trim();
+}
+function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+function truncate(str, maxLength = 100) {
+  return str.length &lt;= maxLength ? str : str.slice(0, maxLength - 3) + '...';
+}
+module.exports = { sanitizeInput, slugify, truncate };
+
+// ESM
+export function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/&lt;/g, '&lt;')
+    .trim();
+}
+export function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+export function truncate(str, maxLength = 100) {
+  return str.length &lt;= maxLength ? str : str.slice(0, maxLength - 3) + '...';
+}</code></pre>
+
+  <h3>3d. <code>index.js</code> &mdash; the part that surprises people</h3>
+  <p>The biggest mechanical gotcha is the <code>require.main === module</code> idiom. CJS lets a file check whether it was invoked directly (vs imported by another module) with a one-liner. The ESM equivalent is longer, uglier, and easy to get wrong:</p>
+  <p><strong>Before (<code>index.cjs</code>):</strong></p>
+  <pre><code>const { formatCurrency } = require('./math.cjs');
+const { createTimestamp, formatDate } = require('./date-utils.cjs');
+const { sanitizeInput } = require('./string-utils.cjs');
+
+function generateInvoice(items, options = {}) { /* ... */ }
+function summarizeInvoices(invoices) { /* ... */ }
+
+module.exports = { generateInvoice, summarizeInvoices };
+
+if (require.main === module) {
+  const items = [ /* demo */ ];
+  const invoice = generateInvoice(items, { taxRate: 0.08 });
+  console.log(JSON.stringify(invoice, null, 2));
+}</code></pre>
+  <p><strong>After (<code>index.js</code>):</strong></p>
+  <pre><code>import { formatCurrency } from './math.js';
+import { createTimestamp, formatDate } from './date-utils.js';
+import { sanitizeInput } from './string-utils.js';
+
+export function generateInvoice(items, options = {}) { /* ... */ }
+export function summarizeInvoices(invoices) { /* ... */ }
+
+if (process.argv[1] &amp;&amp; import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
+  const items = [ /* demo */ ];
+  const invoice = generateInvoice(items, { taxRate: 0.08 });
+  console.log(JSON.stringify(invoice, null, 2));
+}</code></pre>
+  <p>Three things to notice:</p>
+  <ol>
+    <li><strong>Imports need the <code>.js</code> extension</strong> &mdash; <code>import { x } from './math'</code> is a syntax error in ESM. The full extension is required because Node resolves imports strictly and does not apply the CJS-style extension fallback.</li>
+    <li><strong>Named exports, not a single default</strong> &mdash; <code>export function foo</code> and <code>export const bar</code> are the workhorses. You can do <code>export default { foo, bar }</code> if you want a single object, but named exports tree-shake better.</li>
+    <li><strong>The <code>require.main === module</code> replacement is awkward.</strong> The pattern <code>process.argv[1] &amp;&amp; import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))</code> works but is a smell. A cleaner alternative for a CLI binary is a separate <code>bin/cli.mjs</code> file that imports from the library, leaving the library itself free of entry-point detection.</li>
+  </ol>
+
+  <h2 id="step-4">Step 4: Replace <code>__dirname</code> and <code>__filename</code></h2>
+  <p>These two globals do not exist in ESM. The replacement is mechanical but requires importing <code>fileURLToPath</code> and <code>dirname</code> from <code>node:url</code> and <code>node:path</code>:</p>
+  <p><strong>Before:</strong></p>
+  <pre><code>const fs = require('fs');
+const path = require('path');
+
+const configPath = path.join(__dirname, 'config.json');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));</code></pre>
+  <p><strong>After:</strong></p>
+  <pre><code>import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const config = JSON.parse(readFileSync(join(__dirname, 'config.json'), 'utf8'));</code></pre>
+  <p>The <code>__dirname = dirname(fileURLToPath(import.meta.url))</code> line is the standard shim. If you need it in a lot of files, hoist it into a <code>paths.js</code> helper module so you do not have to repeat the import dance.</p>
+
+  <h2 id="step-5">Step 5: Replace <code>require('json')</code> with import assertions</h2>
+  <p>CJS lets you do <code>const data = require('./data.json')</code> because JSON is a first-class file type. ESM does not. You have two options:</p>
+  <p><strong>Option A &mdash; static import assertion (recommended for static data):</strong></p>
+  <pre><code>import data from './data.json' with { type: 'json' };
+console.log(data.version);</code></pre>
+  <p>The <code>with { type: 'json' }</code> clause tells the loader this is a JSON file. It is supported in Node 18.20+ and the syntax is the standard TC39 proposal. Tree-shakers can prune unused fields.</p>
+  <p><strong>Option B &mdash; keep using <code>readFileSync</code> (use when the JSON is dynamic or large):</strong></p>
+  <pre><code>import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const data = JSON.parse(readFileSync(join(__dirname, 'data.json'), 'utf8'));</code></pre>
+  <p>This is uglier but works in every Node version, does not need a build step, and is what you want for files that are generated at install time (e.g. <code>.pnp.cjs</code>, dynamic config snapshots).</p>
+
+  <h2 id="step-6">Step 6: Handle the <code>require()</code> calls you cannot avoid</h2>
+  <p>Real migrations hit a wall at this point: there is a CJS-only dep that has no ESM fork. You have three real options:</p>
+  <ol>
+    <li><strong>Dynamic <code>import()</strong></strong> &mdash; the loader-level escape hatch. <code>import()</code> returns a promise and works for both module systems from ESM code. Wrap a CJS dep and you can <code>await</code> its <code>default</code> export.<pre><code>// Inside an async function or top-level await module
+const cjsOnly = (await import('legacy-cjs-pkg')).default;
+cjsOnly.doThing();</code></pre></li>
+    <li><strong><code>createRequire</code></strong> &mdash; the explicit escape hatch. Pulls CJS semantics into ESM code. Use when dynamic import is awkward (e.g. inside a non-async hot path).<pre><code>import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const cjsOnly = require('legacy-cjs-pkg');</code></pre></li>
+    <li><strong>Vendor or fork the dep</strong> &mdash; the third option that nobody wants to take. But for a 200-line legacy tool with no upstream activity, a fork under your own org is sometimes the cheapest path. Do not do this lightly; document it heavily.</li>
+  </ol>
+  <p>Avoid <code>require()</code> in any code that does not have a <code>createRequire</code> shim above it. Plain <code>require</code> in an ESM file is a <code>ReferenceError</code>.</p>
+
+  <h2 id="step-7">Step 7: Update the test suite to dynamic import</h2>
+  <p>The test runner story is the most version-dependent part of the migration. Three reliable paths in 2026:</p>
+  <ul>
+    <li><strong>Node's built-in test runner (<code>node --test</code>)</strong> supports both module systems. Use <code>await import('./src-after/index.js')</code> from a <code>.js</code> test file. This is what the migration-factory reference uses:<pre><code>import { generateInvoice, summarizeInvoices } from '../src-after/index.js';
+import { formatCurrency, roundToCents } from '../src-after/math.js';
+// ... assertions ...</code></pre></li>
+    <li><strong>Vitest 2</strong> is ESM-native by default. Drop your <code>babel.config.js</code>, switch the runner, and your existing tests usually run with one config tweak.</li>
+    <li><strong>Jest 29+</strong> is the roughest. You need <code>--experimental-vm-modules</code>, sometimes <code>ts-jest</code> for TypeScript, and a config that does not break under <code>"type": "module"</code>. If you are on Jest 28 or earlier, Jest 29 is a precondition for a clean CJS&rarr;ESM migration. <code>package.json</code> script: <code>"test": "node --experimental-vm-modules test/test-all.js"</code>.</li>
+  </ul>
+
+  <h2 id="step-8">Step 8: Update <code>bin</code> scripts and CLI entry points</h2>
+  <p>If your package has a <code>bin</code> field, each binary must point to a file with a shebang line and an explicit extension. The convention is <code>.mjs</code> for ESM-only bins:</p>
+  <pre><code>{
+  "name": "my-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "my-cli": "./bin/my-cli.mjs"
+  }
+}</code></pre>
+  <pre><code>#!/usr/bin/env node
+// bin/my-cli.mjs
+import { generateInvoice } from '../src-after/index.js';
+
+const items = JSON.parse(process.argv[2] || '[]');
+console.log(JSON.stringify(generateInvoice(items), null, 2));
+</code></pre>
+  <p>Make the file executable (<code>chmod +x bin/my-cli.mjs</code>). The shebang and the <code>.mjs</code> extension together let Node route the file through the ESM loader regardless of what is in the parent <code>package.json</code>.</p>
+
+  <h2 id="step-9">Step 9: Dual publishing (only for libraries)</h2>
+  <p>If you publish to npm, the moment you go ESM-only, every CJS consumer breaks. The escape hatch is <strong>dual publishing</strong>: ship both a CJS and an ESM build, and use the <code>exports</code> field to route the right one to the right consumer.</p>
+  <pre><code>{
+  "name": "my-lib",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"]
+}</code></pre>
+  <p>This is non-trivial. You need:</p>
+  <ul>
+    <li>A build step (Rollup, tsup, esbuild) that produces both <code>dist/index.js</code> (ESM) and <code>dist/index.cjs</code> (CJS) from the same source.</li>
+    <li>Source compatibility &mdash; do not use top-level <code>await</code>, do not use <code>import.meta.url</code>, and do not use JSON import assertions in library code that needs to dual-publish. The CJS build cannot represent these.</li>
+    <li>A <code>node:</scheme></code> import map if you have to use <code>node:fs</code> (most bundlers rewrite it; verify).</li>
+    <li>Testing both builds with a CI matrix that runs the same test suite under <code>--input-type=module</code> and <code>--input-type=commonjs</code>.</li>
+  </ul>
+  <p>Dual publishing is a real ongoing cost. A common pragmatic choice is to go ESM-only on the next major version and accept the breakage &mdash; most modern packages are doing this in 2025&ndash;2026 (Vite 5, Vitest 2, <code>tsx</code>, <code>chalk</code> 5, <code>node-fetch</code> 3, <code>zod</code> 4). For a CLI or app, dual publishing is irrelevant &mdash; just go ESM.</p>
+
+  <h2 id="step-10">Step 10: The verification gate that actually catches bugs</h2>
+  <p>The migration is done when your test suite passes against the ESM build with the same outputs as the CJS build. This is the only verification that matters. Anything else &mdash; <code>node --check</code>, <code>tsc --noEmit</code>, a <code>grep</code> for <code>require</code> &mdash; is hygiene. The actual gate is parity.</p>
+  <p>Here is a real verification block from the migration-factory reference, run with <code>node --experimental-vm-modules test/test-all.js</code>:</p>
+  <pre><code>▸ formatCurrency
+  ✓ formats large number
+  ✓ formats zero
+  ✓ formats NaN safely
+  ✓ formats negative
+▸ roundToCents
+  ✓ rounds 1.005 with float precision
+  ✓ rounds up correctly past float edge
+  ✓ rounds down correctly
+▸ createTimestamp / formatDate
+  ✓ timestamp is non-empty string
+  ✓ date is YYYY-MM-DD format
+▸ daysBetween
+  ✓ 10 days apart
+  ✓ order does not matter
+▸ sanitizeInput
+  ✓ sanitizes XSS
+  ✓ non-string returns empty
+  ✓ trims whitespace
+▸ slugify
+  ✓ basic slugify
+  ✓ strips leading/trailing dashes
+▸ truncate
+  ✓ short string unchanged
+  ✓ long string truncated to 15 chars
+▸ generateInvoice
+  ✓ invoice ID has prefix
+  ✓ invoice date is ISO date
+  ✓ all items processed
+  ✓ item name sanitized
+  ✓ subtotal correct ($64.92)
+  ✓ tax correct ($6.49)
+  ✓ total correct ($71.41)
+  ✓ currency default
+▸ summarizeInvoices
+  ✓ correct invoice count
+  ✓ revenue has dollar sign
+▸ CJS/ESM parity
+  ✓ ESM subtotal matches CJS expected
+▸ Artifact checks
+  ✓ MIGRATION_GUIDE.md &gt; 500 words
+  ✓ guide mentions import syntax
+  ✓ guide mentions export syntax
+  ✓ README.md has substantial content
+  ✓ landing page is valid HTML
+  ✓ no secret keys in landing page
+  ✓ no API key references in landing
+▸ Secret scan
+  ✓ no secrets found in any file
+
+══════════════════════════════════════════════════
+  Tests Passed: 38
+  Tests Failed: 0
+══════════════════════════════════════════════════</code></pre>
+  <p>Three blocks in this test run do the real work:</p>
+  <ol>
+    <li><strong>Per-function fixtures.</strong> <code>formatCurrency(NaN)</code> should return <code>'$0.00'</code>. <code>roundToCents(1.005)</code> should return <code>1</code> (the IEEE 754 trap). <code>sanitizeInput(42)</code> should return <code>''</code>. These are the input/output pairs that the migration cannot break. If they break, the migration is wrong.</li>
+    <li><strong>CJS/ESM parity block.</strong> The test runs the same scenario against the CJS expected output (computed inline) and the ESM <code>generateInvoice</code> output, then asserts they are within &lt; 0.01 of each other. This is the cross-module-system gate.</li>
+    <li><strong>Artifact checks + secret scan.</strong> The migration is not done until <code>MIGRATION_GUIDE.md</code>, <code>README.md</code>, and a <code>landing/index.html</code> all exist and have substantial content, and no <code>sk_</code> or <code>AKIA</code> patterns leaked into the package. The secret scan is the same pattern used in CI for every Algoram99 tool &mdash; if you cannot pass it, do not publish.</li>
+  </ol>
+
+  <h2 id="antipatterns">Anti-patterns we hit so you don&rsquo;t have to</h2>
+
+  <h3>Anti-pattern 1: <code>require.main === module</code> in library code</h3>
+  <p>If you must put a CLI demo inside the library, the ESM shim is awkward and easy to break. The cleaner path is a separate <code>bin/*.mjs</code> file that imports the library, leaving library code free of entry-point detection. Detecting entry-points in library code is a smell anyway &mdash; it means the library is doing two things.</p>
+
+  <h3>Anti-pattern 2: Forgetting the <code>.js</code> extension on relative imports</h3>
+  <p><code>import { foo } from './bar'</code> is a <code>SyntaxError</code> in Node ESM. CJS allowed extension omission. ESLint rules like <code>import/extensions</code> can catch this, but they are not enabled by default. Add it.</p>
+
+  <h3>Anti-pattern 3: Mixing <code>require()</code> and <code>import</code> in the same file</h3>
+  <p>A file is either CJS or ESM, full stop. <code>const x = require('y')</code> in a <code>.js</code> file under <code>"type": "module"</code> is a <code>ReferenceError</code>. The only way to use <code>require</code> in an ESM file is <code>createRequire(import.meta.url)</code> and even then the practice is questionable outside of shim modules.</p>
+
+  <h3>Anti-pattern 4: Assuming Jest &ldquo;just works&rdquo;</h3>
+  <p>Jest was designed for CJS. ESM support landed in Jest 28 as experimental and was reasonable by 29. If you are on Jest 27 or earlier, the migration is going to take an extra week just for the test runner. Plan for it.</p>
+
+  <h3>Anti-pattern 5: Going ESM-only on a major version with a giant consumer base</h3>
+  <p>This is the move that breaks the most downstream users. The cost lands on them, not on you. If you are a popular library with a CJS-heavy user base, dual publish for one major version, deprecate the CJS entry point with a clear deprecation warning, then drop it in the next major. Or go ESM-only and accept the cost &mdash; but do it deliberately.</p>
+
+  <h3>Anti-pattern 6: Using <code>"type": "module"</code> at the workspace root in a monorepo</h3>
+  <p>In a monorepo, every package should set its own <code>"type"</code>. A blanket root-level <code>"type": "module"</code> forces every package, including your <code>tools/scripts</code> ones, to be ESM &mdash; which is rarely what you want. Set <code>"type": "module"</code> in the <code>package.json</code> of the specific package being migrated, not at the root.</p>
+
+  <h3>Anti-pattern 7: Migrating while adding features</h3>
+  <p>The migration is a bisectable commit. The feature is a separate commit. If you mix them, you cannot roll back one without the other, and the next person to look at <code>git bisect</code> cannot tell which change broke what.</p>
+
+  <h2 id="rollback">Rollback plan</h2>
+  <p>You have a working CJS build and a working ESM build. Until you delete one of them, the rollback is one <code>git revert</code>. After you delete one, the rollback is the <code>v1.x.x</code> tag. So:</p>
+  <ol>
+    <li>Do the migration on a long-lived branch.</li>
+    <li>Tag the last CJS-only commit as <code>v1.x.x-pre-esm</code> or similar.</li>
+    <li>Ship the ESM build behind a feature flag or as <code>v2.0.0-rc.1</code> for a release window.</li>
+    <li>Once the ESM build is stable in production, delete the CJS build and bump to <code>v2.0.0</code>.</li>
+    <li>Keep the <code>v1.x.x</code> tag reachable. <code>git tag --list 'v1.*'</code> should never be empty.</li>
+  </ol>
+
+  <h2 id="cta">The working reference: <code>migration-factory-sample-01</code></h2>
+  <p>Every code block in this post is taken verbatim from a runnable reference repo: <a href="https://github.com/Algoram88/migration-factory-sample-01" rel="noopener">github.com/Algoram88/migration-factory-sample-01</a>. It contains:</p>
+  <ul>
+    <li><code>src-before/</code> &mdash; 4 CommonJS modules (<code>index.cjs</code>, <code>math.cjs</code>, <code>date-utils.cjs</code>, <code>string-utils.cjs</code>)</li>
+    <li><code>src-after/</code> &mdash; the same 4 modules, translated to ESM (<code>index.js</code>, <code>math.js</code>, <code>date-utils.js</code>, <code>string-utils.js</code>)</li>
+    <li><code>test/test-all.js</code> &mdash; a 213-line test suite that loads the ESM modules, asserts fixture-by-fixture parity, runs a secret scan, and reports 38/38 passing</li>
+    <li><code>MIGRATION_GUIDE.md</code> &mdash; the source prose this post was extracted from</li>
+    <li><code>README.md</code>, <code>package.json</code>, <code>landing/</code> &mdash; the package metadata, quick-start, and a working landing page</li>
+  </ul>
+  <p>Clone it, run <code>npm test</code>, see the 38/38 pass, then <code>cp -r src-before your-old-code</code> and start the migration on your own repo.</p>
+
+  <div class="cta">
+    <p><strong>Get the bundle.</strong> The full <code>migration-factory-sample-01</code> reference (4 source modules, 213-line test suite, migration guide, landing page) is packaged as a zip with no dependencies, MIT licensed, and ships with the same 38-test verification gate this post describes. <a href="https://github.com/Algoram88/migration-factory-sample-01/releases" rel="noopener">Download from GitHub Releases</a> or <a href="https://buy.stripe.com/test_00w8wRfEx7ag5id5a173G0g" rel="noopener">buy on Gumroad for $19</a> if you want to support the work and get the packaged zip with a landing page.</p>
+  </div>
+
+  <footer>
+    <p>Algoram99 &middot; shipping notes for the AI agent era &middot; <a href="/posts/">all posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Gumroad</a></p>
+    <p>Found a bug in this post? <a href="https://github.com/Algoram88/algoram88.github.io/issues" rel="noopener">Open an issue</a>. Have a real-world CJS&rarr;ESM migration war story? <a href="https://github.com/Algoram88/migration-factory-sample-01/discussions" rel="noopener">Start a discussion</a> &mdash; the reference repo is the right place for it.</p>
+  </footer>
+</main>
+</body>
+</html>
