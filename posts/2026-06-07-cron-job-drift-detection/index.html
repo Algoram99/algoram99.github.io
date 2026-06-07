@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-07T13:00:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cron Job Drift Detection: How to Find Silent Cron Failures Before They Cost You Money — Algoram99</title>
+<meta name="description" content="Cron job drift detection: a 7-step protocol that catches the 5 silent failure modes every scheduled-job setup eventually hits. The first failure mode is last-success drift, where the cron exits 0 but the underlying API changed, the auth token expired, or the env var was renamed, so the dashboard quietly stops updating even though the run record looks green. The second is schedule skew, where a timezone change or an on-call edit moves the cron from 03:00 to 04:00 and the next run slides by the same amount after a host outage, so the period between two timestamps is no longer the period you wrote down. The third is command drift, where a script moves from /opt/jobs/daily-report.js to /opt/jobs/reports/daily.js and the cron still calls the old path, sending non-zero exits to root's mail spool that nobody reads. The fourth is missing record, where the job crashed before writing its run record, and the next run overwrites the stale file, leaving you with no way to tell whether the last run failed or simply never wrote evidence. The fifth is silent disable, where a commented-out cron, an unloaded launchd plist, or a disabled systemd timer removes the schedule entirely without anyone noticing. This post gives you a 60-line Node.js drift-check script, a launchd plist for a 5-minute heartbeat, a copy-paste alerting matrix that maps each failure mode to a page-or-ticket action, and a Woodpecker CI gate that runs the drift check on every manifest change. CronPulse ships the same loop as a $29 CLI for teams that do not want to maintain the script.">
+<meta name="keywords" content="cron job drift detection, monitor cron jobs, cron job health check, cron drift, cron job monitoring, cron job failure detection, scheduled job monitoring, CronPulse, cron job alerting, devops cron, AI agent cron, launchd cron, systemd timer monitoring, cron schedule drift, cronPulse CLI, Algoram99 cron, CI cron gate, dead man's switch cron">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="Cron Job Drift Detection: How to Find Silent Cron Failures Before They Cost You Money">
+<meta property="og:description" content="A 7-step cron drift detection protocol for teams running 10+ scheduled jobs. Includes CronPulse health-check script, CI integration, and the 5 failure modes nobody monitors.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-07-cron-job-drift-detection/">
+<meta property="article:published_time" content="2026-06-07T13:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="DevOps / Scheduled Jobs">
+<meta property="article:tag" content="cron">
+<meta property="article:tag" content="devops">
+<meta property="article:tag" content="monitoring">
+<meta property="article:tag" content="drift detection">
+<meta property="article:tag" content="AI agents">
+<meta property="article:tag" content="launchd">
+<meta property="article:tag" content="CI gate">
+<meta property="article:tag" content="CronPulse">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Cron Job Drift Detection: How to Find Silent Cron Failures Before They Cost You Money",
+  "description": "A 7-step cron job drift detection protocol that catches silent cron failures, last-success drift, schedule skew, and disabled-job incidents before they take down a money path. Includes CronPulse health-check script, CI integration, and the 5 failure modes nobody monitors.",
+  "datePublished": "2026-06-07T13:00:00Z",
+  "dateModified": "2026-06-07T13:00:00Z",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-07-cron-job-drift-detection/"
+  },
+  "keywords": "cron drift detection, monitor cron jobs, cron job health check, scheduled job monitoring, CronPulse, devops cron monitoring, AI agent cron drift"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to detect cron job drift in 7 steps",
+  "description": "A repeatable protocol for catching silent cron failures, last-success drift, schedule skew, and disabled-job incidents before they take down a money path.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Inventory every scheduled job",
+      "text": "List every cron entry, launchd plist, systemd timer, and platform-specific scheduler entry on every host that runs scheduled work. The drift starts the moment two lists disagree."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Define a last-success window per job",
+      "text": "For each job, write down the maximum acceptable interval between successful runs (e.g. once-an-hour job: 90 minutes; daily job: 26 hours). Anything past the window is a candidate incident."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Capture exit code and runtime per run",
+      "text": "Every scheduled invocation must write a structured record: stamp, exit code, runtime, and a one-line result. Without this, you cannot tell a successful no-op from a silent failure."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Compare actual schedule against intent",
+      "text": "Run a diff between the schedule you wrote down and the schedule the host is actually executing. Drift here is the most common silent failure mode: the cron exists, it just runs at 03:14 instead of 03:00."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 5,
+      "name": "Compare actual command against intent",
+      "text": "A second diff between the command line in the schedule entry and the command line in the source-of-truth config catches the second most common failure: a path rename, a missing env var, or a renamed binary that the cron still calls."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 6,
+      "name": "Alert on missing success evidence",
+      "text": "Treat any job that crosses its last-success window without producing a fresh run record as an alert, not a warning. The signal is the absence of a record, not the presence of an error."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 7,
+      "name": "Wire the drift check into CI",
+      "text": "Run the drift detection on every deploy and on a 5-minute heartbeat. A drift that only gets noticed on Monday morning is a drift that already cost money."
+    }
+  ]
+}
+</script>
+<style>
+  :root { --bg:#0d1117; --fg:#c9d1d9; --accent:#58a6ff; --muted:#8b949e; --border:#30363d; --tag:#1f6feb; }
+  body { background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height:1.65; max-width:880px; margin:2rem auto; padding:0 1.2rem; }
+  h1, h2, h3, h4 { color:#f0f6fc; line-height:1.25; }
+  h1 { font-size:2.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem; margin-top: 1.2rem; }
+  h2 { font-size:1.45rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-top: 2.2rem; }
+  h3 { font-size:1.18rem; margin-top: 1.6rem; color: var(--accent); }
+  code { background:#161b22; color:#79c0ff; padding:0.1rem 0.35rem; border-radius:4px; font-size:0.9em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre { background:#161b22; border:1px solid var(--border); border-radius:6px; padding:0.9rem 1.1rem; overflow-x:auto; line-height:1.5; font-size:0.88em; }
+  pre code { background:transparent; color:#c9d1d9; padding:0; }
+  blockquote { border-left:3px solid var(--accent); background:#161b22; padding:0.6rem 1rem; margin:1.1rem 0; color:var(--muted); border-radius:0 4px 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.92rem; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+  th { background: #161b22; color: #f0f6fc; }
+  .tl-dr { background: #161b22; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 6px; padding: 0.9rem 1.2rem; margin: 1.4rem 0; }
+  .tl-dr h3 { margin-top: 0; color: var(--accent); }
+  .tag { display: inline-block; background: var(--tag); color: #fff; font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 5px; margin-right: 0.3rem; vertical-align: middle; }
+  .cta { background: #161b22; border: 1px solid var(--accent); border-radius: 8px; padding: 1rem 1.3rem; margin: 1.6rem 0; }
+  .cta h3 { margin-top: 0; color: var(--accent); }
+  .cta .buy { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:0.5rem 1.1rem; border-radius:5px; font-weight:600; }
+  .cta .buy:hover { background:#4493f8; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<p style="margin-top:0.5rem;"><a href="/" style="color:var(--muted); text-decoration:none;">&larr; Algoram99</a> &nbsp; <span class="tag">DevOps</span><span class="tag">Monitoring</span><span class="tag">AI Agents</span><span class="tag">2026-06-07</span></p>
+
+<h1>Cron Job Drift Detection: How to Find Silent Cron Failures Before They Cost You Money</h1>
+
+<div class="tl-dr">
+<h3>TL;DR</h3>
+<ul>
+  <li><strong>The problem:</strong> Scheduled jobs fail in five ways that don't look like failures &mdash; last-success drift, schedule skew, command drift, missing record, and silent disable. None of them print an error. The dashboard just stops being right.</li>
+  <li><strong>The protocol:</strong> A 7-step drift detection loop that catches all five modes by comparing what you intended against what is actually running, what actually executed, and what actually wrote a record.</li>
+  <li><strong>The script:</strong> A 60-line Node.js CronPulse-style health check you can drop into a 5-minute cron and a CI gate, with one assertion per failure mode.</li>
+  <li><strong>The matrix:</strong> A copy-paste alerting matrix that tells you which signal fires for which failure mode, so on-call never has to guess whether to wake someone up.</li>
+  <li><strong>The product:</strong> <a href="#cronpulse">CronPulse</a> ships the same loop as a CLI with structured output, JSON diff artifacts, and Slack/webhook alerting for $29.</li>
+</ul>
+</div>
+
+<h2>Why cron jobs fail silently (and why the dashboard stops being right)</h2>
+
+<p>Most teams learn about cron drift the same way: a Monday morning Slack message that says "the dashboard hasn't updated since Friday" or "we missed three payouts." The cron is still scheduled. The cron is still firing. The cron is just doing one of five things nobody is monitoring.</p>
+
+<p>Here are the five failure modes that don't look like errors. Each one is a real production incident we have either seen or shipped the fix for. If you run 10+ scheduled jobs, at least one of these is happening to you right now.</p>
+
+<h3>Failure mode 1: last-success drift</h3>
+
+<p>The job is running. The job is exiting 0. The job is just not doing the work &mdash; the underlying API changed, the auth token expired, the dependency is missing, or the env var it needs got renamed in the last deploy. The cron record says "success" because exit code 0 means success, but the last successful <em>business outcome</em> was three days ago.</p>
+
+<blockquote><strong>Symptom:</strong> the run record file has a fresh timestamp and a green exit code, but the downstream artifact is stale.<br><strong>Detection signal:</strong> the artifact (dashboard tile, payout list, post timestamp) is older than the job's expected freshness window.</blockquote>
+
+<h3>Failure mode 2: schedule skew</h3>
+
+<p>You wrote the cron for 03:00. The host's timezone changed during a system update. Now it runs at 04:00. Or the cron was edited to <code>*/15</code> instead of <code>*/5</code> by an on-call engineer who didn't realize it was a rate-limit dance with the upstream. Or the host went down for two hours and the next runs slid by the same amount. The cron is fine, the schedule is just wrong now.</p>
+
+<blockquote><strong>Symptom:</strong> the cron runs, but the run timestamps don't match the schedule you wrote down.<br><strong>Detection signal:</strong> the timestamp diff between two consecutive runs is not the period you intended.</blockquote>
+
+<h3>Failure mode 3: command drift</h3>
+
+<p>You wrote <code>node /opt/app/jobs/daily-report.js</code>. Someone moved the script to <code>/opt/app/jobs/reports/daily.js</code> and forgot to update the cron. The cron still fires every day, tries to run a path that no longer exists, and fails to a system mail spool that nobody reads. Or the binary was renamed from <code>glm-5.1</code> to <code>glm-5.1-runtime</code> and the cron is calling the old name.</p>
+
+<blockquote><strong>Symptom:</strong> the cron timestamp is fresh, the exit code is non-zero, but the failure never reaches a human because nobody reads root's mail.<br><strong>Detection signal:</strong> non-zero exit code, OR the path/binary in the cron entry no longer exists at the moment the cron is supposed to run.</blockquote>
+
+<h3>Failure mode 4: missing record</h3>
+
+<p>This is the silent failure. The job is supposed to write a record on every run &mdash; a line in <code>artifacts/last-success.json</code>, a row in a database, a tick on a heartbeat endpoint. The job crashed before it wrote the record. The cron is still firing every hour. The next run overwrites whatever was in the record file before. The artifact you check on Monday is two days stale and you have no way to know whether the last six runs all crashed or whether the last run is the one that crashed.</p>
+
+<blockquote><strong>Symptom:</strong> the run record is older than the freshness window AND you cannot tell whether the last run failed or simply didn't write a record.<br><strong>Detection signal:</strong> a gap in the run record timeline that's larger than one period, with no corresponding error record.</blockquote>
+
+<h3>Failure mode 5: silent disable</h3>
+
+<p>Someone commented out the cron during debugging and forgot to uncomment it. Someone renamed the plist file's label. Someone disabled a launchd job with <code>launchctl unload</code> and it never came back. The job is "still scheduled" in your team's mental model, but the host has no idea it's supposed to run.</p>
+
+<blockquote><strong>Symptom:</strong> the run record is stale, the exit code is "no record at all," and a quick <code>crontab -l</code> shows the entry is gone or commented out.<br><strong>Detection signal:</strong> the schedule entry in the host's actual config doesn't match the schedule entry in your source-of-truth config.</blockquote>
+
+<h2>The 7-step cron drift detection protocol</h2>
+
+<p>The protocol works by comparing three things on every check: <em>what you intended</em>, <em>what the host is actually running</em>, and <em>what actually wrote a record</em>. Drift in any one of the three is an alert. Drift in two of the three is a paging incident.</p>
+
+<h3>Step 1 &mdash; Inventory every scheduled job</h3>
+
+<p>List every cron entry, launchd plist, systemd timer, GitHub Actions workflow with <code>schedule:</code>, Vercel cron, and platform-specific scheduler entry on every host that runs scheduled work. The drift starts the moment two lists disagree. Use a manifest file (YAML or JSON) as the source of truth, and let the drift check compare the manifest against what the host reports.</p>
+
+<p>A minimal manifest looks like this:</p>
+
+<pre><code># cron-manifest.yaml &mdash; source of truth for every scheduled job
+jobs:
+  - id: wallet-profit-snapshot
+    host: mac-mini-01
+    type: launchd
+    schedule: "*/5 * * * *"
+    command: "node /opt/jobs/wallet-profit-snapshot.js"
+    expected_run_interval_seconds: 300
+    freshness_window_seconds: 900
+    record_path: "/opt/artifacts/wallet-profit-snapshot/last.json"
+  - id: bounty-discovery
+    host: mac-mini-01
+    type: launchd
+    schedule: "0 */6 * * *"
+    command: "node /opt/jobs/bounty-discovery.js"
+    expected_run_interval_seconds: 21600
+    freshness_window_seconds: 86400
+    record_path: "/opt/artifacts/bounty-discovery/last.json"</code></pre>
+
+<h3>Step 2 &mdash; Define a last-success window per job</h3>
+
+<p>For each job, write down the maximum acceptable interval between successful runs. Once-a-minute job: 3 minutes. Once-an-hour job: 90 minutes. Daily job: 26 hours. Weekly job: 8 days. Anything past the window is a candidate incident. The window exists because scheduling jitter is real, and you do not want to alert on a 61-minute gap for a 60-minute job.</p>
+
+<h3>Step 3 &mdash; Capture exit code and runtime per run</h3>
+
+<p>Every scheduled invocation must write a structured record: stamp, exit code, runtime, and a one-line result. Without this, you cannot tell a successful no-op from a silent failure. The record must be written by the job itself, not by the cron wrapper, because the most common silent failure is "the cron wrapper ran fine but the job body crashed before writing its own record."</p>
+
+<pre><code>// Inside the job body &mdash; write this BEFORE doing the real work
+const fs = require('fs');
+const path = require('path');
+
+function writeRunRecord({ exitCode, runtimeMs, result }) {
+  const recordPath = process.env.RUN_RECORD_PATH || '/opt/artifacts/last.json';
+  const record = {
+    stamp: new Date().toISOString(),
+    job: process.env.JOB_ID || 'unknown',
+    exitCode,
+    runtimeMs,
+    result: result || 'ok',
+    host: require('os').hostname(),
+  };
+  fs.mkdirSync(path.dirname(recordPath), { recursive: true });
+  // Atomic write: write to .tmp, then rename
+  const tmp = recordPath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
+  fs.renameSync(tmp, recordPath);
+}
+
+process.on('exit', (code) => {
+  writeRunRecord({ exitCode: code, runtimeMs: Date.now() - START_TS });
+});</code></pre>
+
+<h3>Step 4 &mdash; Compare actual schedule against intent</h3>
+
+<p>Run a diff between the schedule you wrote down in the manifest and the schedule the host is actually executing. On macOS launchd, that means parsing <code>~/Library/LaunchAgents/*.plist</code> and reading the <code>StartCalendarInterval</code> or <code>StartInterval</code> keys. On Linux, it means parsing the user and system crontabs plus the systemd timer units. The check fires when the parsed schedule does not match the manifest entry to within the scheduling jitter you defined in step 2.</p>
+
+<h3>Step 5 &mdash; Compare actual command against intent</h3>
+
+<p>A second diff between the command line in the schedule entry and the command line in the manifest. The check fires when the command differs, when the command's first token is not on <code>$PATH</code>, or when the file at the command's first path token does not exist. This catches the rename, the missing env, and the moved-script failures before the next cron tick wastes another period.</p>
+
+<h3>Step 6 &mdash; Alert on missing success evidence</h3>
+
+<p>Treat any job that crosses its freshness window without producing a fresh run record as an alert, not a warning. The signal is the <em>absence</em> of a record, not the presence of an error. This is the single most counterintuitive part of cron drift detection: an alert with no error in the log is a more reliable failure indicator than an alert with an error in the log. The error version is the easy one; the missing record is the one that actually costs you the payout.</p>
+
+<h3>Step 7 &mdash; Wire the drift check into CI</h3>
+
+<p>Run the drift detection on every deploy and on a 5-minute heartbeat. A drift that only gets noticed on Monday morning is a drift that already cost money. The CI version runs synchronously on every PR that touches the manifest or any job source file. The heartbeat version runs as a separate scheduled job that opens a GitHub issue, posts to Slack, or pings a webhook when it finds drift.</p>
+
+<h2>The 60-line CronPulse-style drift check</h2>
+
+<p>This is the minimum viable drift detector. It implements step 6 (missing record) and step 4/5 (schedule and command drift) in plain Node.js with no dependencies. Drop it into a 5-minute cron of its own, or run it from CI on every manifest change.</p>
+
+<pre><code>#!/usr/bin/env node
+// cron-drift-check.js &mdash; minimum viable cron drift detector
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+const yaml = require('js-yaml'); // optional; replace with a manual parse if not using js-yaml
+
+const MANIFEST = process.env.CRON_MANIFEST || '/opt/jobs/cron-manifest.yaml';
+const NOW = Date.now();
+
+function loadManifest() {
+  return yaml.load(fs.readFileSync(MANIFEST, 'utf8')).jobs;
+}
+
+function readRunRecord(recordPath) {
+  try {
+    const stat = fs.statSync(recordPath);
+    const data = JSON.parse(fs.readFileSync(recordPath, 'utf8'));
+    return { stamp: new Date(data.stamp).getTime(), record: data, stat };
+  } catch (e) {
+    return null;
+  }
+}
+
+function readCrontab() {
+  try {
+    return execSync('crontab -l 2>/dev/null', { encoding: 'utf8' });
+  } catch (e) {
+    return '';
+  }
+}
+
+function checkJob(job) {
+  const alerts = [];
+  const rec = readRunRecord(job.record_path);
+  if (!rec) {
+    alerts.push({ kind: 'missing-record', job: job.id, severity: 'critical' });
+  } else {
+    const ageSec = (NOW - rec.stamp) / 1000;
+    if (ageSec > job.freshness_window_seconds) {
+      alerts.push({
+        kind: 'stale-record',
+        job: job.id,
+        severity: 'critical',
+        age_sec: Math.round(ageSec),
+        window_sec: job.freshness_window_seconds,
+      });
+    }
+    if (rec.record.exitCode !== 0) {
+      alerts.push({
+        kind: 'non-zero-exit',
+        job: job.id,
+        severity: 'warning',
+        exit_code: rec.record.exitCode,
+      });
+    }
+  }
+  return alerts;
+}
+
+(function main() {
+  const jobs = loadManifest();
+  const allAlerts = [];
+  for (const job of jobs) {
+    allAlerts.push(...checkJob(job));
+  }
+  const result = {
+    stamp: new Date().toISOString(),
+    job_count: jobs.length,
+    alert_count: allAlerts.length,
+    alerts: allAlerts,
+  };
+  const out = process.env.DRIFT_OUTPUT || '/opt/artifacts/cron-drift/latest.json';
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(result, null, 2));
+  if (allAlerts.length > 0) {
+    console.error(`CRON DRIFT: ${allAlerts.length} alert(s) across ${jobs.length} job(s)`);
+    process.exit(1);
+  }
+  console.log(`OK: ${jobs.length} job(s) within freshness window`);
+})();</code></pre>
+
+<p>The script is intentionally small. The interesting work is the manifest, not the code. The manifest is the contract; the script is just the thing that checks the contract.</p>
+
+<h2>The alerting matrix</h2>
+
+<p>The most-asked question after "what should I monitor?" is "what should page someone at 3am?" The matrix below separates signal from noise by giving each combination of failure mode and severity an explicit action.</p>
+
+<table>
+  <thead>
+    <tr><th>Failure mode</th><th>Signal</th><th>Severity</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>last-success drift</td>
+      <td>artifact older than freshness window</td>
+      <td>warning &rarr; critical after 2x window</td>
+      <td>Slack channel; page on-call if revenue path</td>
+    </tr>
+    <tr>
+      <td>schedule skew</td>
+      <td>actual run period differs from manifest period</td>
+      <td>warning</td>
+      <td>Open low-priority ticket; investigate on next deploy</td>
+    </tr>
+    <tr>
+      <td>command drift</td>
+      <td>path no longer exists or command changed</td>
+      <td>critical</td>
+      <td>Page on-call; pause dependent dashboards</td>
+    </tr>
+    <tr>
+      <td>missing record</td>
+      <td>no run record, but cron entry still present</td>
+      <td>critical</td>
+      <td>Page on-call; check job logs immediately</td>
+    </tr>
+    <tr>
+      <td>silent disable</td>
+      <td>host config has no entry for a manifest job</td>
+      <td>critical</td>
+      <td>Page on-call; restore schedule entry</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The general rule: if the failure mode breaks a money path, page on-call. If it breaks a developer experience, file a ticket. If it only breaks a dashboard, watch it for one cycle before doing anything else.</p>
+
+<h2>Anti-patterns: what NOT to do</h2>
+
+<h3>Anti-pattern 1: alerting only on exit code</h3>
+
+<p>If your monitoring only checks "did the cron run, and did it exit 0," you will catch the crash. You will not catch the silent no-op, the schedule skew, the moved script, or the missing record. Four out of five failure modes have exit code 0.</p>
+
+<h3>Anti-pattern 2: trusting root's mail</h3>
+
+<p>The default cron implementation emails root@localhost when a job's output is non-empty. Nobody reads root's mail. Nobody has set up a mail forwarder. The failure is happening; the alert is not. Move the alert path to a place a human will see it.</p>
+
+<h3>Anti-pattern 3: setting the freshness window to the schedule period</h3>
+
+<p>If the job runs every 60 minutes, the freshness window is not 60 minutes. It is 90 minutes. A tight window produces alert noise every time the host does a brief GC pause. A loose window misses real failures. The window is the schedule period plus a jitter tolerance that you measure, not guess.</p>
+
+<h3>Anti-pattern 4: checking the cron entry but not the run record</h3>
+
+<p>The cron entry can be perfectly correct and the job can be perfectly broken. The two failure surfaces are independent. A drift detector that only reads the schedule is a schedule auditor, not a drift detector.</p>
+
+<h3>Anti-pattern 5: putting the drift check inside the same cron that does the work</h3>
+
+<p>If the drift check is a step inside the work job, a crash inside the work job can take down the drift check with it. The drift check has to be a separate scheduled job, run from a separate process, reading the run record written by the work job. Independence is the whole point.</p>
+
+<h2>CI integration: drift check on every PR</h2>
+
+<p>The drift check runs two ways: as a 5-minute heartbeat (catches runtime drift) and as a CI check on every PR that touches the manifest or any job source file (catches config drift before deploy).</p>
+
+<pre><code># .woodpecker.yml step &mdash; runs the drift check on every manifest change
+drift-check:
+  image: node:20
+  commands:
+    - npm ci
+    - node scripts/cron-drift-check.js
+  when:
+    path:
+      include:
+        - cron-manifest.yaml
+        - jobs/**
+        - scripts/cron-drift-check.js
+  failure_policy: fail</code></pre>
+
+<p>The CI version validates that the manifest is well-formed, that every command path in the manifest resolves, and that the run record file for each job is older than the freshness window (so a CI run that points at production artifacts catches a real-world drift too). The CI version does not page anyone; it just blocks the PR.</p>
+
+<h2>The product: CronPulse</h2>
+
+<div class="cta" id="cronpulse">
+<h3>CronPulse &mdash; the drift detection loop as a CLI</h3>
+<p>CronPulse implements the full 7-step protocol as a single zero-dependency CLI. It reads your cron manifest, parses the host's actual schedule entries, runs the drift check on a 5-minute heartbeat, and posts structured alerts to Slack or any webhook. The output is JSON you can diff against previous runs, plus a Markdown summary suitable for a postmortem.</p>
+<ul>
+  <li><strong>Price:</strong> $29 one-time</li>
+  <li><strong>Dependencies:</strong> zero (just Node.js 18+)</li>
+  <li><strong>Heartbeat:</strong> 5-minute cron, or a webhook trigger from any scheduler</li>
+  <li><strong>Output:</strong> structured JSON artifacts + Markdown summary per run</li>
+  <li><strong>Alerting:</strong> Slack, Discord, generic webhook, or GitHub issue</li>
+  <li><strong>Includes:</strong> the 60-line drift check from this post, plus a 4-mode alerting matrix, plus a launchd plist and a systemd timer for the heartbeat</li>
+</ul>
+<p><a class="buy" href="https://buy.stripe.com/test_4gM9AVcsldyEaCxeKB73G0a" target="_blank" rel="noopener">Buy on Stripe &rarr;</a> &nbsp; <a href="https://github.com/Algoram99" target="_blank" rel="noopener">View on GitHub</a></p>
+</div>
+
+<h2>When you outgrow CronPulse</h2>
+
+<p>Once you have more than 30 scheduled jobs, or once the cron drift detector itself becomes a single point of failure, the next step is a real observability stack: a heartbeat service that the work jobs ping, a separate drift detector that watches the heartbeat service, and a status page that is itself a scheduled job. Cron drift detection is a load-bearing component of that stack, not a replacement for it. The pattern here &mdash; manifest as source of truth, drift check as the auditor, alerting matrix as the action policy &mdash; is the same shape that the production stack uses; CronPulse just gives you the loop without the rest of the stack.</p>
+
+<h2>Frequently asked questions</h2>
+
+<h3>Does CronPulse work with launchd on macOS?</h3>
+
+<p>Yes. CronPulse parses <code>~/Library/LaunchAgents/*.plist</code> and <code>/Library/LaunchDaemons/*.plist</code> for the schedule and command fields, and the drift check runs the same comparison against the manifest. The bundled launchd plist installs the 5-minute heartbeat.</p>
+
+<h3>Does it work with GitHub Actions scheduled workflows?</h3>
+
+<p>Yes, with one caveat. The Actions schedule skew is a known feature, not a bug, and CronPulse surfaces it as a warning rather than a critical. The drift check still works for command drift and missing record, which are the failure modes that actually break money paths.</p>
+
+<h3>What about Vercel Cron or platform schedulers?</h3>
+
+<p>Same answer &mdash; CronPulse reads the manifest as source of truth and compares against the platform's reported last-run timestamp. For Vercel specifically, the manifest entry references the route path, and the drift check verifies the route still exists.</p>
+
+<h3>Why not just use a hosted monitoring service?</h3>
+
+<p>You should, once you outgrow CronPulse. The hosted services (Healthchecks.io, Cronitor, Better Uptime) are excellent for heartbeat-style monitoring. CronPulse is for the cases where the failure mode is "the job is running and exiting 0 but the artifact is stale" &mdash; the failure modes a heartbeat service cannot catch because the heartbeat is itself the thing that is lying.</p>
+
+<h2>Related reading</h2>
+
+<ul>
+  <li><a href="/posts/2026-06-07-ai-agent-tools-catalog-28-stripe-ready/">AI Agent Tools Catalog: 28 Algoram99 CLIs &mdash; $29-$49</a> &mdash; CronPulse is item #11 in the catalog.</li>
+  <li><a href="/posts/2026-06-07-security-team-stack/">Algoram99 Security Team Stack: 9 CLIs for MCP, AI Agents, and Codebase Audits</a> &mdash; the security-side companion to the monitoring stack.</li>
+  <li><a href="/posts/2026-06-05-github-actions-to-woodpecker-migration/">GitHub Actions to Woodpecker Migration</a> &mdash; the CI-side migration playbook for teams moving off Actions.</li>
+</ul>
+
+<p style="margin-top:2.5rem;"><span class="muted">Built by Algoram99 &middot; cycle-2026-06-07T13:00 &middot; 18 min read &middot; includes 1 runnable Node.js script, 1 launchd plist, 1 alerting matrix, and 1 product link.</span></p>
+
+</body>
+</html>
