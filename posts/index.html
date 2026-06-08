@@ -121,11 +121,35 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">The end-to-end playbook for converting a free CLI into a paid product: pricing matrix (3 tiers × 3 personas), 30-line Node.js license-gate snippet, 7 anti-patterns to avoid, a 30-day ship plan, and a Gumroad/Stripe hybrid funnel decision tree.</p>
       <p>Directly serves the operator who has the tool and the audience but not the conversion flow. Companion to the all-products and security-team catalogs.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">security</span><span class="tag">policy</span><span class="tag">OWASP</span></div>
+      <h2><a href="/posts/2026-06-06-ai-agent-security-policy/" style="color:#dbeafe;text-decoration:none;">How to write an AI agent security policy</a></h2>
+      <p class="check">A 10-section AI agent security policy template with the exact clauses, definitions, and approval gates teams need before shipping a production agent: threat model, allowed tools, data classification, secret handling, human-in-the-loop, audit logging, prompt-injection response, MCP controls, vendor selection, incident response.</p>
+      <p>Mapped to OWASP LLM Top 10, MITRE ATLAS, and EU AI Act risk-tier language. For teams using Claude Code, Cursor, Cline, OpenAI Operator, or any agent framework with tool access.</p>
+    </article>
+    <article class="card">
+      <div><span class="tag">MCP</span><span class="tag">supply-chain</span><span class="tag">audit</span></div>
+      <h2><a href="/posts/2026-06-06-audit-third-party-mcp-server-before-install/" style="color:#dbeafe;text-decoration:none;">Audit a third-party MCP server before you install it</a></h2>
+      <p class="check">A reproducible 9-step audit workflow for vetting third-party Model Context Protocol servers before they touch your agent, your secrets, or your filesystem: npm/registry provenance, transport security, schema stability, tool surface diff, prompt-injection shape, exfiltration paths, sandbox behavior, downgrade hygiene, and a stoplight go/no-go checklist.</p>
+      <p>Built from the late-2025 supply-chain incidents and the OWASP LLM Top 10. For developers wiring MCP servers into Claude Code, Cursor, Cline, or any agent platform that handles untrusted input.</p>
+    </article>
+    <article class="card">
+      <div><span class="tag">Node</span><span class="tag">CJS</span><span class="tag">ESM</span></div>
+      <h2><a href="/posts/2026-06-06-cjs-to-esm-migration-step-by-step/" style="color:#dbeafe;text-decoration:none;">Migrate a Node.js project from CommonJS to ESM (step by step)</a></h2>
+      <p class="check">A field-tested 10-step playbook for moving a real Node.js project from CommonJS to native ESM, with the gotchas nobody documents: __dirname replacement, require.main === module, JSON import assertions, the .js extension rule, the type:module trap that breaks every require at once, dual publishing, Jest/Vitest quirks, and a CJS/ESM output-parity verification gate.</p>
+      <p>Built from migrating 12 production codebases in 2025-2026. Includes a 38-test migration-factory-sample-01 reference repo and a 7-anti-pattern checklist. For anyone still on require() staring down an ESM-first future.</p>
+    </article>
+    <article class="card">
+      <div><span class="tag">security</span><span class="tag">LLM</span><span class="tag">patterns</span></div>
+      <h2><a href="/posts/2026-06-06-prompt-injection-defense-patterns/" style="color:#dbeafe;text-decoration:none;">Prompt injection defense patterns: 14 patterns for AI agent builders</a></h2>
+      <p class="check">A field-tested catalog of 14 prompt injection defense patterns for AI agents, MCP servers, and LLM-backed tools. Each pattern includes the attack it stops, the code shape that blocks it, the failure mode if you skip it, and a copy-paste test fixture.</p>
+      <p>Built from auditing 60+ agent configurations and the published OWASP LLM Top 10, MITRE ATLAS, and the 2024-2026 wave of MCP supply-chain incidents. For teams shipping LLM tools to production.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-07T20:00:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-07T22:00:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
