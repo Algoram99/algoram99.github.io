@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-08T00:30:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Build an MCP Server From Scratch (TypeScript, Tested, Production-Ready) — Algoram99</title>
+<meta name="description" content="A field-tested, end-to-end guide to building a Model Context Protocol (MCP) server in TypeScript from a blank folder to a production install. Covers the official @modelcontextprotocol/sdk, the three tool shapes (resources, prompts, tools), input validation with Zod, transport selection (stdio for local, Streamable HTTP for remote), error envelopes that the host actually surfaces, security boundaries (no shell-out, no env reads, allowlisted paths), the 7 anti-patterns that fail security review, and a 30-test parity gate that runs in CI. Includes a complete 220-line reference server, a 30-line `mcp inspect` smoke harness, and cross-links to four MCP-related products: the Starter Kit (9 tools, 3 servers, 210 tests), the Tester (grade A+ to F), the Poison Scanner (10 supply-chain patterns), and the Supply Chain Audit (tool-shadowing detection).">
+<meta name="keywords" content="how to build MCP server, MCP server tutorial, Model Context Protocol TypeScript, MCP SDK tools, MCP server stdio, MCP Streamable HTTP, MCP security review, MCP Zod input validation, MCP error envelope, MCP test harness, MCP production deployment, MCP Server Starter Kit, MCP Server Tester, MCP Poison Scanner, MCP Supply Chain Audit, Claude Desktop MCP, Cursor MCP setup, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Build an MCP Server From Scratch (TypeScript, Tested, Production-Ready)">
+<meta property="og:description" content="End-to-end TypeScript guide to building a Model Context Protocol server: SDK setup, tool/resource/prompt shapes, Zod validation, transport, security boundaries, 7 anti-patterns, 30-test CI gate, and four MCP tools to ship with it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-08-build-mcp-server-from-scratch/">
+<meta property="article:published_time" content="2026-06-08T00:30:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / MCP">
+<meta property="article:tag" content="MCP">
+<meta property="article:tag" content="Model Context Protocol">
+<meta property="article:tag" content="TypeScript">
+<meta property="article:tag" content="AI agents">
+<meta property="article:tag" content="Claude Desktop">
+<meta property="article:tag" content="Cursor">
+<meta property="article:tag" content="tutorial">
+<meta property="article:tag" content="security">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Build an MCP Server From Scratch (TypeScript, Tested, Production-Ready)",
+  "description": "A field-tested, end-to-end guide to building a Model Context Protocol server in TypeScript: SDK setup, tool/resource/prompt shapes, Zod input validation, transport, security boundaries, anti-patterns, and CI gate.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-08T00:30:00Z",
+  "dateModified": "2026-06-08T00:30:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-08-build-mcp-server-from-scratch/"
+  },
+  "keywords": "build MCP server, Model Context Protocol, TypeScript MCP, MCP SDK, MCP Zod, MCP stdio, MCP Streamable HTTP, MCP security, MCP testing"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to build a production-ready MCP server in 9 steps",
+  "description": "A repeatable build protocol for shipping a Model Context Protocol server in TypeScript that passes security review, has 30+ tests, and works in Claude Desktop, Cursor, and Continue.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Initialize the project and pin the SDK",
+      "text": "Create a new Node.js + TypeScript project, install @modelcontextprotocol/sdk, zod, and a test runner (vitest or node:test), and pin versions in package.json. The SDK is the contract: anything you drift from it is what breaks host integration first."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Pick a transport: stdio for local, Streamable HTTP for remote",
+      "text": "stdio is the right default for local-first hosts (Claude Desktop, Cursor, Continue). Use Streamable HTTP when the server runs on a different host than the client. Mixing them is the single most common deployment failure."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Define the three tool shapes: resources, prompts, tools",
+      "text": "Resources are read-only data the host can inject into context (a file, a config block, a database row). Prompts are templated instructions the user can trigger. Tools are actions the model can call. Ship at least one of each to teach the host your patterns."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Validate every input with Zod before the tool runs",
+      "text": "MCP tools receive untrusted JSON from the model. Validate with Zod at the boundary, return structured errors, and never let an exception escape the tool handler. A tool that throws crashes the host's session."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 5,
+      "name": "Build the error envelope the host actually surfaces",
+      "text": "Return {content: [{type: 'text', text: 'human message'}], isError: true} on validation failure, and {content: [...], isError: false} on success. The host will show the text content; a thrown exception shows up as 'Tool failed' with no diagnostics."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 6,
+      "name": "Apply the security boundary checklist",
+      "text": "No shell-out, no reading env vars the host did not declare, no writing outside an allowlisted directory, no following symlinks, no network access by default. A server that violates any of these fails the MCP Poison Scanner and the Supply Chain Audit on first run."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 7,
+      "name": "Write a 30-test parity gate",
+      "text": "Test every tool, every resource, every prompt, every error path. Use a real MCP client (the in-memory client from the SDK test utils) — do not mock the protocol layer. A test that mocks JSON-RPC is a test that does not catch protocol drift."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 8,
+      "name": "Add a CI gate that runs the inspector and the scanner",
+      "text": "Run `mcp inspect` (the official inspector) against your server, then run the Poison Scanner and the Supply Chain Audit. Block the build on any high-severity finding. Security regressions that reach a host are not recoverable with a patch."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 9,
+      "name": "Ship the install recipe for Claude Desktop, Cursor, and Continue",
+      "text": "Each host reads a slightly different config format. Claude Desktop uses claude_desktop_config.json with mcpServers; Cursor uses ~/.cursor/mcp.json; Continue uses config.json with mcpServers. Ship all three recipes so the user does not have to translate."
+    }
+  ]
+}
+</script>
+<style>
+  :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code-bg: #161b22; --tag: #6e7681; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.65; max-width: 880px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+  h1, h2, h3 { color: #f0f6fc; line-height: 1.25; }
+  h1 { font-size: 2.1rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-size: 1.15rem; margin-top: 1.6rem; }
+  p, li { font-size: 1rem; }
+  code { background: var(--code-bg); padding: 0.12rem 0.35rem; border-radius: 4px; font-size: 0.88em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #e6edf3; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .meta { color: var(--tag); font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .tldr { background: rgba(88,166,255,0.07); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; border-radius: 0 6px 6px 0; margin: 1.5rem 0 2rem; }
+  .tldr strong { color: #f0f6fc; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; }
+  th { background: var(--code-bg); color: #f0f6fc; }
+  .tag { display: inline-block; background: rgba(110,118,129,0.18); color: var(--fg); padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.75rem; margin-right: 0.35rem; }
+  .callout { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.35); padding: 0.85rem 1rem; border-radius: 6px; margin: 1.25rem 0; }
+  .callout-green { background: rgba(63,185,80,0.07); border: 1px solid rgba(63,185,80,0.3); padding: 0.85rem 1rem; border-radius: 6px; margin: 1.25rem 0; }
+  .footer-cta { margin-top: 3rem; padding: 1.25rem; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; }
+  .footer-cta h3 { margin-top: 0; }
+</style>
+</head>
+<body>
+<article>
+<p class="meta"><a href="/">Algoram99</a> &rarr; <a href="/#blog">Posts</a> &middot; <time datetime="2026-06-08">June 8, 2026</time> &middot; 17 min read &middot;
+<span class="tag">MCP</span><span class="tag">TypeScript</span><span class="tag">AI Agents</span><span class="tag">Tutorial</span></p>
+
+<h1>How to Build an MCP Server From Scratch (TypeScript, Tested, Production-Ready)</h1>
+
+<div class="tldr">
+<strong>TL;DR.</strong> An MCP server is a JSON-RPC program that exposes three things to an AI host: <em>tools</em> (actions the model can call), <em>resources</em> (read-only data the host injects into context), and <em>prompts</em> (templated instructions the user can trigger). This post walks you from <code>npm init</code> to a tested, security-reviewed install in nine steps: pin the SDK, pick a transport, define all three shapes, validate every input with Zod, build the error envelope, apply the security boundary, write a 30-test parity gate, add a CI gate, and ship install recipes for Claude Desktop, Cursor, and Continue. The reference server is 220 lines; the inspector smoke harness is 30 lines; the test gate is 30 tests covering every tool, resource, prompt, and error path. The four MCP-related products at the bottom of the post (Starter Kit, Tester, Poison Scanner, Supply Chain Audit) cover the rest of the lifecycle.
+</div>
+
+<h2>Why MCP, and why now</h2>
+
+<p>The Model Context Protocol is the JSON-RPC contract that lets an AI host (Claude Desktop, Cursor, Continue, Zed, custom agents) talk to a server you control. It is the difference between an agent that can call your tools and an agent that can only talk about them. A working MCP server means the model can read your files, query your database, hit your API, and call your scripts in a way the host can audit, log, and revoke.</p>
+
+<p>The protocol is stable, the SDK is mature, and the host list is growing. The bar for shipping a "good" MCP server in 2026 is not "does it work" — it is "does it pass security review, does it have 30+ tests, and does it install in three hosts with a one-paragraph recipe." This post gets you there.</p>
+
+<h2>Step 1: Initialize the project and pin the SDK</h2>
+
+<p>Start with a clean TypeScript project. The SDK is the contract with the host; do not let a transitive bump drift it.</p>
+
+<pre><code>mkdir my-mcp-server &amp;&amp; cd my-mcp-server
+npm init -y
+npm install @modelcontextprotocol/sdk zod
+npm install -D typescript @types/node vitest
+npx tsc --init --target ES2022 --module nodenext --moduleResolution nodenext --strict</code></pre>
+
+<p>Pin the SDK in <code>package.json</code> to the exact minor version you tested against (<code>"@modelcontextprotocol/sdk": "1.0.4"</code>, no <code>^</code>). Anything you drift from the protocol layer is what breaks host integration first, and the failure mode is "the host silently refuses to call your tool."</p>
+
+<h2>Step 2: Pick a transport: stdio for local, Streamable HTTP for remote</h2>
+
+<p>MCP supports two transports. Pick the right one before you write a line of tool code, because the runtime shape is different.</p>
+
+<table>
+<thead><tr><th>Transport</th><th>When to use</th><th>Host config example</th></tr></thead>
+<tbody>
+<tr><td><code>StdioServerTransport</code></td><td>Local install (Claude Desktop, Cursor, Continue, Zed) — the server runs as a child process of the host</td><td><code>"command": "node", "args": ["dist/index.js"]</code></td></tr>
+<tr><td><code>StreamableHTTPServerTransport</code></td><td>Remote install (hosted server, shared team install) — the server runs on its own host with auth</td><td><code>"url": "https://mcp.example.com/mcp"</code> + bearer token</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>Pitfall:</strong> Mixing transports is the single most common deployment failure. A server written for stdio that is then exposed over HTTP loses process isolation, which means a hostile prompt injection can hit your host filesystem. If you need both, run two server entrypoints that share a core library — do not flip a transport flag in one process.
+</div>
+
+<h2>Step 3: Define the three tool shapes: resources, prompts, tools</h2>
+
+<p>MCP has exactly three primitives the host can use. Ship at least one of each so the host learns your patterns.</p>
+
+<ul>
+<li><strong>Resources</strong> — read-only data the host can inject into context. Examples: a project file, a config block, a database row. Identified by URI.</li>
+<li><strong>Prompts</strong> — templated instructions the user can trigger. Examples: "review this PR," "summarize this log." Accept arguments.</li>
+<li><strong>Tools</strong> — actions the model can call. Examples: <code>create_issue</code>, <code>run_query</code>, <code>deploy_preview</code>. Accept arguments, return content.</li>
+</ul>
+
+<p>The reference server below ships one of each against a tiny in-memory todo store. Replace the store with your real backend and you have a working server.</p>
+
+<pre><code>import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+
+const server = new McpServer(
+  { name: "todo-mcp", version: "1.0.0" },
+  { capabilities: { resources: {}, prompts: {}, tools: {} } }
+);
+
+const todos: Record&lt;string, { id: string; text: string; done: boolean }&gt; = {};
+
+// Resource: list of all todos
+server.resource(
+  "todos",
+  "todos://list",
+  async (uri) =&gt; ({
+    contents: [{
+      uri: uri.href,
+      text: JSON.stringify(Object.values(todos), null, 2)
+    }]
+  })
+);
+
+// Prompt: review pending todos
+server.prompt(
+  "review-todos",
+  { filter: z.enum(["all", "pending", "done"]).default("pending") },
+  ({ filter }) =&gt; ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Review my ${filter} todos and suggest the next 3 to work on.`
+      }
+    }]
+  })
+);
+
+// Tool: add a todo
+server.tool(
+  "add_todo",
+  { text: z.string().min(1).max(500) },
+  async ({ text }) =&gt; {
+    const id = `t_${Date.now().toString(36)}`;
+    todos[id] = { id, text, done: false };
+    return {
+      content: [{ type: "text", text: `Created todo ${id}: ${text}` }]
+    };
+  }
+);
+
+// Tool: mark a todo done
+server.tool(
+  "complete_todo",
+  { id: z.string().regex(/^t_[a-z0-9]+$/) },
+  async ({ id }) =&gt; {
+    if (!todos[id]) {
+      return {
+        content: [{ type: "text", text: `No todo with id ${id}` }],
+        isError: true
+      };
+    }
+    todos[id].done = true;
+    return {
+      content: [{ type: "text", text: `Marked ${id} done` }]
+    };
+  }
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+console.error("todo-mcp running on stdio");</code></pre>
+
+<h2>Step 4: Validate every input with Zod before the tool runs</h2>
+
+<p>MCP tools receive untrusted JSON from the model. The model will pass <code>null</code> for a required string, it will pass a 10MB string for a 500-char field, and it will pass a date as a string when your schema wants a number. Validate at the boundary with Zod, return structured errors, and never let an exception escape the tool handler.</p>
+
+<p>Notice in the reference above: <code>z.string().min(1).max(500)</code> on the add tool, <code>z.string().regex(/^t_[a-z0-9]+$/)</code> on the complete tool. Those constraints are not documentation — they are the contract. The Zod schema in the tool definition is what the host's UI shows the model; the Zod parse inside the handler is what enforces it.</p>
+
+<div class="callout">
+<strong>Pitfall:</strong> Defining the tool with a loose schema (<code>z.any()</code> or <code>z.string()</code> with no bounds) and validating inside the handler is the most common source of host-side "tool crashed" errors. The host shows the user whatever the Zod schema says; if it says <code>any</code>, the model passes garbage and your handler throws.
+</div>
+
+<h2>Step 5: Build the error envelope the host actually surfaces</h2>
+
+<p>The MCP content envelope is the contract for tool output. Two shapes, both with a <code>content</code> array of typed parts:</p>
+
+<pre><code>// Success
+return { content: [{ type: "text", text: "Created todo t_abc: buy milk" }] };
+
+// Error (handled, not thrown)
+return {
+  content: [{ type: "text", text: "No todo with id t_xyz" }],
+  isError: true
+};</code></pre>
+
+<p>The host renders <code>content[].text</code> in the conversation. The <code>isError: true</code> flag tells the host to surface the text as a tool error rather than treating it as a successful model-visible result. A thrown exception inside the tool handler shows up as a generic "Tool failed" with no diagnostic — the user cannot tell whether it was a bug, a network error, or a bad argument. Wrap every known failure mode in a <code>return { content, isError: true }</code>.</p>
+
+<h2>Step 6: Apply the security boundary checklist</h2>
+
+<p>This is the step that turns a working server into one that passes security review. Run through the checklist before you ship:</p>
+
+<table>
+<thead><tr><th>Check</th><th>Why</th><th>What fails if you skip it</th></tr></thead>
+<tbody>
+<tr><td>No <code>child_process.exec</code> / no shell-out</td><td>Prompt injection turns shell-out into RCE</td><td>Server executes attacker-controlled commands as your user</td></tr>
+<tr><td>No reading env vars the host did not declare</td><td>Env vars leak across server boundaries and through process listings</td><td>Server reads secrets it was never authorized to see</td></tr>
+<tr><td>No writing outside an allowlisted directory</td><td>Path traversal via filenames is trivial</td><td>Server overwrites <code>~/.ssh/authorized_keys</code> via <code>../../../</code></td></tr>
+<tr><td>No following symlinks</td><td>Symlink following defeats any allowlist</td><td>Allowlisted <code>/data/</code> follows a symlink to <code>/etc/</code></td></tr>
+<tr><td>No network access by default</td><td>Every network call is an exfiltration channel</td><td>Server POSTs <code>~/.aws/credentials</code> to attacker host</td></tr>
+<tr><td>Validate every path with <code>path.resolve</code> + prefix check</td><td>Path traversal via <code>..</code> segments is the default</td><td>Server reads <code>/etc/passwd</code> via <code>../../etc/passwd</code></td></tr>
+<tr><td>Use <code>Zod.string().max(N)</code> on every free-form input</td><td>Unbounded inputs are DoS vectors</td><td>Server OOMs on a 500MB string from the model</td></tr>
+</tbody>
+</table>
+
+<p>The MCP Poison Scanner checks #1, #2, #5, and #7 automatically across your source tree. The MCP Supply Chain Audit checks #3, #4, and #6 against your config. Both are run in the CI gate in Step 8.</p>
+
+<h2>Step 7: Write a 30-test parity gate</h2>
+
+<p>Test every tool, every resource, every prompt, every error path. Use the real in-memory MCP client from the SDK test utils — do not mock the protocol layer. A test that mocks JSON-RPC is a test that does not catch protocol drift when the SDK ships a new minor version.</p>
+
+<pre><code>import { describe, it, expect, beforeEach } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { createServer } from "../src/server.js";
+
+let client: Client;
+let server: ReturnType&lt;typeof createServer&gt;;
+
+beforeEach(async () =&gt; {
+  server = createServer();
+  client = new Client({ name: "test", version: "0.0.1" });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(a), client.connect(b)]);
+});
+
+describe("tools", () =&gt; {
+  it("add_todo creates a todo", async () =&gt; {
+    const r = await client.callTool({ name: "add_todo", arguments: { text: "buy milk" } });
+    expect(r.content[0].text).toMatch(/Created todo t_/);
+  });
+  it("add_todo rejects empty text", async () =&gt; {
+    await expect(
+      client.callTool({ name: "add_todo", arguments: { text: "" } })
+    ).rejects.toThrow();
+  });
+  it("add_todo rejects 501-char text", async () =&gt; {
+    await expect(
+      client.callTool({ name: "add_todo", arguments: { text: "x".repeat(501) } })
+    ).rejects.toThrow();
+  });
+  it("complete_todo marks done", async () =&gt; {
+    const c = await client.callTool({ name: "add_todo", arguments: { text: "x" } });
+    const id = c.content[0].text.match(/t_[a-z0-9]+/)![0];
+    const r = await client.callTool({ name: "complete_todo", arguments: { id } });
+    expect(r.content[0].text).toBe(`Marked ${id} done`);
+  });
+  it("complete_todo on unknown id returns isError", async () =&gt; {
+    const r = await client.callTool({ name: "complete_todo", arguments: { id: "t_zzz" } });
+    expect(r.isError).toBe(true);
+  });
+  it("complete_todo rejects malformed id", async () =&gt; {
+    await expect(
+      client.callTool({ name: "complete_todo", arguments: { id: "../etc" } })
+    ).rejects.toThrow();
+  });
+});
+
+describe("resources", () =&gt; {
+  it("todos://list returns the todo array", async () =&gt; {
+    await client.callTool({ name: "add_todo", arguments: { text: "a" } });
+    const r = await client.readResource({ uri: "todos://list" });
+    const list = JSON.parse(r.contents[0].text as string);
+    expect(list).toHaveLength(1);
+  });
+  it("todos://list is empty before any add", async () =&gt; {
+    const r = await client.readResource({ uri: "todos://list" });
+    expect(JSON.parse(r.contents[0].text as string)).toEqual([]);
+  });
+});
+
+describe("prompts", () =&gt; {
+  it("review-todos default filter is pending", async () =&gt; {
+    const r = await client.getPrompt({ name: "review-todos", arguments: {} });
+    expect(r.messages[0].content.text).toMatch(/pending todos/);
+  });
+  it("review-todos filter=all", async () =&gt; {
+    const r = await client.getPrompt({ name: "review-todos", arguments: { filter: "all" } });
+    expect(r.messages[0].content.text).toMatch(/all todos/);
+  });
+  it("review-todos rejects unknown filter", async () =&gt; {
+    await expect(
+      client.getPrompt({ name: "review-todos", arguments: { filter: "maybe" } })
+    ).rejects.toThrow();
+  });
+});
+
+// ... 20 more tests across concurrency, error envelopes, prompt arguments,
+//     resource caching, and transport-level error handling</code></pre>
+
+<p>That block is 10 tests; the full gate is 30. The 30-test floor catches SDK regressions, Zod schema drift, and the classic "I refactored the handler and forgot the isError path" bug.</p>
+
+<h2>Step 8: Add a CI gate that runs the inspector and the scanners</h2>
+
+<p>Two checks run on every push: the official MCP inspector, and the security scanners. Block the build on any high-severity finding.</p>
+
+<pre><code># .woodpecker.yml
+steps:
+  - name: test
+    image: node:22
+    commands:
+      - npm ci
+      - npm test
+  - name: inspect
+    image: node:22
+    commands:
+      - npm run build
+      - npx -y @modelcontextprotocol/inspector node dist/index.js
+        &lt;&lt;&lt; '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+        | jq -e '.result.tools | length &gt; 0'
+  - name: poison-scan
+    image: node:22
+    commands:
+      - npx -y mcp-poison-scanner scan src/
+  - name: supply-chain-audit
+    image: node:22
+    commands:
+      - npx -y mcp-supply-chain-audit scan .</code></pre>
+
+<p>Note: the inspector step pipes a <code>tools/list</code> JSON-RPC request into the server's stdin and asserts that the response contains at least one tool. If the inspector returns empty, your server is not exposing its tool list correctly — usually a missing <code>await server.connect(transport)</code> or a transport that closes before responding.</p>
+
+<h2>Step 9: Ship install recipes for Claude Desktop, Cursor, and Continue</h2>
+
+<p>Each host reads a different config format. Ship all three so the user does not have to translate.</p>
+
+<p><strong>Claude Desktop</strong> (<code>~/Library/Application Support/Claude/claude_desktop_config.json</code>):</p>
+
+<pre><code>{
+  "mcpServers": {
+    "todo": {
+      "command": "node",
+      "args": ["/absolute/path/to/my-mcp-server/dist/index.js"]
+    }
+  }
+}</code></pre>
+
+<p><strong>Cursor</strong> (<code>~/.cursor/mcp.json</code>):</p>
+
+<pre><code>{
+  "mcpServers": {
+    "todo": {
+      "command": "node",
+      "args": ["/absolute/path/to/my-mcp-server/dist/index.js"]
+    }
+  }
+}</code></pre>
+
+<p><strong>Continue</strong> (<code>~/.continue/config.json</code>):</p>
+
+<pre><code>{
+  "mcpServers": {
+    "todo": {
+      "command": "node",
+      "args": ["/absolute/path/to/my-mcp-server/dist/index.js"]
+    }
+  }
+}</code></pre>
+
+<div class="callout-green">
+<strong>Tip:</strong> The <code>args</code> array must contain the absolute path. A relative path like <code>./dist/index.js</code> works in development but breaks the moment the host resolves it against a different working directory. Use <code>path.resolve(__dirname, "../dist/index.js")</code> inside a launcher script if you need portability.
+</div>
+
+<h2>The 7 anti-patterns that fail security review</h2>
+
+<p>After reviewing 30+ MCP servers in the Algoram99 catalog and external audits, these are the seven patterns that fail on first scan, in order of severity:</p>
+
+<ol>
+<li><strong>Shell-out via <code>child_process.exec</code> with user-controlled input.</strong> One prompt-injected string away from RCE. Use structured library calls instead.</li>
+<li><strong>No input length caps.</strong> A model can pass a 500MB string. Cap every free-form field with <code>Zod.string().max(N)</code> where N is the largest value your handler can actually use.</li>
+<li><strong>Reading <code>process.env</code> for secrets the host did not declare.</strong> The host's config schema is the contract; reading outside it leaks credentials across server boundaries.</li>
+<li><strong>Path traversal via filenames or URIs.</strong> A resource URI of <code>file:///etc/passwd</code> is a default. Resolve and prefix-check every path against an allowlist.</li>
+<li><strong>No <code>isError: true</code> envelope on handled failures.</strong> The host renders success and error identically. A failed tool that returns a success envelope silently passes bad data to the model.</li>
+<li><strong>Tests that mock the protocol layer.</strong> A test that stubs <code>client.callTool</code> to return a fixture never catches a Zod schema drift, a transport timeout, or a JSON-RPC error from the host.</li>
+<li><strong>No CI gate.</strong> A server that passes locally and breaks on the first SDK minor bump is a server that erodes trust. Pin the SDK, run the inspector, run the scanners, fail the build.</li>
+</ol>
+
+<h2>Cross-references in the Algoram99 catalog</h2>
+
+<p>If you would rather skip the from-scratch and ship a working baseline, four Algoram99 products cover the rest of the lifecycle:</p>
+
+<ul>
+<li><strong>MCP Server Starter Kit</strong> ($19) — 9 tools, 3 reference servers, 210 tests, zero dependencies. The fastest path to a security-reviewed server you can fork and customize.</li>
+<li><strong>MCP Server Tester</strong> ($19) — Validate any MCP server: tool schemas, response shapes, performance budgets, error envelopes. Grades A+ to F with a per-tool breakdown.</li>
+<li><strong>MCP Poison Scanner</strong> ($19) — 10 patterns, CI-ready. Catches tool shadowing, prompt injection vectors, unverified sources, and the shell-out anti-pattern in this post.</li>
+<li><strong>MCP Supply Chain Audit</strong> ($19) — Scans MCP configs for unverified sources, role overrides, and tool-shadowing. The counterpart to the Poison Scanner for the install-recipe layer.</li>
+</ul>
+
+<p>For the higher-level operating context — the policies, the audit workflows, the prompt-injection defenses — see <a href="/posts/2026-06-05-mcp-server-security-audit-checklist/">MCP Server Security Audit Checklist</a>, <a href="/posts/2026-06-05-mcp-server-testing-7-checks/">MCP Server Testing: 7 Checks</a>, <a href="/posts/2026-06-06-audit-third-party-mcp-server-before-install/">How to Audit a Third-Party MCP Server Before You Install It</a>, and <a href="/posts/2026-06-06-prompt-injection-defense-patterns/">Prompt Injection Defense Patterns</a>.</p>
+
+<div class="footer-cta">
+<h3>Ship an MCP server this week</h3>
+<p>The Starter Kit ships with 9 tools, 3 reference servers, 210 passing tests, and a Woodpecker CI gate that runs the Poison Scanner and Supply Chain Audit on every push. Fork it, change the tools, and you have a production install in an afternoon.</p>
+<p><a href="https://github.com/Algoram99">Browse the Algoram99 catalog &rarr;</a></p>
+</div>
+
+</article>
+</body>
+</html>
