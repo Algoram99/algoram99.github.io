@@ -477,7 +477,7 @@ log anomaly, etc.&gt;
 <p>It is. Sections 1&ndash;4 are an operational form of the OWASP LLM Top 10 (LLM01 prompt injection, LLM02 sensitive information disclosure, LLM03 supply chain, LLM05 improper output handling, LLM06 excessive agency). Sections 5&ndash;10 are the operational form of the SOC 2 + ISO 27001 controls applied to agents. The 10-section policy is not new theory; it is the existing theory in a form the team can actually follow.</p>
 
 <h3>"Couldn't I just use an automated scanner?"</h3>
-<p>Yes — and you should, for the parts that can be automated. Our <a href="https://github.com/Algoram99">AgentLint</a> CLI lints agent configurations against 17 best-practice rules. Our <a href="https://github.com/Algoram99">Agent Safety Audit</a> CLI detects 36 vulnerability patterns across 9 categories. Our <a href="https://github.com/Algoram99">Security Pattern Detector</a> and <a href="https://github.com/Algoram99">Env Audit</a> handle the secret-and-config side. The 10-section policy is what the scanner is checking <em>against</em>. Without the policy, the scanner is a vibes-based "this looks off." With the policy, it is a stoplight.</p>
+<p>Yes — and you should, for the parts that can be automated. Our <a href="https://github.com/Algoram99">AgentLint</a> CLI lints agent configurations against 17 best-practice rules. Our <a href="https://github.com/Algoram99">Agent Safety Audit</a> CLI <a class="stripe" href="https://buy.stripe.com/test_eVqbJ3csl9io6mh5a173G06">Buy $19</a> detects 36 vulnerability patterns across 9 categories. Our <a href="https://github.com/Algoram99">Security Pattern Detector</a> <a class="stripe" href="https://buy.stripe.com/test_dRm6oJ2RL528fWR9qh73G0k">Buy $19</a> and <a href="https://github.com/Algoram99">Env Audit</a> <a class="stripe" href="https://buy.stripe.com/test_eVq9AVdwp2U011XfOF73G07">Buy $9</a> handle the secret-and-config side. The 10-section policy is what the scanner is checking <em>against</em>. Without the policy, the scanner is a vibes-based "this looks off." With the policy, it is a stoplight.</p>
 
 <h2>How this maps to OWASP, MITRE ATLAS, and the EU AI Act</h2>
 <p>The 10 sections are not arbitrary. They cover:</p>
@@ -504,13 +504,13 @@ log anomaly, etc.&gt;
 <p>For teams that would rather have the 10 sections as a starting file than as a doc, we ship two artifacts on the Algoram99 GitHub:</p>
 <ul>
 <li><a href="https://github.com/Algoram99">AgentLint</a> — a 17-rule linter for agent configuration files. Catches missing tool descriptions, untiered tools, missing approval gates, missing audit log fields, and the other smells this policy says to fix. It is the same linter we run against our own agent configs in CI.</li>
-<li><a href="https://github.com/Algoram99">Agent Safety Audit</a> — a 36-pattern scanner that detects known agent misconfigurations: missing data classification, missing rate limits, hardcoded secrets, missing prompt-injection policy, and more. It is the same scanner we used to find the patterns in this post.</li>
+<li><a href="https://github.com/Algoram99">Agent Safety Audit</a> <a class="stripe" href="https://buy.stripe.com/test_eVqbJ3csl9io6mh5a173G06">Buy $19</a> — a 36-pattern scanner that detects known agent misconfigurations: missing data classification, missing rate limits, hardcoded secrets, missing prompt-injection policy, and more. It is the same scanner we used to find the patterns in this post.</li>
 </ul>
 <p>For teams that want the broader governance and process playbooks, we also ship:</p>
 <ul>
 <li><a href="https://github.com/Algoram99">AI Agent Orchestration Checklist</a> — the 50-point review process for multi-agent deployments, including the supervisor-review pattern and the 5W/H correction loop that this post assumes is in place.</li>
 <li><a href="https://github.com/Algoram99">PAI v5.0.0 Implementation Guide</a> — the step-by-step playbook for adopting the PAI v5.0.0 operating schema (7-phase algorithm, ISC definition, 8 closed thinking capabilities) in any AI coding agent. The "Plan" and "Verify" phases map directly to sections 6 and 10 of this policy.</li>
-<li><a href="https://github.com/Algoram99">Security Pattern Detector</a> — 15 anti-patterns for codebases, including the prompt-injection-friendly patterns this policy says to forbid.</li>
+<li><a href="https://github.com/Algoram99">Security Pattern Detector</a> <a class="stripe" href="https://buy.stripe.com/test_dRm6oJ2RL528fWR9qh73G0k">Buy $19</a> — 15 anti-patterns for codebases, including the prompt-injection-friendly patterns this policy says to forbid.</li>
 <li><a href="https://github.com/Algoram99">Env Audit</a> — 6 categories of <code>.env</code> vulnerability, including the long-lived-token and unprotected-path patterns that Section 4 of this policy says to fail the deploy on.</li>
 </ul>
 
