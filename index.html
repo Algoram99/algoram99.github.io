@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-09T20:15:00Z (cycle-49 stripe-note refresh: 25→26 CLI tools, 32→33 cards, 36→37 anchors — added Agent Turn Health Inspector CLI $29) -->
+<!-- built: 2026-06-09T20:30:00Z (cycle-53 stripe-note refresh: 26→27 CLI tools, 33→34 cards, 37→38 anchors — added Agent Ingress Firewall CLI $29) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -38,7 +38,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 <body>
 <h1>Algoram88</h1>
 <p class="subtitle">Developer tools, security CLIs, and AI agent infrastructure.</p>
-<p class="count">26 tools available &middot; 4 analysis services &middot; 3 guides &amp; templates &middot; All zero-dependency &middot; MIT licensed</p>
+<p class="count">27 tools available &middot; 4 analysis services &middot; 3 guides &amp; templates &middot; All zero-dependency &middot; MIT licensed</p>
 
 <div class="categories">
   <button class="cat-btn active" onclick="filter('all')">All</button>
@@ -52,7 +52,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 </div>
 
 <div class="stripe-note">
-  <strong>Stripe checkout is live.</strong> 26 CLI tools + 4 analysis services + 3 guides &amp; templates (33 buy-cards total) have direct buy links (test mode). 37 payment-link anchors surfaced on this page (Solana Rent Reclaimer has both a base and a Pro-license link on the same card). 1 Stripe plink (plink_1TZ2cy) is deferred because its underlying product was deleted. Stripe account must be switched to live mode in the Dashboard to receive real payments. The Stripe links are added to each product card below alongside the existing GitHub release link.
+  <strong>Stripe checkout is live.</strong> 27 CLI tools + 4 analysis services + 3 guides &amp; templates (34 buy-cards total) have direct buy links (test mode). 38 payment-link anchors surfaced on this page (Solana Rent Reclaimer has both a base and a Pro-license link on the same card). 1 Stripe plink (plink_1TZ2cy) is deferred because its underlying product was deleted. Stripe account must be switched to live mode in the Dashboard to receive real payments. The Stripe links are added to each product card below alongside the existing GitHub release link.
 </div>
 
 <h2 style="margin-top:2.5rem; color: var(--accent); font-size:1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Guides &amp; Templates</h2>
@@ -321,6 +321,13 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <p class="tagline">Per-turn agent runtime health inspector. Score every turn of a multi-turn agent run — latency, tokens, tool-call fanout, errors, retries — and emit a CI-gate verdict, before you ship. Zero-dep Node 18+ CLI reads JSONL session logs (one record per turn) and emits per-turn scoring with 3 severity tiers (HARD/SOFT/INVALID) plus a session verdict (PASS/WARN/FAIL). Exit 0 on PASS, 1 on FAIL, 1 on WARN if --fail-on warn. 35 unit tests + selftest mode. Pairs with Agent Inflight Telemetry (spans), Prompt Regression (single-prompt), and Agent Eval Harness (multi-turn). Together the four cover: spans → turns → prompts → conversations.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">Runtime</span><span class="tag">Health</span></div>
   <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_9B6cN7dwp5286mhfOF73G0C">Stripe</a></div></div>
+</div>
+
+<div class="product" data-cat="security agent devtools">
+  <h3>Agent Ingress Firewall CLI</h3>
+  <p class="tagline">Read-only, local pattern detection for prompt-injection, role-escalation, system-prompt-extraction, tool-call-confusion, and dangerous-URL patterns in incoming agent messages. Returns structured BLOCK / BLUR / ALLOW verdict with per-finding reasons. Zero network calls, zero file writes outside scan results. Drop into any pre-tool-call interceptor, CI gate, or eval harness in 10 minutes. 41 unit tests + 18 in-process selftest cases. Pairs with Agent Safety Audit (config audit) and Agent Eval Harness CLI (multi-turn behavior) — together they cover ingress + config + conversation.</p>
+  <div class="meta"><span class="tag">CLI</span><span class="tag">Security</span><span class="tag">Ingress</span><span class="tag">CI</span></div>
+  <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Stripe</a></div></div>
 </div>
 
 </div>
