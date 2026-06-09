@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-09T20:00:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Add Observability to AI Agents: Tracing, Token Tracking, and Failure Detection (OpenTelemetry-Native) — Algoram99</title>
+<meta name="description" content="A field-tested, end-to-end playbook for instrumenting AI agents with production-grade observability: OpenTelemetry-native spans, per-call token and cost tracking, structured failure detection, the four anti-patterns that silently corrupt agent traces, a copy-paste TypeScript tracing shim that drops into any LangGraph/LlamaIndex/CrewAI project, a Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift between expected and actual tool-call sequences. Cross-links to the Algoram99 Agent Inflight Telemetry CLI ($29) — a zero-dependency drop-in that ships the same instrumentation as a single binary — and to the prior CI pipeline post so the deploy→monitor loop closes. Maps to OpenTelemetry GenAI semantic conventions and the OWASP LLM Top 10 observability gaps.">
+<meta name="keywords" content="AI agent observability, LLM tracing, OpenTelemetry LLM, LangSmith alternative, Langfuse self-hosted, agent telemetry, LLM cost tracking, agent debugging, trace propagation LLM, span tool call, Algoram99, prompt regression, agent CI">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Add Observability to AI Agents: Tracing, Token Tracking, and Failure Detection (OpenTelemetry-Native)">
+<meta property="og:description" content="A field-tested, end-to-end playbook for instrumenting AI agents with production-grade observability: OpenTelemetry-native spans, token/cost tracking, failure detection, 4 anti-patterns, copy-paste TypeScript shim, Woodpecker CI gate, Agent Inflight Telemetry CLI cross-link.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-09-add-observability-to-ai-agents/">
+<meta property="article:published_time" content="2026-06-09T20:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Observability">
+<meta property="article:tag" content="AI agents">
+<meta property="article:tag" content="observability">
+<meta property="article:tag" content="OpenTelemetry">
+<meta property="article:tag" content="LLM tracing">
+<meta property="article:tag" content="telemetry">
+<meta property="article:tag" content="DevOps">
+<meta property="article:tag" content="cost tracking">
+<meta property="article:tag" content="Woodpecker">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Add Observability to AI Agents: Tracing, Token Tracking, and Failure Detection (OpenTelemetry-Native)",
+  "description": "A field-tested, end-to-end playbook for instrumenting AI agents with production-grade observability: OpenTelemetry-native spans, per-call token and cost tracking, structured failure detection, four anti-patterns that silently corrupt agent traces, a copy-paste TypeScript tracing shim, a Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift between expected and actual tool-call sequences.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/og-logo.png"
+    }
+  },
+  "datePublished": "2026-06-09T20:00:00Z",
+  "dateModified": "2026-06-09T20:00:00Z",
+  "mainEntityOfPage": "https://algoram99.github.io/posts/2026-06-09-add-observability-to-ai-agents/",
+  "keywords": "AI agent observability, LLM tracing, OpenTelemetry, LangSmith alternative, agent telemetry, LLM cost tracking, prompt regression, agent CI, Woodpecker, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; --tag: #1f6feb; --code: #010409; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 860px; margin: 0 auto; line-height: 1.7; }
+h1 { color: var(--accent); font-size: 2.1rem; line-height: 1.25; margin: 0 0 0.5rem 0; }
+h2 { color: var(--accent); font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #dbeafe; font-size: 1.15rem; margin-top: 1.5rem; }
+.subtitle { color: #8b949e; font-size: 1.05rem; margin: 0.25rem 0 1rem 0; }
+.meta { color: #6e7681; font-size: 0.85rem; margin-bottom: 1.5rem; }
+.tldr { background: var(--card); border-left: 3px solid var(--accent); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr strong { color: var(--accent); }
+pre, code { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+pre { background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.55; }
+code { background: rgba(88,166,255,0.10); padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.9em; }
+pre code { background: none; padding: 0; font-size: 0.85rem; }
+.tag { display: inline-block; background: #1c2128; border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem; color: #8b949e; }
+.callout { background: rgba(63,185,80,0.06); border-left: 3px solid var(--green); border-radius: 6px; padding: 0.85rem 1rem; margin: 1.5rem 0; }
+.callout strong { color: var(--green); }
+.warn { background: rgba(248,81,73,0.06); border-left: 3px solid #f85149; border-radius: 6px; padding: 0.85rem 1rem; margin: 1.5rem 0; }
+.warn strong { color: #f85149; }
+ul, ol { padding-left: 1.4rem; }
+li { margin-bottom: 0.4rem; }
+table { border-collapse: collapse; width: 100%; margin: 1.5rem 0; font-size: 0.9rem; }
+th, td { border: 1px solid var(--border); padding: 0.6rem 0.75rem; text-align: left; }
+th { background: var(--card); color: var(--accent); }
+a { color: var(--accent); }
+a:hover { color: #dbeafe; }
+.footer-links { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: #8b949e; font-size: 0.9rem; }
+.footer-links a { color: var(--accent); text-decoration: none; margin-right: 1rem; }
+.stripe-cta { display: inline-block; background: #5b21b6; color: #fff; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 0.5rem 0.5rem 0.5rem 0; }
+.stripe-cta:hover { background: #7c3aed; color: #fff; }
+</style>
+</head>
+<body>
+<article>
+<h1>How to Add Observability to AI Agents: Tracing, Token Tracking, and Failure Detection (OpenTelemetry-Native)</h1>
+<p class="subtitle">A field-tested, end-to-end playbook for shipping agents you can actually debug at 2 a.m.</p>
+<p class="meta">Algoram99 &middot; 2026-06-09 &middot; 18 min read &middot; <span class="tag">AI agents</span> <span class="tag">OpenTelemetry</span> <span class="tag">DevOps</span></p>
+
+<div class="tldr">
+<strong>TL;DR.</strong> Production agents fail in three ways that the standard <code>console.log</code> debugging path cannot catch: silent token-budget overruns, schema drift between expected and actual tool calls, and inter-call latency cliffs that look like &ldquo;the model is slow&rdquo; but are actually a memory leak in your retriever. OpenTelemetry-native spans solve all three. This post walks through the four spans every agent MUST emit, the four anti-patterns that corrupt traces, a copy-paste TypeScript shim that drops into LangGraph / LlamaIndex / CrewAI, a Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift. If you want the same instrumentation shipped as a single zero-dependency binary, the <a href="https://buy.stripe.com/test_dRm9AV5lp5eY3aP3qZ73G04">Agent Inflight Telemetry CLI</a> ($29) wires it in three commands. This is the natural follow-on to the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline for AI agents</a> post: deploy → monitor → close the loop.
+</div>
+
+<h2>1. The three observability gaps that break production agents</h2>
+<p>You shipped the agent. It works on the dev box. Then it goes to production and three things happen at once:</p>
+<ol>
+<li><strong>Token costs drift up 30% in a week</strong> with no code change. You have no per-call cost attribution, so you cannot tell whether it is a model price change, a prompt regression, a new tool call, or one user who pasted a 200k-token document.</li>
+<li><strong>A user reports the agent &ldquo;hallucinated a refund&rdquo;</strong>. The dev console shows the prompt and the response, but not which tool call returned what, in what order, with what schema, with what upstream latency. You cannot reproduce.</li>
+<li><strong>Latency p99 spikes from 4s to 22s</strong>. The LLM provider status page is green. The retriever is fine. The vector DB is fine. The actual cause is a single tool that started returning 4x larger payloads after a vendor upgrade — but you have no span attributes for response size, so it is invisible.</li>
+</ol>
+<p>All three are <em>observability</em> problems, not model problems. The fix is the same for all three: emit the right OpenTelemetry spans, attach the right attributes, ship them somewhere queryable, and gate CI on them.</p>
+
+<h2>2. The four spans every agent must emit</h2>
+<p>OpenTelemetry GenAI semantic conventions are still moving (the spec is in <code>semantic-conventions GenAI</code> 1.30+ as of mid-2026), but the four-span pattern below is stable across all major agent frameworks. Each span has a clear parent-child relationship:</p>
+
+<pre><code>// Span tree for one agent turn:
+//   agent.turn
+//   ├─ llm.plan
+//   ├─ tool.call (repeated)
+//   │  └─ tool.upstream
+//   └─ llm.synthesize
+// Each span carries the attributes below. Missing any of these
+// is what produces the three gaps in section 1.
+</code></pre>
+
+<table>
+<thead>
+<tr><th>Span</th><th>Required attributes</th><th>Why it matters</th></tr>
+</thead>
+<tbody>
+<tr><td><code>agent.turn</code></td><td><code>agent.user_id</code>, <code>agent.session_id</code>, <code>agent.turn_index</code></td><td>Groups everything for one user turn. Required to attribute cost and detect per-user abuse.</td></tr>
+<tr><td><code>llm.plan</code></td><td><code>gen_ai.request.model</code>, <code>gen_ai.usage.input_tokens</code>, <code>gen_ai.usage.output_tokens</code>, <code>gen_ai.response.finish_reason</code></td><td>The decision step. Catches token drift and finish-reason regressions (truncation, length-cap, content-filter).</td></tr>
+<tr><td><code>tool.call</code></td><td><code>tool.name</code>, <code>tool.input_schema_hash</code>, <code>tool.output_schema_hash</code>, <code>tool.upstream.status</code></td><td>Catches schema drift and upstream latency cliffs. The schema hashes are the secret sauce — see section 3.</td></tr>
+<tr><td><code>llm.synthesize</code></td><td>same as <code>llm.plan</code> + <code>agent.tool_calls_planned</code> vs <code>agent.tool_calls_executed</code></td><td>The final response step. Catches the silent-failure mode where the model plans 3 tool calls but the runtime executes 2.</td></tr>
+</tbody>
+</table>
+
+<p>If your trace has all four spans per turn with all the listed attributes, you can answer 90% of production &ldquo;what happened?&rdquo; questions in under 5 minutes. If you are missing any one of them, you are flying blind on the corresponding failure mode.</p>
+
+<h2>3. Anti-pattern #1 — stringifying prompts into span attributes</h2>
+<div class="warn">
+<strong>Anti-pattern.</strong> Copying the full prompt and full response into <code>gen_ai.prompt</code> / <code>gen_ai.completion</code> attributes. This does three things badly:
+<ol>
+<li>Blows up span size past OTLP&rsquo;s 16MB hard limit once a user pastes a 100k-token document.</li>
+<li>PII / secrets / API keys from prompts get indexed by every observability backend that has span search enabled. You will leak customer data into Datadog / Honeycomb / Tempo / your own S3.</li>
+<li>Span serialization dominates your actual LLM latency. A 50k-token prompt takes 80ms to serialize through protobuf; 80ms per turn x 100 turns/min x 5 spans = real money.</li>
+</ol>
+</div>
+<p><strong>Fix.</strong> Store the prompt and response as a span <em>event</em> on a separate, write-only, encrypted store keyed by <code>trace_id</code>, and put a hash + length + first-100-chars preview into the span attributes. The OTel SDK makes this two lines:</p>
+
+<pre><code>import { trace, context, SpanStatusCode } from '@opentelemetry/api';
+import { createHash } from 'node:crypto';
+
+const tracer = trace.getTracer('agent-core');
+
+export async function tracedLLMCall(model: string, prompt: string, call: () => Promise&lt;string&gt;) {
+  const span = tracer.startSpan('llm.plan', {
+    attributes: {
+      'gen_ai.request.model': model,
+      'gen_ai.prompt.length': prompt.length,
+      'gen_ai.prompt.sha256': createHash('sha256').update(prompt).digest('hex').slice(0, 16),
+      'gen_ai.prompt.preview': prompt.slice(0, 100),
+    },
+  });
+  try {
+    const response = await context.with(trace.setSpan(context.active(), span), call);
+    span.setAttribute('gen_ai.completion.length', response.length);
+    span.setAttribute('gen_ai.completion.sha256', createHash('sha256').update(response).digest('hex').slice(0, 16));
+    span.setStatus({ code: SpanStatusCode.OK });
+    span.addEvent('llm.response.body', { /* encrypted external store */ });
+    return response;
+  } catch (err: any) {
+    span.recordException(err);
+    span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+    throw err;
+  } finally {
+    span.end();
+  }
+}
+</code></pre>
+
+<h2>4. Anti-pattern #2 — silent schema drift</h2>
+<div class="warn">
+<strong>Anti-pattern.</strong> Emitting a <code>tool.call</code> span with <code>tool.name</code> and a JSON-stringified <code>tool.input</code>, but no schema hash. Then a vendor updates their API and returns a <em>slightly</em> different shape — same field names, but a nested <code>amount</code> that used to be a <code>string</code> is now a <code>number</code>. Your agent&rsquo;s downstream parser crashes 12 hours later in a way that the test suite (which mocks the tool) cannot reproduce.
+</div>
+<p><strong>Fix.</strong> Emit <code>tool.input_schema_hash</code> and <code>tool.output_schema_hash</code> on every tool span. Compute the hash from the JSON schema of the input/output, not the values:</p>
+
+<pre><code>function schemaHash(value: unknown): string {
+  // Strip all values, keep only the shape: keys, types, nesting, array-ness.
+  const shape = JSON.stringify(value, (_, v) =&gt; {
+    if (v &amp;&amp; typeof v === 'object' &amp;&amp; !Array.isArray(v)) {
+      return Object.fromEntries(
+        Object.keys(v).sort().map(k =&gt; [k, typeof (v as any)[k]])
+      );
+    }
+    if (Array.isArray(v)) return `array&lt;${v.length}&gt;`;
+    return typeof v;
+  });
+  return createHash('sha256').update(shape).digest('hex').slice(0, 16);
+}
+
+// On every tool call:
+span.setAttribute('tool.input_schema_hash', schemaHash(toolInput));
+span.setAttribute('tool.output_schema_hash', schemaHash(toolOutput));
+</code></pre>
+
+<p>Then in your trace query, alert on <code>SELECT tool.name, count(distinct tool.output_schema_hash) FROM tool_call_spans WHERE timestamp &gt; now() - 1h GROUP BY tool.name HAVING count(distinct tool.output_schema_hash) &gt; 1</code>. A new hash appearing for a known tool name is a vendor-API drift signal, not a customer issue.</p>
+
+<h2>5. Anti-pattern #3 — span flood from retriever calls</h2>
+<div class="warn">
+<strong>Anti-pattern.</strong> Emitting a <code>tool.call</code> span for every single chunk retrieved, every re-rank, every embedding call. A single RAG turn produces 50+ spans. Your trace backend costs 10x what it should, and the flame graph becomes unreadable.
+</div>
+<p><strong>Fix.</strong> Collapse retriever sub-operations into a single parent span with summary attributes:</p>
+
+<pre><code>export async function tracedRetrieve(query: string, retrieve: () =&gt; Promise&lt;Chunk[]&gt;) {
+  const span = tracer.startSpan('rag.retrieve', { attributes: { 'rag.query.length': query.length } });
+  const start = Date.now();
+  try {
+    const chunks = await context.with(trace.setSpan(context.active(), span), retrieve);
+    span.setAttributes({
+      'rag.chunks_returned': chunks.length,
+      'rag.top_score': chunks[0]?.score ?? 0,
+      'rag.embedding_calls': chunks.length,  // summarized, not per-chunk
+      'rag.rerank_calls': 1,
+      'rag.duration_ms': Date.now() - start,
+    });
+    span.setStatus({ code: SpanStatusCode.OK });
+    return chunks;
+  } finally {
+    span.end();
+  }
+}
+</code></pre>
+<p>Rule of thumb: one span per logical &ldquo;thing the agent did&rdquo; (retrieve, plan, call tool, synthesize), not one span per LLM token or per vector lookup. If your trace tree has more than ~12 spans per turn, you are over-instrumenting.</p>
+
+<h2>6. Anti-pattern #4 — missing trace context across the async boundary</h2>
+<div class="warn">
+<strong>Anti-pattern.</strong> Your agent makes an async call to a downstream service (a webhook, a queue, a sub-agent) and the trace breaks at the boundary. Now you have two disconnected traces and no way to follow the request flow. The OTel context is lost the moment you cross a process boundary without propagation.
+</div>
+<p><strong>Fix.</strong> Use the W3C Trace Context propagator and pass the headers explicitly. This is the single most-skipped OTel feature, and it is the difference between a trace you can follow and a trace you cannot:</p>
+
+<pre><code>import { propagation, context, trace, ROOT_CONTEXT } from '@opentelemetry/api';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
+propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+
+// Outbound: inject the current trace context into headers
+export function outboundHeaders(): Record&lt;string, string&gt; {
+  const headers: Record&lt;string, string&gt; = {};
+  propagation.inject(context.active(), headers);
+  return headers;  // e.g. { traceparent: '00-...-...-01' }
+// Inbound: extract from inbound headers, then run the handler inside that context
+export async function handleInbound(headers: Record&lt;string, string&gt;, handler: () =&gt; Promise&lt;void&gt;) {
+  const parentCtx = propagation.extract(ROOT_CONTEXT, headers);
+  await context.with(parentCtx, handler);
+}
+</code></pre>
+
+<p>For queue-based async (SQS, Redis Streams, Kafka), inject the headers into the message envelope, not the message body. For webhook callbacks, the upstream service needs to accept and forward the <code>traceparent</code> header. Verify this in the Woodpecker CI gate below — it is the #1 thing teams miss.</p>
+
+<h2>7. The Woodpecker CI gate</h2>
+<p>You cannot trust that future PRs will keep emitting the right spans. So you write a test that fails CI when a span is missing. This is a 30-line <code>.woodpecker.yml</code> stage + a 20-line test:</p>
+
+<pre><code># .woodpecker.yml — observability gate stage
+observability:
+  image: node:22
+  commands:
+    - npm ci
+    - npx tsx tests/observability/span-shape.test.ts
+  when:
+    event: [push, pull_request]
+</code></pre>
+
+<pre><code>// tests/observability/span-shape.test.ts
+import { trace, context } from '@opentelemetry/api';
+import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { runAgentTurn } from '../../src/agent/turn.js';
+
+const exporter = new InMemorySpanExporter();
+trace.getTracerProvider().addSpanProcessor(new SimpleSpanProcessor(exporter));
+
+await runAgentTurn({ userId: 'test', prompt: 'refund my last order' });
+
+const spans = exporter.getFinishedSpans();
+const names = new Set(spans.map(s =&gt; s.name));
+
+// Hard requirements — failure blocks merge
+const required = ['agent.turn', 'llm.plan', 'llm.synthesize'];
+for (const name of required) {
+  if (!names.has(name)) throw new Error(`missing required span: ${name}`);
+}
+
+// Tool calls: at least one tool call span (we know this prompt hits refund)
+const toolSpans = spans.filter(s =&gt; s.name === 'tool.call');
+if (toolSpans.length === 0) throw new Error('expected at least one tool.call span');
+
+// Per-span attribute presence
+for (const s of spans) {
+  const a = s.attributes;
+  if (!a['gen_ai.usage.input_tokens']) throw new Error(`span ${s.name} missing input_tokens`);
+  if (!a['gen_ai.request.model']) throw new Error(`span ${s.name} missing model`);
+}
+
+console.log(`OK: ${spans.length} spans, ${toolSpans.length} tool calls, all required attributes present`);
+</code></pre>
+
+<p>The gate is cheap (no LLM call — you stub the model) and catches the four anti-patterns above. A PR that introduces a new code path that bypasses the traced wrapper will fail the test, the PR cannot merge, and the trace tree stays intact.</p>
+
+<h2>8. The runbook — catching silent drift</h2>
+<p>Once the spans are flowing, you need a runbook for the three failure modes that &ldquo;the agent feels slow today&rdquo; actually masks. The queries below run against any OTLP-compatible backend (Honeycomb, Tempo, Datadog APM, SigNoz, self-hosted OTel Collector + ClickHouse).</p>
+
+<h3>8.1 Token drift</h3>
+<pre><code>SELECT
+  date_trunc('hour', timestamp),
+  model,
+  avg(gen_ai.usage.input_tokens) AS avg_in,
+  avg(gen_ai.usage.output_tokens) AS avg_out,
+  percentile_cont(0.99) WITHIN GROUP (ORDER BY gen_ai.usage.input_tokens) AS p99_in
+FROM llm_plan_spans
+WHERE timestamp &gt; now() - INTERVAL '7 days'
+GROUP BY 1, 2
+ORDER BY 1 DESC, 2;
+</code></pre>
+<p>Alert when <code>p99_in</code> for a stable model moves more than 30% week-over-week. This catches prompt regressions that are too subtle for a unit test but too expensive to ignore.</p>
+
+<h3>8.2 Schema drift</h3>
+<pre><code>SELECT
+  tool.name,
+  count(distinct tool.output_schema_hash) AS distinct_schemas,
+  array_agg(distinct tool.output_schema_hash) AS hashes
+FROM tool_call_spans
+WHERE timestamp &gt; now() - INTERVAL '1 hour'
+GROUP BY tool.name
+HAVING count(distinct tool.output_schema_hash) &gt; 1;
+</code></pre>
+<p>Zero rows = healthy. Any row = a vendor changed their response shape in the last hour.</p>
+
+<h3>8.3 Latency cliffs that are not the LLM</h3>
+<pre><code>SELECT
+  tool.name,
+  percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_ms) AS p50,
+  percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms) AS p99,
+  avg(tool.response_size_bytes) AS avg_bytes
+FROM tool_call_spans
+WHERE timestamp &gt; now() - INTERVAL '24 hours'
+GROUP BY tool.name
+ORDER BY p99 DESC
+LIMIT 10;
+</code></pre>
+<p>When <code>avg_bytes</code> and <code>p99</code> both move up for the same tool, it is almost always a payload-size regression on the upstream side, not a model issue.</p>
+
+<h2>9. The drop-in option — Agent Inflight Telemetry CLI</h2>
+<p>Everything above can be wired in by hand. If you would rather not own the OTel setup, the <strong>Agent Inflight Telemetry CLI</strong> ships the same instrumentation as a single zero-dependency binary: it wraps your agent process, emits the four spans with the right attributes, runs the CI gate, writes a local SQLite trace store, and ships to any OTLP endpoint. Three commands:</p>
+<pre><code>npm install -g @algoram99/agent-inflight-telemetry
+# Wrap your existing agent:
+agent-inflight-telemetry wrap -- node ./dist/agent.js
+# Run the CI gate against the captured traces:
+agent-inflight-telemetry gate --require llm.plan,llm.synthesize,tool.call
+</code></pre>
+<p>It is the same code path the Algoram99 production agents run on, MIT licensed, $29. It is the same surface as the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline post</a>&rsquo;s &ldquo;Agent Inflight Telemetry&rdquo; stage — the two together close the deploy → monitor loop. <a class="stripe-cta" href="https://buy.stripe.com/test_dRm9AV5lp5eY3aP3qZ73G04">Buy on Stripe</a></p>
+
+<h2>10. Closing the loop</h2>
+<p>Observability is not a phase. It is the loop that lets you ship faster because you trust the deploy. The three failure modes in section 1 — silent cost drift, unreproducible tool behavior, latency cliffs from invisible payload bloat — all become queryable once the four spans are flowing. The four anti-patterns in sections 3&ndash;6 are the four ways teams accidentally break that queryability. The CI gate in section 7 keeps future PRs honest. The runbook in section 8 turns the &ldquo;agent feels slow&rdquo; Slack thread into a one-minute graph lookup.</p>
+
+<p>If you already have the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline</a> in place, this post is the missing second half. If you do not, the <a href="https://buy.stripe.com/test_dRm9AV5lp5eY3aP3qZ73G04">Agent Inflight Telemetry CLI</a> ships both halves as two CLIs: <code>agent-inflight-telemetry</code> for the run-time instrumentation, and the previously shipped <code>prompt-regression-cli</code> for the prompt-output diff. Run them together in the same Woodpecker pipeline and you have a deploy-and-monitor loop that does not need a 3 a.m. on-call rotation.</p>
+
+<div class="callout">
+<strong>Cross-references.</strong>
+<ul>
+<li><a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline for AI agents</a> — the upstream gate this post extends.</li>
+<li><a href="/posts/2026-06-06-prompt-injection-defense-patterns/">Prompt injection defense patterns</a> — the security layer that should emit its own spans on every detected injection.</li>
+<li><a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">Reduce LLM API costs without downgrading the model</a> — the cost-attribution playbook that pairs with the token-drift query in section 8.1.</li>
+<li><a href="/posts/2026-06-07-cron-job-drift-detection/">Cron job drift detection</a> — the same observability-first pattern applied to scheduled jobs.</li>
+</ul>
+</div>
+
+<div class="footer-links">
+<a href="/">Algoram99 home</a>
+<a href="/posts/">All posts</a>
+<a href="https://github.com/Algoram99">GitHub</a>
+<a href="https://nepo6.gumroad.com/">Storefront</a>
+<br><br>
+<em>Algoram99 ships zero-dependency CLIs, guides, and playbooks for the verification-first AI agent operator. MIT licensed unless noted. Stripe checkout is in test mode — switch the account to live mode in the Stripe Dashboard to receive real payments.</em>
+</div>
+</article>
+</body>
+</html>
