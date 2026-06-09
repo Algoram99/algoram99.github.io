@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-09T11:30:00Z (cycle-24 stripe-note refresh: 23→25 CLI tools, 30→32 cards, 31→36 anchors) -->
+<!-- built: 2026-06-09T20:15:00Z (cycle-49 stripe-note refresh: 25→26 CLI tools, 32→33 cards, 36→37 anchors — added Agent Turn Health Inspector CLI $29) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -38,7 +38,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 <body>
 <h1>Algoram88</h1>
 <p class="subtitle">Developer tools, security CLIs, and AI agent infrastructure.</p>
-<p class="count">25 tools available &middot; 4 analysis services &middot; 3 guides &amp; templates &middot; All zero-dependency &middot; MIT licensed</p>
+<p class="count">26 tools available &middot; 4 analysis services &middot; 3 guides &amp; templates &middot; All zero-dependency &middot; MIT licensed</p>
 
 <div class="categories">
   <button class="cat-btn active" onclick="filter('all')">All</button>
@@ -52,7 +52,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 </div>
 
 <div class="stripe-note">
-  <strong>Stripe checkout is live.</strong> 25 CLI tools + 4 analysis services + 3 guides &amp; templates (32 buy-cards total) have direct buy links (test mode). 36 payment-link anchors surfaced on this page (Solana Rent Reclaimer has both a base and a Pro-license link on the same card). 1 Stripe plink (plink_1TZ2cy) is deferred because its underlying product was deleted. Stripe account must be switched to live mode in the Dashboard to receive real payments. The Stripe links are added to each product card below alongside the existing GitHub release link.
+  <strong>Stripe checkout is live.</strong> 26 CLI tools + 4 analysis services + 3 guides &amp; templates (33 buy-cards total) have direct buy links (test mode). 37 payment-link anchors surfaced on this page (Solana Rent Reclaimer has both a base and a Pro-license link on the same card). 1 Stripe plink (plink_1TZ2cy) is deferred because its underlying product was deleted. Stripe account must be switched to live mode in the Dashboard to receive real payments. The Stripe links are added to each product card below alongside the existing GitHub release link.
 </div>
 
 <h2 style="margin-top:2.5rem; color: var(--accent); font-size:1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Guides &amp; Templates</h2>
@@ -311,9 +311,16 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 
 <div class="product" data-cat="agent devtools">
   <h3>Agent Eval Harness CLI</h3>
-  <p class="tagline">Multi-turn agent behavior eval runner. Score a whole conversation — not a single prompt — against required/forbidden terms, length windows, and topic drift, before you ship. Zero-dep Node 18+ CLI: hard pass/fail on required/forbidden keywords + minLength/maxLength windows, soft Jaccard overlap with expected output, per-turn reasons, scenario-level gating, exit 1 on any hard failure. 3 modes: run (score a scenario or directory of scenarios against candidate outputs), add (CLI scenario authoring), ls (inventory scenarios). Pairs with Prompt Regression CLI (single-prompt) — together they cover single-prompt and multi-turn safety.</p>
+  <p class="tagline">Multi-turn agent behavior eval runner. Score a whole conversation — not a single prompt — against required/forbidden terms, length windows, and topic drift, before you ship. Zero-dep Node 18+ CLI: hard pass/fail on required/forbidden keywords + minLength/maxLength windows, soft Jaccard overlap with expected output, per-turn reasons, scenario-level gating, exit 1 on any hard failure. 3 modes: run (score a scenario or directory of scenarios against candidate outputs), add (CLI scenario authoring), ls (inventory scenarios). Pairs with Prompt Regression CLI (single-prompt regression) — together they cover single-prompt and multi-turn safety.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">Evals</span><span class="tag">Multi-turn</span></div>
   <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_fZufZj1NHdyEaCx0TL73G0B">Stripe</a></div></div>
+</div>
+
+<div class="product" data-cat="agent devtools">
+  <h3>Agent Turn Health Inspector CLI</h3>
+  <p class="tagline">Per-turn agent runtime health inspector. Score every turn of a multi-turn agent run — latency, tokens, tool-call fanout, errors, retries — and emit a CI-gate verdict, before you ship. Zero-dep Node 18+ CLI reads JSONL session logs (one record per turn) and emits per-turn scoring with 3 severity tiers (HARD/SOFT/INVALID) plus a session verdict (PASS/WARN/FAIL). Exit 0 on PASS, 1 on FAIL, 1 on WARN if --fail-on warn. 35 unit tests + selftest mode. Pairs with Agent Inflight Telemetry (spans), Prompt Regression (single-prompt), and Agent Eval Harness (multi-turn). Together the four cover: spans → turns → prompts → conversations.</p>
+  <div class="meta"><span class="tag">CLI</span><span class="tag">Runtime</span><span class="tag">Health</span></div>
+  <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_9B6cN7dwp5286mhfOF73G0C">Stripe</a></div></div>
 </div>
 
 </div>
