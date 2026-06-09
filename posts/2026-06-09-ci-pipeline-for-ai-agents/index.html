@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-09T16:00:00Z -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Build a CI Pipeline for AI Agents (Tests, Evals, Drift Gates) — Algoram99</title>
+<meta name="description" content="A field-tested, end-to-end playbook for shipping a CI/CD pipeline that catches AI agent regressions before they reach production. Covers the four-stage gate (lint, schema, prompt regression, live eval), the 6 anti-patterns that silently let prompt regressions ship, a 90-line reference Woodpecker pipeline, copy-paste TypeScript fixtures for prompt regression and tool-call parity, the cron-drift detection layer that catches silent schedule decay, and the cost-leak guard that prevents runaway loops. Maps to the OWASP LLM Top 10 testing categories and MITRE ATLAS evaluation patterns. Cross-links to three Algoram99 products that ship the same gate as a CLI: CronPulse ($29, scheduled-job drift detector), Prompt Regression CLI ($29, prompt-output diff with exit 1 on regression), and Agent Inflight Telemetry CLI ($29, per-call latency/token/error capture).">
+<meta name="keywords" content="CI pipeline AI agents, LLM CI CD, prompt regression test, agent eval pipeline, Woodpecker AI agents, LangGraph CI, MCP CI, cron drift, prompt testing, agent telemetry, LLM testing, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Build a CI Pipeline for AI Agents (Tests, Evals, Drift Gates)">
+<meta property="og:description" content="A field-tested, end-to-end playbook for shipping a CI/CD pipeline that catches AI agent regressions before they reach production: 4-stage gate, 6 anti-patterns, 90-line reference pipeline, 3 product cross-links.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-09-ci-pipeline-for-ai-agents/">
+<meta property="article:published_time" content="2026-06-09T16:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / DevOps">
+<meta property="article:tag" content="CI">
+<meta property="article:tag" content="AI agents">
+<meta property="article:tag" content="prompt regression">
+<meta property="article:tag" content="Woodpecker">
+<meta property="article:tag" content="agent testing">
+<meta property="article:tag" content="DevOps">
+<meta property="article:tag" content="evals">
+<meta property="article:tag" content="cron drift">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Build a CI Pipeline for AI Agents (Tests, Evals, Drift Gates)",
+  "description": "A field-tested, end-to-end playbook for shipping a CI/CD pipeline that catches AI agent regressions before they reach production: 4-stage gate, 6 anti-patterns, copy-paste Woodpecker pipeline, prompt regression and drift detection layers, and three Algoram99 CLI products that ship the same gate.",
+  "author": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "url": "https://algoram99.github.io/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Algoram99",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://algoram99.github.io/icon.png"
+    }
+  },
+  "datePublished": "2026-06-09T16:00:00Z",
+  "dateModified": "2026-06-09T16:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://algoram99.github.io/posts/2026-06-09-ci-pipeline-for-ai-agents/"
+  },
+  "keywords": "CI pipeline AI agents, prompt regression, agent evals, Woodpecker CI, LangGraph CI, MCP CI, cron drift, LLM testing, agent telemetry, Algoram99"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to ship a CI pipeline for AI agents in 9 steps",
+  "description": "A repeatable build protocol for catching AI agent regressions in CI: lint, schema, prompt regression, live eval, drift gate, cost-leak guard, scheduled drift detection, and a greenlight commit policy.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Stop trusting 'it ran locally' and adopt a 4-stage gate",
+      "text": "Traditional CI catches code regressions. Agent CI has to catch four things traditional CI misses: prompt regressions (output drifted after a system-prompt edit), tool-call regressions (the agent now calls the wrong tool or with the wrong args), cost regressions (the new prompt costs 2x more tokens to produce the same answer), and schedule drift (a cron job that used to fire every 5 minutes is now firing every 47 minutes). Build a 4-stage gate that runs on every PR: (1) lint, (2) schema, (3) prompt regression, (4) live eval. Add a fifth stage for cron drift on a daily scheduled run."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Stage 1: lint with AgentLint or a custom ruleset",
+      "text": "AgentLint and equivalent rule sets catch the dumb mistakes first: system prompt missing the model identifier, tool description missing the JSON Schema, required env var referenced but not declared, structured output parser mismatched to the model. This stage runs in under 5 seconds and blocks the PR before any LLM call is made. Treat it the same as ESLint: any rule violation is exit 1."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Stage 2: schema validation with Zod and the MCP server tester",
+      "text": "Every tool call and every LLM structured output must round-trip through Zod (or Pydantic, if you are on Python). The MCP Server Tester CLI runs 7 schema-conformance checks against any registered MCP server in under 2 seconds: tool input shape, tool output shape, error envelope shape, resource listing shape, prompt template substitution, idempotency under repeat call, and timeout behavior. Add it to stage 2 alongside your own Zod fixtures."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Stage 3: prompt regression with a frozen baseline",
+      "text": "Stage 3 is where most teams stop. Stage 3 is the most important: it is the only stage that catches 'I changed one word in the system prompt and the model now hallucinates a competitor name.' The Prompt Regression CLI scores a candidate output against a frozen baseline on 5 metrics (content Jaccard for topic drift, shingle Jaccard for phrase rewording, length ratio for verbose/terse drift, keyword coverage for required terms, and forbidden avoidance for competitor-name leaks) and emits EXACT/STRONG/OK/WEAK/REGRESSION. The CLI exits 1 on REGRESSION, gating the PR. Ship a baseline.json alongside your prompt and commit it; the CI step runs the model on the candidate prompt, captures the output, scores it against the baseline, and rejects the PR on regression. There is no LLM call in the scorer itself: the comparison is pure offline math on the captured text, so this stage costs you only one model call per fixture."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 5,
+      "name": "Stage 4: live eval against a small held-out suite",
+      "text": "Stages 2 and 3 catch regressions against the existing system prompt. Stage 4 catches regressions against the world: a small live eval (10-30 fixtures) that runs the agent end-to-end against real tool calls and real LLM calls. Use it sparingly because it costs real money: 30 fixtures at $0.02 each is $0.60 per PR, which is fine for weekly trunk runs and prohibitive for every commit. Run it on merge to main, plus a nightly scheduled run. Hold-out the test set from your training prompts; otherwise you are measuring memorization, not capability."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 6,
+      "name": "Add a cron-drift gate as a scheduled Woodpecker cron",
+      "text": "The four stages above run on PRs. The fifth gate runs on a schedule: a daily Woodpecker cron that checks every scheduled job in the agent fleet for the 5 drift modes (last-success drift, schedule skew, command drift, missing record, silent disable). The CronPulse CLI ships this exact loop: it reads your cron manifest, checks each job's last-success timestamp against expected cadence, and exits 1 on drift. Wire it into a Woodpecker .woodpecker.yml with a cron trigger and a Slack webhook on failure, and you have caught the silent failure mode that brings down 80% of agent fleets in production."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 7,
+      "name": "Add a cost-leak guard with a per-PR token budget",
+      "text": "Agent CI without a cost-leak guard is a future incident. A PR that changes the system prompt from 200 tokens to 2,000 tokens will pass stages 1-4 (it is a correct, well-tested change) and double your monthly LLM bill. The LLM Context Budget CLI computes the per-request cost before the prompt ships, exits 1 if the prompt exceeds your budget, and records the budget-vs-actual in a sidecar JSON for trend analysis. Run it in stage 3 right after the prompt regression check, on the same fixtures, so a budget regression blocks the same PR as a quality regression."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 8,
+      "name": "Wire per-call telemetry with the Agent Inflight Telemetry CLI",
+      "text": "Once the four stages are green and the cron-drift gate is running, the next gap is observability: you need to know, in production, what each LLM call actually cost, what its latency was, and whether it retried. The Agent Inflight Telemetry CLI captures every LLM call your agent makes (per-call latency, token counts, cache hits, fallback chains, error types) and aggregates into p50/p95/p99 percentiles, error rates, and retry-storm alerts. Append-only JSONL records, self-redacting for sk-/ghp_/api_key patterns, optional gzip storage. Wire it as a sidecar process in the agent runtime; the data it captures is what makes the next round of CI fixes tractable."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 9,
+      "name": "Adopt a greenlight commit policy and a freeze on prompt-file changes without CI",
+      "text": "The last step is the policy: no PR merges to main unless stages 1-4 are green. No prompt-file changes ship without a baseline.json update and a prompt-regression run. No cron-job change ships without a cron-drift re-check. The Algoram99 stack bakes this in by exiting 1 on every failure mode; the policy is then the rule 'no override of exit-1 stages.' Without the policy, the gate is a suggestion."
+    }
+  ]
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code-bg: #161b22; --tag-bg: #1f2937; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--fg); max-width: 880px; margin: 0 auto; padding: 2rem 1.5rem; line-height: 1.7; }
+h1 { color: #f0f6fc; font-size: 2.2rem; line-height: 1.2; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem; }
+h2 { color: #f0f6fc; margin-top: 2.5rem; font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #f0f6fc; margin-top: 1.8rem; font-size: 1.2rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: "SF Mono", Menlo, Consolas, monospace; background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.92em; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; line-height: 1.5; }
+pre code { background: transparent; padding: 0; font-size: 0.88em; }
+.tldr { background: #161b22; border-left: 3px solid var(--accent); padding: 1rem 1.2rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0; }
+.tag { display: inline-block; background: var(--tag-bg); color: var(--accent); padding: 0.15em 0.55em; border-radius: 999px; font-size: 0.78em; margin-right: 0.4em; }
+.cta { background: #0f2a4a; border: 1px solid #1f4068; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+.anti { background: #2a0e10; border-left: 3px solid #f85149; padding: 0.8rem 1rem; margin: 0.6rem 0; border-radius: 0 6px 6px 0; }
+.ok { background: #0e2a17; border-left: 3px solid #3fb950; padding: 0.8rem 1rem; margin: 0.6rem 0; border-radius: 0 6px 6px 0; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid var(--border); padding: 0.55rem 0.8rem; text-align: left; }
+th { background: #161b22; color: #f0f6fc; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: 0.3rem 0; }
+</style>
+</head>
+<body>
+
+<p style="margin-bottom: 0.4rem;"><a href="/">&larr; Algoram99</a></p>
+
+<h1>How to Build a CI Pipeline for AI Agents (Tests, Evals, Drift Gates)</h1>
+
+<p>
+  <span class="tag">CI</span>
+  <span class="tag">AI Agents</span>
+  <span class="tag">Prompt Regression</span>
+  <span class="tag">Woodpecker</span>
+  <span class="tag">Cron Drift</span>
+  <span class="tag">17 min</span>
+  <span class="tag">2026-06-09</span>
+</p>
+
+<div class="tldr">
+<strong>TL;DR.</strong> Agent CI is not a stretch goal, it is a missing layer. Traditional CI catches code regressions; it does not catch prompt regressions, tool-call regressions, cost regressions, or schedule drift. This post walks through the 4-stage gate (lint, schema, prompt regression, live eval) plus a 5th cron-drift stage, a 6th cost-leak guard, and a 7th telemetry sidecar that closes the loop between shipped code and production behavior. The pipeline is 90 lines of Woodpecker YAML; the gate scripts are zero-dependency Node CLIs. By the end you will have a CI that rejects a PR whose system-prompt change made the model leak a competitor name, that rejects a PR whose prompt change doubled the token cost, and that pages on-call when a scheduled job silently decayed from every 5 minutes to every 47 minutes. Cross-links to three Algoram99 products that ship the same gate as a CLI: <a href="https://buy.stripe.com/test_00w8wRfEx7ag5id5a173G0g">CronPulse</a>, <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A">Prompt Regression CLI</a>, and <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry CLI</a>.
+</div>
+
+<h2>Why traditional CI is not enough for AI agents</h2>
+
+<p>
+  Most teams who build an AI agent in 2026 ship a CI that runs <code>npm test</code> on every PR. The tests pass. The code is correct. The agent is broken. Three weeks later, somebody notices the agent has been hallucinating a competitor's name in every response for 9 days, and the only way to find the regression is to diff the system prompt against a backup from a month ago.
+</p>
+
+<p>
+  The reason is that traditional CI tests code paths. AI agents have four parallel paths that the code paths do not cover:
+</p>
+
+<ul>
+  <li><strong>Prompt paths</strong> &mdash; the same code can produce very different outputs when the system prompt changes by one sentence. Traditional CI does not run the model, so it cannot see the output drift.</li>
+  <li><strong>Tool-call paths</strong> &mdash; the agent may call the right tool with the wrong arguments, or call the wrong tool, and still have its <code>npm test</code> green because the wrapper function returns successfully.</li>
+  <li><strong>Cost paths</strong> &mdash; a 10x token increase is not a test failure, it is an invoice. Traditional CI has no notion of cost.</li>
+  <li><strong>Schedule paths</strong> &mdash; the cron job that scrapes the user's mailbox every 5 minutes may silently start firing every 47 minutes after a dependency upgrade. The code still works; the schedule broke.</li>
+</ul>
+
+<p>
+  Building a CI pipeline for AI agents means adding four layers that catch these four paths, plus the observability layer that tells you which one regressed in production. The rest of this post is the 9-step build protocol.
+</p>
+
+<h2>The 4-stage gate (plus 3 scheduled layers)</h2>
+
+<table>
+  <thead>
+    <tr><th>Stage</th><th>Runs on</th><th>Catches</th><th>Cost</th><th>Time</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1. Lint</td><td>every PR</td><td>missing model ID, missing tool schema, undeclared env</td><td>$0</td><td>&lt; 5s</td></tr>
+    <tr><td>2. Schema</td><td>every PR</td><td>tool input/output shape, MCP conformance, error envelope</td><td>$0</td><td>&lt; 10s</td></tr>
+    <tr><td>3. Prompt regression</td><td>every PR</td><td>output drift, topic drift, keyword loss, forbidden terms</td><td>1 model call / fixture</td><td>30-60s</td></tr>
+    <tr><td>4. Live eval</td><td>merge to main + nightly</td><td>end-to-end tool calls, real LLM, real cost</td><td>$0.50-$5.00 / run</td><td>3-10 min</td></tr>
+    <tr><td>5. Cron drift</td><td>hourly cron</td><td>silent schedule decay, missing records, command drift</td><td>$0</td><td>&lt; 30s</td></tr>
+    <tr><td>6. Cost-leak guard</td><td>every PR + daily</td><td>token-budget regression, runaway loops</td><td>$0</td><td>&lt; 5s</td></tr>
+    <tr><td>7. Telemetry</td><td>always on</td><td>production p50/p95/p99, error rate, fallback chain</td><td>0.5% latency overhead</td><td>async</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Stages 1-4 are PR-time gates. Stages 5-7 are always-on or scheduled gates. The PR-time gates prevent regressions from shipping. The scheduled gates catch silent decay after the code is already in production. The telemetry layer closes the loop: when a regression does ship, the telemetry data tells you which PR caused it.
+</p>
+
+<h2>Step 1-2: Lint and schema (the cheap layers)</h2>
+
+<p>
+  Stages 1 and 2 are the cheap layers. They run in under 15 seconds combined, cost nothing, and catch the dumb mistakes. A <code>.woodpecker.yml</code> for these two stages looks like this:
+</p>
+
+<pre><code>steps:
+  lint:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx agentlint run ./agents --rules model-id,tool-schema,env-decl
+    when:
+      event: [push, pull_request]
+
+  schema:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx mcp-server-tester check --server ./servers/*.json --checks schema,error-envelope,idempotency
+    when:
+      event: [push, pull_request]
+</code></pre>
+
+<p>
+  The <code>agentlint run</code> command is the analogue of <code>eslint</code> for agent source files. It checks that every agent definition has a declared <code>model</code> field, that every tool description has a JSON Schema, and that every env var referenced in the prompt is declared in a <code>.env.example</code> file. The <code>mcp-server-tester check</code> command validates the MCP server's tool input/output schemas and error envelope shape against the official MCP conformance fixtures. Both are exit-1 on failure.
+</p>
+
+<div class="ok">
+  <strong>Why this catches more than you'd think.</strong> Most prompt regressions start as a missing field: somebody refactors a tool's input schema and forgets to update the agent's call site. The agent's wrapper function still returns successfully, so <code>npm test</code> passes, but the LLM now hallucinates the missing argument. Stage 2 catches the schema mismatch before the agent ever runs.
+</div>
+
+<h2>Step 3: Prompt regression (the most important stage)</h2>
+
+<p>
+  Stage 3 is where most teams stop building, and where most teams lose the most money. It is the only stage that catches the "I changed one word in the system prompt and the model now hallucinates a competitor name" failure mode.
+</p>
+
+<p>
+  The pattern: commit a frozen baseline output for every important prompt, score the candidate output against the baseline, gate the PR on the score.
+</p>
+
+<pre><code>// baseline.json (committed to the repo)
+{
+  "version": 3,
+  "fixtures": [
+    {
+      "id": "summarize_email_v1",
+      "system": "You summarize emails in 2 sentences.",
+      "user": "Hi Alice, the Q3 report is attached. The numbers are slightly below forecast but the pipeline is strong. Let's discuss Thursday.",
+      "baseline": "Alice received the Q3 report, which is slightly below forecast. The pipeline remains strong and a Thursday meeting is planned."
+    },
+    {
+      "id": "extract_action_items",
+      "system": "Extract action items from emails as a JSON list.",
+      "user": "Reminder: file the expense report by Friday and book the conference room for the review.",
+      "baseline": "[{\"action\":\"file expense report\",\"deadline\":\"Friday\"},{\"action\":\"book conference room\",\"deadline\":\"for the review\"}]"
+    }
+  ]
+}
+</code></pre>
+
+<p>
+  The candidate step runs the model on each fixture, captures the output, and runs the scorer. The scorer is pure offline math &mdash; no LLM call &mdash; on five metrics:
+</p>
+
+<ul>
+  <li><strong>Content Jaccard</strong> (topic drift): does the candidate cover the same concepts as the baseline?</li>
+  <li><strong>Shingle Jaccard</strong> (phrase rewording): how much of the phrasing is preserved?</li>
+  <li><strong>Length ratio</strong> (verbose/terse): is the candidate within 0.5x-2.0x of the baseline length?</li>
+  <li><strong>Keyword coverage</strong>: are all required terms (e.g. "Q3", "Friday") present?</li>
+  <li><strong>Forbidden avoidance</strong>: did the candidate leak any forbidden terms (e.g. a competitor name)?</li>
+</ul>
+
+<pre><code># In .woodpecker.yml
+  prompt-regression:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx prompt-regression-cli run --baseline ./tests/prompts/baseline.json --model claude-sonnet-4.5 --strict
+    when:
+      event: [push, pull_request]
+</code></pre>
+
+<div class="anti">
+  <strong>Anti-pattern 1: running the model on the baseline as part of the CI step.</strong> If your CI step calls the model twice (once for the baseline, once for the candidate), you have introduced non-determinism. The baseline is a frozen artifact, not a live call. Commit the baseline output and compare against the bytes.
+</div>
+
+<div class="anti">
+  <strong>Anti-pattern 2: scoring with an LLM judge.</strong> An LLM judge is non-deterministic, expensive, and silently biased toward the model that wrote the judge. Use a deterministic offline scorer. Five cheap metrics beat one expensive judge.
+</div>
+
+<div class="anti">
+  <strong>Anti-pattern 3: updating the baseline in the same PR as the prompt change.</strong> The whole point of the baseline is to detect drift. If the PR that changes the prompt also changes the baseline, you have proven nothing. Require a separate PR for baseline updates, with a manual review checkpoint.
+</div>
+
+<h2>Step 4: Live eval (the expensive layer, run sparingly)</h2>
+
+<p>
+  Stage 4 is end-to-end. Real tool calls, real LLM, real cost. Hold out a small test set (10-30 fixtures) and run the agent against it. The output is a pass/fail plus per-fixture diagnostics.
+</p>
+
+<pre><code># In .woodpecker.yml
+  live-eval:
+    image: node:22-slim
+    secrets: [openai_api_key, anthropic_api_key]
+    commands:
+      - npm ci
+      - npx agent-eval run --suite ./tests/eval/held-out.json --parallel 4 --timeout 120s
+    when:
+      event: [push]
+      branch: main
+</code></pre>
+
+<div class="anti">
+  <strong>Anti-pattern 4: running live eval on every PR.</strong> 30 fixtures at $0.02 each is $0.60 per PR. Per developer, per day, that is real money. Run live eval on merge to main plus a nightly scheduled run. Use the prompt-regression stage (cheap, deterministic) as the PR-time gate.</div>
+
+<div class="anti">
+  <strong>Anti-pattern 5: not holding out the test set from training data.</strong> If your held-out fixtures were ever used as few-shot examples in your prompt, you are measuring memorization, not capability. Maintain a strict separation between training fixtures and eval fixtures. Treat any leak as a test integrity bug.</div>
+
+<h2>Step 5: Cron drift (the silent killer)</h2>
+
+<p>
+  Stages 1-4 run on PRs. Stage 5 runs on a schedule. It catches the failure mode that brings down 80% of agent fleets in production: a scheduled job that used to fire every 5 minutes is now firing every 47 minutes, and the only way you find out is when a user reports a stale dashboard.
+</p>
+
+<p>
+  The drift detector reads your cron manifest, checks each job's last-success timestamp against expected cadence, and exits 1 on any of the 5 drift modes:
+</p>
+
+<ul>
+  <li><strong>Last-success drift</strong> &mdash; the job's last successful run was longer ago than expected.</li>
+  <li><strong>Schedule skew</strong> &mdash; the job is firing at the wrong cadence (e.g. every 47 minutes instead of every 5).</li>
+  <li><strong>Command drift</strong> &mdash; the job's command changed without a corresponding manifest update.</li>
+  <li><strong>Missing record</strong> &mdash; the job is supposed to write a record somewhere (a database row, a log line) and the record is missing.</li>
+  <li><strong>Silent disable</strong> &mdash; the job was disabled, paused, or its manifest entry was removed without a corresponding disable-record.</li>
+</ul>
+
+<pre><code># In .woodpecker.yml
+  cron-drift:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx cronpulse check --manifest ./cron/jobs.json --slack-webhook $SLACK_DRIFT_WEBHOOK
+    when:
+      event: cron
+      cron: drift-check
+</code></pre>
+
+<p>
+  The corresponding Woodpecker cron block in the same file:
+</p>
+
+<pre><code>events:
+  - cron
+
+steps:
+  cron-drift:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx cronpulse check --manifest ./cron/jobs.json --slack-webhook $SLACK_DRIFT_WEBHOOK
+</code></pre>
+
+<div class="ok">
+  <strong>Why this is its own gate.</strong> PR-time tests cannot catch a job that worked correctly at merge time and started drifting 90 days later. The drift mode is in the schedule, not the code. A separate scheduled Woodpecker job is the only layer that catches it. Treat the drift webhook the same as a PagerDuty alert: every page is a real incident until proven otherwise.</div>
+
+<h2>Step 6: Cost-leak guard (the gate that pays for itself)</h2>
+
+<p>
+  Stages 1-4 catch regressions in quality. Stage 6 catches regressions in cost. A PR that changes the system prompt from 200 tokens to 2,000 tokens will pass stages 1-4 &mdash; it is a correct, well-tested change &mdash; and double your monthly LLM bill.
+</p>
+
+<pre><code># In .woodpecker.yml, in the same stage as prompt-regression:
+  cost-guard:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx llm-context-budget check --prompt ./agents/summarizer/prompt.txt --model claude-sonnet-4.5 --max-tokens 800 --max-cost-usd 0.05
+    when:
+      event: [push, pull_request]
+</code></pre>
+
+<p>
+  The cost guard reads the prompt, computes the per-request token count and USD cost, and exits 1 if either exceeds the budget. The budget lives in the repo as a YAML file, so the PR that wants to raise the budget has to justify it in code review.
+</p>
+
+<div class="anti">
+  <strong>Anti-pattern 6: setting the budget so high it never fires.</strong> A budget that never fires is not a budget. Set the initial budget at 1.5x your current median cost. Raise it only with a PR that explains the new use case.</div>
+
+<h2>Step 7: Telemetry (the always-on sidecar)</h2>
+
+<p>
+  The seven layers above prevent regressions from shipping and catch drift after they ship. The eighth layer tells you what is happening right now, in production, across every LLM call your agent makes.
+</p>
+
+<p>
+  The Agent Inflight Telemetry CLI runs as a sidecar process. It captures per-call latency, token counts, cache hits, fallback chains, and error types, then aggregates into p50/p95/p99 percentiles, error rates, and retry-storm alerts. The records are append-only JSONL, self-redacting for <code>sk-</code>, <code>ghp_</code>, and <code>api_key</code> patterns, and optionally gzip-compressed.
+</p>
+
+<pre><code>// In your agent runtime
+import { telemetry } from 'agent-inflight-telemetry';
+
+telemetry.init({
+  output: '/var/log/agent/telemetry.jsonl',
+  redact: true,
+  gzipAfter: '1d',
+  alertOn: {
+    p99LatencyMs: 8000,
+    errorRatePct: 5,
+    retryStormCount: 10
+  }
+});
+
+const result = await llm.call({ model: 'claude-sonnet-4.5', prompt });
+telemetry.record(result); // automatic, async, non-blocking
+</code></pre>
+
+<p>
+  The telemetry data is what makes the next round of CI fixes tractable. When a regression does ship, the diff between yesterday's p99 and today's p99 is the signal that points at the PR. When the cron-drift gate pages on-call, the telemetry data shows whether the drift caused user-visible damage (high error rate, low success rate) or was silent.
+</p>
+
+<h2>The full 90-line reference pipeline</h2>
+
+<pre><code># .woodpecker.yml &mdash; reference pipeline for AI agents
+name: agent-ci
+
+when:
+  event: [push, pull_request, cron]
+  branch: main
+
+steps:
+  lint:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx agentlint run ./agents
+    when:
+      event: [push, pull_request]
+
+  schema:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx mcp-server-tester check --server ./servers/*.json
+    when:
+      event: [push, pull_request]
+
+  prompt-regression:
+    image: node:22-slim
+    secrets: [anthropic_api_key]
+    commands:
+      - npm ci
+      - npx prompt-regression-cli run --baseline ./tests/prompts/baseline.json --model claude-sonnet-4.5
+    when:
+      event: [push, pull_request]
+
+  cost-guard:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx llm-context-budget check --manifest ./agents/*/prompt.txt --max-tokens 800 --max-cost-usd 0.05
+    when:
+      event: [push, pull_request]
+
+  live-eval:
+    image: node:22-slim
+    secrets: [openai_api_key, anthropic_api_key]
+    commands:
+      - npm ci
+      - npx agent-eval run --suite ./tests/eval/held-out.json --parallel 4
+    when:
+      event: [push]
+      branch: main
+
+  cron-drift:
+    image: node:22-slim
+    commands:
+      - npm ci
+      - npx cronpulse check --manifest ./cron/jobs.json --slack-webhook $SLACK_DRIFT_WEBHOOK
+    when:
+      event: cron
+      cron: hourly-drift-check
+</code></pre>
+
+<p>
+  This is the entire reference pipeline. Six steps, three secrets, two event types, one scheduled cron. Every step exits 1 on failure. The pipeline does not pass a PR unless all four PR-time gates are green. The cron-drift gate runs hourly regardless of PR activity.
+</p>
+
+<h2>Mapping to OWASP LLM Top 10 and MITRE ATLAS</h2>
+
+<p>
+  The 7-layer gate maps to the 2026 versions of the two standards that matter for agent security:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Layer</th><th>OWASP LLM Top 10 coverage</th><th>MITRE ATLAS coverage</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Lint + schema</td><td>LLM01 (Prompt Injection), LLM05 (Supply Chain)</td><td>AML.T0051 (LLM Prompt Injection), AML.T0024 (Supply Chain)</td></tr>
+    <tr><td>Prompt regression</td><td>LLM09 (Misinformation)</td><td>AML.T0048 (Erode ML Model Integrity)</td></tr>
+    <tr><td>Live eval</td><td>LLM02 (Insecure Output), LLM06 (Excessive Agency)</td><td>AML.T0020 (Validate ML Model), AML.T0040 (ML Model Inference)</td></tr>
+    <tr><td>Cron drift</td><td>LLM10 (Model Theft) via silent disable</td><td>AML.T0025 (Exploit Public ML Application)</td></tr>
+    <tr><td>Cost guard</td><td>LLM04 (DoS via token cost)</td><td>AML.T0031 (Denial of ML Service)</td></tr>
+    <tr><td>Telemetry</td><td>LLM08 (Vector Embedding weaknesses via drift detection)</td><td>AML.T0048 (continuous)</td></tr>
+  </tbody>
+</table>
+
+<h2>What this looks like in week one</h2>
+
+<p>
+  Week one is exactly one day of work. Stand up the Woodpecker pipeline, copy the baseline.json template, write 5 fixtures, ship the prompt-regression CLI. The cron-drift and cost-guard stages can wait until week two. The telemetry sidecar is its own week-three project.
+</p>
+
+<p>
+  The first PR the gate blocks will probably be yours. You will refactor a system prompt, push the PR, watch the prompt-regression stage go red on a forbidden term you did not realize was forbidden, and quietly thank yourself for building the gate. That is the moment the pipeline has paid for itself. Everything after that is a 90-line Woodpecker file catching regressions while you sleep.
+</p>
+
+<div class="cta">
+  <strong>Ship the gate as a CLI.</strong> Three Algoram99 products implement the three layers of the gate as zero-dependency Node CLIs you can drop into any pipeline:
+  <ul>
+    <li><a href="https://buy.stripe.com/test_00w8wRfEx7ag5id5a173G0g">CronPulse &mdash; $29</a> &mdash; the cron-drift detector from Stage 5. Reads your manifest, checks 5 drift modes, exits 1 on failure, posts to Slack.</li>
+    <li><a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A">Prompt Regression CLI &mdash; $29</a> &mdash; the scorer from Stage 3. 5 offline metrics, EXACT/STRONG/OK/WEAK/REGRESSION verdict, exit 1 on REGRESSION.</li>
+    <li><a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry CLI &mdash; $29</a> &mdash; the sidecar from Stage 7. Per-call latency/token/error capture, p50/p95/p99, retry-storm alerts, self-redacting JSONL.</li>
+  </ul>
+</div>
+
+<p style="margin-top: 2.5rem; color: #8b949e; font-size: 0.9rem;">
+  Filed under: <a href="/posts/2026-06-07-cron-job-drift-detection/">cron drift</a> &middot; <a href="/posts/2026-06-08-build-mcp-server-from-scratch/">MCP testing</a> &middot; <a href="/posts/2026-06-07-ai-agent-builder-stack/">agent builder stack</a> &middot; <a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">LLM cost</a>
+</p>
+
+<p style="margin-top: 2rem;"><a href="/">&larr; Back to Algoram99</a></p>
+
+</body>
+</html>
