@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-09T20:00:00Z -->
+<!-- built: 2026-06-09T13:30:00Z -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -169,11 +169,17 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A field-tested, end-to-end playbook for instrumenting AI agents with production-grade observability: the four OpenTelemetry-native spans every agent must emit (agent.turn, llm.plan, tool.call, llm.synthesize), the four anti-patterns that silently corrupt agent traces (prompt stringification, schema drift, span flood, async context loss), a copy-paste TypeScript tracing shim that drops into LangGraph / LlamaIndex / CrewAI, a 30-line Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift between expected and actual tool-call sequences.</p>
       <p>Directly serves engineering teams whose agents work in dev and break in production — silent token-budget overruns, unreproducible tool calls, and latency cliffs that look like model slowness but are actually payload bloat. Closes the deploy→monitor loop with the prior CI pipeline post. Cross-links to the Agent Inflight Telemetry CLI ($29, drop-in OTel wrapper) on the storefront. 16th live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">LLM eval</span><span class="tag">Zod</span><span class="tag">CI</span><span class="tag">Woodpecker</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-09-llm-schema-drift-detection/" style="color:#dbeafe;text-decoration:none;">How to catch silent LLM schema drift (detection, fingerprinting, CI guards)</a></h2>
+      <p class="check">A field-tested playbook for catching LLM schema drift before users do: why JSON-mode and function-calling guarantees are not enough, the 4 root causes (prompt-template refactor, model upgrade, library version drift, fallback provider swap), a 3-signal drift detector (Zod schema validity + golden-response fingerprint + tokenizer-distance) that runs on every LLM call, a 30-line TypeScript module with a Woodpecker CI gate that fails PRs above 0.03 drift across a 50-sample golden dataset, an alerts runbook for Slack/PagerDuty thresholds, and 4 anti-patterns (silent try/catch, schema-only testing, baseline freezing, golden-dataset fossilization) that hide drift until customers see it.</p>
+      <p>Directly serves engineering teams whose agents work in dev and break in production with 1-in-200 Zod failures that get swallowed by a generic catch. Cross-links to the Schema Drift Detector CLI ($29, drop-in 3-signal detector with --calibrate), Prompt Regression CLI ($29, prompt-level regression), and Agent Inflight Telemetry CLI ($29, end-to-end agent tracing) on the storefront. 17th live post.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-09T20:00:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-09T13:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
