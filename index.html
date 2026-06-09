@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-09T20:30:00Z (cycle-53 stripe-note refresh: 26→27 CLI tools, 33→34 cards, 37→38 anchors — added Agent Ingress Firewall CLI $29) -->
+<!-- built: 2026-06-09T20:55:00Z (cycle-54 surface+recovery: 16→18 home post cards — added 2 missing cards for 2026-06-09 add-observability-to-ai-agents + 2026-06-09-llm-schema-drift-detection posts that were on disk but never indexed on home; alg99/main was 1 commit behind at 7f5c97f, pushed via keychain) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -342,6 +342,20 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <p class="tagline">A field-tested, end-to-end playbook for shipping a CI/CD pipeline that catches AI agent regressions before they reach production. 4-stage PR gate (lint, schema, prompt regression, live eval) plus a 5th scheduled cron-drift gate, a 6th cost-leak guard, and a 7th always-on telemetry sidecar. Includes a 90-line reference Woodpecker pipeline, copy-paste TypeScript fixtures, a baseline.json template, and 3 product cross-links (CronPulse $29, Prompt Regression CLI $29, Agent Inflight Telemetry CLI $29). Mapped to OWASP LLM Top 10 and MITRE ATLAS.</p>
   <div class="meta"><span class="tag">Article</span><span class="tag">CI</span><span class="tag">AI Agents</span><span class="tag">2026-06-09</span></div>
   <div class="bottom-row"><span class="price">17 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">Read post &rarr;</a></div></div>
+</div>
+
+<div class="product" data-cat="guides devops agent">
+  <h3>How to Add Observability to AI Agents</h3>
+  <p class="tagline">A field-tested, end-to-end playbook for instrumenting AI agents with production-grade observability: OpenTelemetry-native spans, per-call token and cost tracking, structured failure detection, the four anti-patterns that silently corrupt agent traces, a copy-paste TypeScript tracing shim that drops into any LangGraph/LlamaIndex/CrewAI project, a Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift between expected and actual tool-call sequences. Cross-links to the Agent Inflight Telemetry CLI ($29) — a zero-dep drop-in that ships the same instrumentation as a single binary — and to the prior CI pipeline post so the deploy→monitor loop closes. Maps to OpenTelemetry GenAI semantic conventions and OWASP LLM Top 10 observability gaps.</p>
+  <div class="meta"><span class="tag">Article</span><span class="tag">OpenTelemetry</span><span class="tag">DevOps</span><span class="tag">2026-06-09</span></div>
+  <div class="bottom-row"><span class="price">18 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-09-add-observability-to-ai-agents/">Read post &rarr;</a></div></div>
+</div>
+
+<div class="product" data-cat="guides agent devtools">
+  <h3>How to Catch Silent LLM Schema Drift</h3>
+  <p class="tagline">A field-tested playbook for detecting LLM schema drift before it reaches production: why JSON-mode / function-calling guarantees are not enough, how to build a drift detector that runs on every response, the 4 root causes (prompt-template regressions, model upgrades, library version drift, base-URL/fallback swaps), a copy-paste TypeScript drift-detection module (Zod schema + golden-response fingerprint + tokenizer-distance signal), a Woodpecker CI gate that fails PRs that introduce drift above 3%, an alerts-on-drift runbook for Slack/PagerDuty, and 3 anti-patterns (silent try/catch, schema-only testing, baseline freezing) that hide drift until users see it. Cross-links to the Schema Drift Detector CLI (planned, $29), the Prompt Regression CLI ($29), and the Agent Inflight Telemetry CLI ($29). Closes the schema-drift loop with the observability/cost/eval series.</p>
+  <div class="meta"><span class="tag">Article</span><span class="tag">LLM</span><span class="tag">Testing</span><span class="tag">2026-06-09</span></div>
+  <div class="bottom-row"><span class="price">17 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-09-llm-schema-drift-detection/">Read post &rarr;</a></div></div>
 </div>
 
 <div class="product" data-cat="guides devtools">
