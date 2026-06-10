@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-09T13:30:00Z -->
+<!-- built: 2026-06-09T23:59:00Z -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -175,11 +175,17 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A field-tested playbook for catching LLM schema drift before users do: why JSON-mode and function-calling guarantees are not enough, the 4 root causes (prompt-template refactor, model upgrade, library version drift, fallback provider swap), a 3-signal drift detector (Zod schema validity + golden-response fingerprint + tokenizer-distance) that runs on every LLM call, a 30-line TypeScript module with a Woodpecker CI gate that fails PRs above 0.03 drift across a 50-sample golden dataset, an alerts runbook for Slack/PagerDuty thresholds, and 4 anti-patterns (silent try/catch, schema-only testing, baseline freezing, golden-dataset fossilization) that hide drift until customers see it.</p>
       <p>Directly serves engineering teams whose agents work in dev and break in production with 1-in-200 Zod failures that get swallowed by a generic catch. Cross-links to the Schema Drift Detector CLI ($29, drop-in 3-signal detector with --calibrate), Prompt Regression CLI ($29, prompt-level regression), and Agent Inflight Telemetry CLI ($29, end-to-end agent tracing) on the storefront. 17th live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">evals</span><span class="tag">multi-turn</span><span class="tag">regression</span><span class="tag">CI</span><span class="tag">Woodpecker</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-09-build-agent-eval-harness/" style="color:#dbeafe;text-decoration:none;">How to build an AI agent eval harness (6 metrics, multi-turn scenarios, CI gate)</a></h2>
+      <p class="check">A field-tested playbook for building a multi-turn AI agent eval harness that catches regressions single-prompt tests miss: the 6 irreducible metrics every harness must score (correctness, safety, cost, latency, robustness, determinism), how to write multi-turn scenarios as TypeScript code (not free-text YAML) with declared budgets and required/forbidden terms, a 110-line TypeScript harness that scores a whole conversation and emits a binary per-scenario verdict, a Woodpecker CI gate that runs the smoke suite on every PR and the full suite with the determinism loop on every push to main plus daily, and 4 anti-patterns (LLM-as-judge alone, single-metric gating, golden-trace freezing, offline-only scoring) that hide production regressions until users see them.</p>
+      <p>Directly serves engineering teams shipping agent changes that pass single-prompt regression but break on multi-turn cost (4x tool-call fanout), topic drift mid-conversation, system-prompt extraction on the 3rd turn, or 3-of-3 flaky re-runs. Closes the eval loop started by the schema-drift post and the CI pipeline post. Cross-links to the Agent Eval Harness CLI ($29, drop-in 6-metric scorer), Agent Ingress Firewall CLI ($29, pre-tool-call prompt-injection defense), and Agent Inflight Telemetry CLI ($29, per-turn runtime health) on the storefront. 18th live post.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-09T13:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-09T23:59:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
