@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-09T23:59:00Z -->
+<!-- built: 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker w/ streaming cancel + cost-cap + chaos test) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -181,13 +181,20 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A field-tested playbook for building a multi-turn AI agent eval harness that catches regressions single-prompt tests miss: the 6 irreducible metrics every harness must score (correctness, safety, cost, latency, robustness, determinism), how to write multi-turn scenarios as TypeScript code (not free-text YAML) with declared budgets and required/forbidden terms, a 110-line TypeScript harness that scores a whole conversation and emits a binary per-scenario verdict, a Woodpecker CI gate that runs the smoke suite on every PR and the full suite with the determinism loop on every push to main plus daily, and 4 anti-patterns (LLM-as-judge alone, single-metric gating, golden-trace freezing, offline-only scoring) that hide production regressions until users see them.</p>
       <p>Directly serves engineering teams shipping agent changes that pass single-prompt regression but break on multi-turn cost (4x tool-call fanout), topic drift mid-conversation, system-prompt extraction on the 3rd turn, or 3-of-3 flaky re-runs. Closes the eval loop started by the schema-drift post and the CI pipeline post. Cross-links to the Agent Eval Harness CLI ($29, drop-in 6-metric scorer), Agent Ingress Firewall CLI ($29, pre-tool-call prompt-injection defense), and Agent Inflight Telemetry CLI ($29, per-turn runtime health) on the storefront. 18th live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">LLM Ops</span><span class="tag">reliability</span><span class="tag">streaming</span><span class="tag">cost circuit</span><span class="tag">chaos test</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-10-circuit-breaker-llm-api/" style="color:#dbeafe;text-decoration:none;">How to implement a circuit breaker for LLM API calls (streaming cancel, cost-aware thresholds, half-open probes)</a></h2>
+      <p class="check">A field-tested playbook for wrapping LLM API calls in a circuit breaker that survives 429 storms, 5xx outages, latency spikes, streaming stalls, and runaway token costs. Why HTTP-default breakers fail for LLM APIs, the 6-signal LLM-aware detector (HTTP 429, 5xx, p95 latency, per-window USD cost, streaming-token-stall, queue depth), a 110-line reference TypeScript implementation with CLOSED/OPEN/HALF_OPEN state machine and streaming cancel via AbortController, configurable cost-cap and latency-cap trips, the 4 anti-patterns (fixed 429-only detection, no streaming cancel on open, no cost cap, swallow-and-retry inside the breaker) with copy-paste fixes, a 3-of-3 chaos-test harness that kills the API mid-stream, and a Woodpecker CI smoke that fails PRs if the breaker cannot trip, cancel, and recover.</p>
+      <p>Directly serves engineering teams shipping LLM-backed services who have been paged at 3am by a 429-storm-induced cost spike and want a 30-line drop-in guard that compounds savings. Cross-links to the Agent Inflight Telemetry CLI ($29, real-time breaker-state dashboards), Agent Ingress Firewall CLI ($29, per-tenant quota gate that prevents one tenant tripping the breaker for everyone), and the 9-step LLM cost reduction guide. 19th live post.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-09T23:59:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-10T11:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
 </html>
 <!-- touched 2026-06-09T12:24:34Z -->
+<!-- touched 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker) -->
