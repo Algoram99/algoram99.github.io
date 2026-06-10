@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- built: 2026-06-09T23:55:00Z (cycle-55 footer-conversion-fix: replaced alg88 Gumroad footer CTA with alg99 Stripe-catalog reinforcement CTA, demoted Gumroad link to a small secondary line, added id="guides" anchor on Guides & Templates h2 for /#guides footer target; alg99/main was at 9807eb6, pushed via keychain) -->
 <!-- updated: 2026-06-09T23:58:00Z (cycle-56 catalog-add: +1 Side-Hustle Revenue Tracker Template $19 → prod_Ufx3jPg94PVMjJ + price_1Tgb9ARsvOC5Dlfsp3IdqxTM + plink_1Tgb9HRsvOC5Dlfsoyw8ucrh; Guides & Templates 3→4 cards; buy-cards 34→35; plink anchors 38→39) -->
+<!-- updated: 2026-06-10T02:48:00Z (cycle-59 missing-home-card-fix: added 18th home card for 2026-06-09-build-agent-eval-harness post right after the 17th-post schema-drift card; commit 36586a5 added the post body + posts/index.html entry but missed the home card — same off-cycle-drift pattern as cycle-54 LEARN; unique post hrefs 17→18; 18th-post card now live) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -364,6 +365,13 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <p class="tagline">A field-tested playbook for detecting LLM schema drift before it reaches production: why JSON-mode / function-calling guarantees are not enough, how to build a drift detector that runs on every response, the 4 root causes (prompt-template regressions, model upgrades, library version drift, base-URL/fallback swaps), a copy-paste TypeScript drift-detection module (Zod schema + golden-response fingerprint + tokenizer-distance signal), a Woodpecker CI gate that fails PRs that introduce drift above 3%, an alerts-on-drift runbook for Slack/PagerDuty, and 3 anti-patterns (silent try/catch, schema-only testing, baseline freezing) that hide drift until users see it. Cross-links to the Schema Drift Detector CLI (planned, $29), the Prompt Regression CLI ($29), and the Agent Inflight Telemetry CLI ($29). Closes the schema-drift loop with the observability/cost/eval series.</p>
   <div class="meta"><span class="tag">Article</span><span class="tag">LLM</span><span class="tag">Testing</span><span class="tag">2026-06-09</span></div>
   <div class="bottom-row"><span class="price">17 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-09-llm-schema-drift-detection/">Read post &rarr;</a></div></div>
+</div>
+
+<div class="product" data-cat="guides agent devtools">
+  <h3>How to Build an AI Agent Eval Harness</h3>
+  <p class="tagline">A field-tested playbook for shipping a multi-turn AI agent eval harness that catches regressions single-prompt tests miss: the 6 irreducible metrics every harness must score (correctness, safety, cost, latency, robustness, determinism), how to write multi-turn scenarios as TypeScript code (not free-text YAML) with declared budgets + required/forbidden terms + tool-call caps, a 110-line TypeScript harness that scores a whole conversation and emits a per-scenario verdict, a Woodpecker CI gate (smoke on every PR, full + determinism loop on every push to main, daily cron), and 4 anti-patterns (LLM-as-judge alone, single-metric gating, golden-trace freezing, offline-only scoring) that hide production regressions until users see them. Cross-links to the Agent Eval Harness CLI ($29), the Agent Inflight Telemetry CLI ($29), and the Agent Ingress Firewall CLI ($29). Closes the agent shipping loop started by the schema-drift + CI pipeline + observability guides.</p>
+  <div class="meta"><span class="tag">Article</span><span class="tag">CI</span><span class="tag">AI Agents</span><span class="tag">Evaluation</span><span class="tag">2026-06-09</span></div>
+  <div class="bottom-row"><span class="price">18 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-09-build-agent-eval-harness/">Read post &rarr;</a></div></div>
 </div>
 
 <div class="product" data-cat="guides devtools">
