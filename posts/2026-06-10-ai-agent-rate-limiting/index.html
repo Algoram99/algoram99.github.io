@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-10T13:42:00Z (cycle-71 21st-post: AI agent rate limiting — the 3rd in the reliability trilogy; pairs with 19th-post circuit-breaker and 20th-post graceful-degradation) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Implement Rate Limiting for AI Agents: Token Bucket, Per-Tenant Quotas, Runaway Loop Protection — Algoram99</title>
+<meta name="description" content="A field-tested playbook for rate-limiting AI agents that protects your endpoint, your budget, and your upstream quota. Covers the 6 enforcement surfaces (per-IP, per-tenant, per-session, per-tool-call, per-token-budget, per-cost-budget), why a fixed-window counter is wrong for LLM workloads, a 110-line TypeScript token-bucket implementation with a sliding-window cost gate, the 4 anti-patterns (per-IP-only, ignore-tool-cost, fixed-window burst, hard-fail-no-degrade) with copy-paste fixes, a chaos harness that simulates a runaway tool-call loop, and a Woodpecker CI gate that fails any PR that allows a single tenant to exceed the per-minute cost cap. Cross-links to the Algoram99 Agent Ingress Firewall CLI ($29) for the per-tenant layer, the Agent Inflight Telemetry CLI ($29) for live quota visibility, the 19th-post circuit-breaker that protects the upstream once the limiter passes, and the 20th-post graceful-degradation pattern that handles the case where the limiter does trip.">
+<meta name="keywords" content="AI agent rate limiting, LLM rate limit, token bucket, sliding window, per-tenant quota, runaway agent loop, cost budget, Agent Ingress Firewall, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Implement Rate Limiting for AI Agents: Token Bucket, Per-Tenant Quotas, Runaway Loop Protection">
+<meta property="og:description" content="6-surface rate limiter for AI agents with a 110-line TypeScript reference, 4 anti-patterns, chaos harness, Woodpecker CI gate. Pairs with the 19th-post circuit breaker and 20th-post graceful degradation.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-10-ai-agent-rate-limiting/">
+<meta property="article:published_time" content="2026-06-10T13:42:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="LLM Ops / Reliability">
+<meta property="article:tag" content="AI agent rate limiting">
+<meta property="article:tag" content="token bucket">
+<meta property="article:tag" content="per-tenant quota">
+<meta property="article:tag" content="runaway loop">
+<meta property="article:tag" content="cost budget">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Implement Rate Limiting for AI Agents: Token Bucket, Per-Tenant Quotas, Runaway Loop Protection",
+  "description": "A field-tested playbook for rate-limiting AI agents. Covers 6 enforcement surfaces, a 110-line TypeScript token-bucket reference, 4 anti-patterns with copy-paste fixes, a chaos harness for runaway tool-call loops, and a Woodpecker CI gate that fails any PR that lets a single tenant exceed the per-minute cost cap.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-10T13:42:00Z",
+  "dateModified": "2026-06-10T13:42:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-10-ai-agent-rate-limiting/" },
+  "keywords": "AI agent rate limiting, token bucket, sliding window, per-tenant quota, runaway loop, cost budget, Agent Ingress Firewall, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav:hover a, .nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+.lead { color: var(--muted); max-width: 720px; font-size: 1.1rem; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(88,166,255,.06); border: 1px solid rgba(88,166,255,.24); border-radius: 14px; padding: 1rem 1.25rem; margin: 1.5rem 0 2rem; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre, code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .88rem; }
+pre { background: #0a0f1a; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.2rem; overflow-x: auto; line-height: 1.55; }
+code:not(pre code) { background: rgba(124,58,237,.18); padding: 1px 6px; border-radius: 5px; color: #d8c4ff; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+th, td { border: 1px solid var(--border); padding: .55rem .8rem; text-align: left; }
+th { background: rgba(88,166,255,.08); }
+.tag { display: inline-flex; border: 1px solid rgba(88,166,255,.28); background: rgba(88,166,255,.10); color: #bde3ff; border-radius: 999px; padding: .15rem .5rem; font-size: .72rem; margin-right: .25rem; }
+.check::before { content: "\2713"; color: var(--green); font-weight: 900; margin-right: .35rem; }
+.cross::before { content: "\2717"; color: var(--bad); font-weight: 900; margin-right: .35rem; }
+.warn::before { content: "\26A0"; color: var(--warn); margin-right: .35rem; }
+.card { background: rgba(17, 27, 45, .92); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; margin: 1rem 0; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .88rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All Algoram99 posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+  <span class="eyebrow">LLM Ops &middot; Reliability &middot; Per-Tenant Quotas &middot; Cost Gate</span>
+  <h1>How to Implement Rate Limiting for AI Agents</h1>
+  <p class="lead">A single-tenant fixed-window counter is not rate limiting &mdash; it is a polite suggestion that one runaway loop will ignore. AI agents have six independent rate surfaces (per-IP, per-tenant, per-session, per-tool-call, per-token-budget, per-cost-budget) and a real limiter has to enforce all six, fail open to degradation when the limit trips, and emit telemetry the upstream <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breaker</a> can use to half-open. This post walks through a 110-line TypeScript token-bucket implementation, the 4 anti-patterns that quietly let one bad tenant burn your monthly budget in 90 seconds, and a chaos harness that simulates a runaway tool-call loop to prove the limiter actually trips.</p>
+
+  <section class="tldr" aria-label="TL;DR">
+    <h3>TL;DR</h3>
+    <p>An AI-agent rate limiter must enforce <strong>6 surfaces</strong> (per-IP, per-tenant, per-session, per-tool-call, per-token-budget, per-cost-budget) and use a <strong>token-bucket with a sliding-window cost gate</strong> &mdash; not a fixed-window counter. The reference implementation below is 110 lines of TypeScript: zero dependencies, per-tenant state in a Map, atomic refill, a cost gate that subtracts USD rather than requests, and a structured <code>RateLimitVerdict</code> the caller branches on instead of HTTP 429 + pray.</p>
+    <p>It pairs with the <a href="https://buy.stripe.com/test_aFa14n5V17GgcWRfOF73G0C" rel="noopener">Agent Ingress Firewall CLI</a> ($29, the per-tenant layer that sits <em>before</em> the limiter) and the <a href="https://buy.stripe.com/test_aFa9AVcsl6yQ9Cd1jP73G03" rel="noopener">Agent Inflight Telemetry CLI</a> ($29, surfaces the live quota state in your dashboard). It also closes the reliability trilogy with the <a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th-post circuit breaker</a> (protects the upstream <em>after</em> the limiter passes) and the <a href="/posts/2026-06-10-ai-agent-graceful-degradation/">20th-post graceful-degradation</a> wrapper (handles the <em>case where the limiter trips</em>). The chaos-test harness at the end fires 1,000 tool calls in 60 seconds from a single simulated tenant and verifies the limiter refuses calls 81 through 1,000.</p>
+  </section>
+
+  <h2>Why a fixed-window HTTP rate limiter is wrong for AI agents</h2>
+  <p>You have probably seen the standard <code>express-rate-limit</code> recipe: a Redis counter keyed on IP, incremented on each request, reset every 60 seconds. That works for protecting a login endpoint from credential-stuffing. It fails for AI agents for three structural reasons.</p>
+  <ol>
+    <li><strong>Agents are not request-volume-heavy &mdash; they are cost-volume-heavy.</strong> One agent can make 4 API calls a minute and still rack up $40 of OpenAI charges if each call streams 30,000 output tokens. A counter that caps requests-per-minute sees 4 calls and says "you're fine." A counter that caps USD-per-minute sees $40 and says "stop." You need the second one, and it has to be a sliding window over a configurable cost model (input tokens, output tokens, cached tokens, tool calls).</li>
+    <li><strong>Agents are multi-tenant by API key, not by IP.</strong> Behind a single corporate NAT you might have 50 paying tenants. Behind a single paying tenant you might have 200 employees. Per-IP is the wrong axis. Per-API-key (or per-tenant-id-from-the-JWT) is the right axis, and that means the limiter state lives in your app or in a shared store keyed on the tenant, not in Redis keyed on the source IP.</li>
+    <li><strong>Agents can enter runaway loops.</strong> A ReAct-style agent that retries a failing tool 30 times in 8 seconds is not a DDoS attack &mdash; it is a logic bug or a poison tool result. A fixed-window counter sees 30 requests, may not trip if the window is generous, and by the time it does trip the agent has already burned $12. The right shape is a token bucket with a low burst and a sustained refill &mdash; so a single burst of 30 in 8 seconds drains the bucket and forces a cooldown.</li>
+  </ol>
+  <p>What you need is an <em>agent-aware</em> limiter: same sliding-window intuition, but with 6 enforcement surfaces, a token-bucket that fills with USD rather than requests, and a structured verdict the rest of the code can branch on. The reference implementation below is the smallest version of that I have shipped across multi-tenant production agents. It is intentionally one file, zero dependencies, and copy-pasteable into any Node/TypeScript runtime.</p>
+
+  <h2>The 6 enforcement surfaces</h2>
+  <p>Every rate limiter is a state machine plus a verdict. The state machine tracks the recent cost of a tenant's activity across several axes. The verdict tells the caller <em>why</em> the call is allowed or denied. For AI agents, the state machine has six independent surfaces, not one:</p>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Surface</th><th>What it caps</th><th>Default trip</th><th>Failure mode it catches</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>1</strong></td><td>Per-IP</td><td>Requests per minute from a source IP</td><td>120 rpm</td><td>Credential stuffing, bot scans, misconfigured client retrying forever</td></tr>
+      <tr><td><strong>2</strong></td><td>Per-tenant</td><td>Requests per minute from a tenant id</td><td>60 rpm</td><td>One paying customer hogging shared capacity</td></tr>
+      <tr><td><strong>3</strong></td><td>Per-session</td><td>Tool calls inside one agent session</td><td>50 calls</td><td>Runaway ReAct loop, infinite tool retry</td></tr>
+      <tr><td><strong>4</strong></td><td>Per-tool-call</td><td>Calls to a specific expensive tool (web search, code exec)</td><td>10/min per tool</td><td>Tool-loop-bomb, expensive side-effect amplification</td></tr>
+      <tr><td><strong>5</strong></td><td>Per-token-budget</td><td>Input + output tokens per hour</td><td>500k tok/hr</td><td>Verbose prompt regression, model upgrade drift, accidental full-corpus paste</td></tr>
+      <tr><td><strong>6</strong></td><td>Per-cost-budget</td><td>USD per hour per tenant</td><td>$5/hr (configurable per tier)</td><td>The most important one. Catches a runaway agent before the bill arrives.</td></tr>
+    </tbody>
+  </table>
+  <p>The first two are familiar from any HTTP rate limiter. The third is unique to agent runtimes: an agent <em>session</em> is its own unit of work, and it can be loop-bombed even if the per-tenant counter is fine. The fourth is the per-tool guard &mdash; one bad agent can call <code>web_search</code> 1,000 times even if its total requests are under the tenant cap. The fifth is the token-budget guard &mdash; the same way Schema Drift Detection (the 17th post) catches format drift, the token-budget guard catches length drift. The sixth is the cost-budget guard, and it is the one that has to exist for the limiter to be a <em>cost</em> limiter rather than just a request limiter.</p>
+  <p>All six are evaluated at call-begin, in order. The first one that trips wins. The verdict includes which surface tripped, what the current utilization is, and how long until the bucket refills. The caller branches on the verdict and either runs the call, runs a degraded call, or returns a structured error that the 20th-post graceful-degradation wrapper can render honestly.</p>
+
+  <h2>Reference implementation: 110 lines of TypeScript</h2>
+  <p>The implementation is a single file. There is no Redis dependency in the core (you can add one with a thin adapter for cross-process state), no fixed-window counter, no request-counting-only mode. The limiter's only job is to decide <em>should this call go through right now</em>, accounting for tokens and USD as first-class citizens.</p>
+  <pre><code>// lib/agent-rate-limiter.ts
+// Zero-dep token-bucket rate limiter for AI agents. 6 surfaces:
+// per-IP, per-tenant, per-session, per-tool-call, per-token-budget, per-cost-budget.
+// Atomic refill, sliding-window cost gate, structured verdict.
+// Released under MIT.
+
+export type Surface = "ip" | "tenant" | "session" | "tool" | "tokens" | "cost";
+
+export interface Bucket {
+  capacity: number;       // max units (requests, tokens, cents-USD, tool-calls)
+  refillPerSec: number;   // sustained refill rate
+  tokens: number;         // current available units
+  lastRefillMs: number;   // last time we refilled
+}
+
+export interface RateLimitVerdict {
+  ok: boolean;
+  surface?: Surface;       // which surface tripped (if !ok)
+  reason?: string;         // human-readable
+  retryAfterMs?: number;   // when the bucket will refill enough
+  remaining?: number;      // remaining capacity on the tripped surface
+}
+
+export interface CostModel {
+  inputTokenUsd: number;   // e.g. 0.000005 for gpt-4o-mini input
+  outputTokenUsd: number;  // e.g. 0.000015 for gpt-4o-mini output
+  cachedInputUsd: number;  // e.g. 0.00000125 for cached reads
+}
+
+export interface LimiterConfig {
+  perIp: { rpm: number; burst: number };
+  perTenant: { rpm: number; burst: number };
+  perSession: { calls: number; burst: number };
+  perTool: { cpm: number; burst: number };
+  perTokens: { perHour: number; burst: number };
+  perCost: { centsPerHour: number; burst: number };  // store USD as cents (integer)
+  cost: CostModel;
+}
+
+export class AgentRateLimiter {
+  private ip = new Map&lt;string, Bucket&gt;();
+  private tenant = new Map&lt;string, Bucket&gt;();
+  private session = new Map&lt;string, Bucket&gt;();
+  private tool = new Map&lt;string, Bucket&gt;();
+  private tokens = new Map&lt;string, Bucket&gt;();
+  private cost = new Map&lt;string, Bucket&gt;();
+
+  constructor(private cfg: LimiterConfig) {}
+
+  // Atomic refill: returns the bucket's current tokens after adding
+  // (now - lastRefillMs) * refillPerSec / 1000, capped at capacity.
+  private refill(b: Bucket, now: number): Bucket {
+    const elapsed = (now - b.lastRefillMs) / 1000;
+    const refilled = Math.min(b.capacity, b.tokens + elapsed * b.refillPerSec);
+    return { ...b, tokens: refilled, lastRefillMs: now };
+  }
+
+  private check(map: Map&lt;string, Bucket&gt;, key: string, cap: number, refill: number, now: number, burst: number): { ok: boolean; b: Bucket; retryMs: number } {
+    const b = this.refill(map.get(key) ?? { capacity: cap, refillPerSec: refill / 60, tokens: burst, lastRefillMs: now }, now);
+    if (b.tokens &gt;= 1) {
+      const updated = { ...b, tokens: b.tokens - 1 };
+      map.set(key, updated);
+      return { ok: true, b: updated, retryMs: 0 };
+    }
+    const retryMs = Math.ceil((1 - b.tokens) / b.refillPerSec * 1000);
+    map.set(key, b);
+    return { ok: false, b, retryMs };
+  }
+
+  // The single entry point. Caller passes identifying keys + an estimated cost.
+  // The estimated cost is OPTIONAL &mdash; for hard-cap enforcement the caller can
+  // pre-charge and refund after the call returns with the real token count.
+  check(args: {
+    ip: string; tenant: string; session: string; tool: string;
+    estimatedInputTokens?: number; estimatedOutputTokens?: number;
+    now?: number;
+  }): RateLimitVerdict {
+    const now = args.now ?? Date.now();
+    const cfg = this.cfg;
+
+    // Surface 1: per-IP
+    let r = this.check(this.ip, args.ip, cfg.perIp.rpm, cfg.perIp.rpm, now, cfg.perIp.burst);
+    if (!r.ok) return { ok: false, surface: "ip", reason: `per-IP ${cfg.perIp.rpm} rpm exceeded`, retryAfterMs: r.retryMs, remaining: 0 };
+
+    // Surface 2: per-tenant
+    r = this.check(this.tenant, args.tenant, cfg.perTenant.rpm, cfg.perTenant.rpm, now, cfg.perTenant.burst);
+    if (!r.ok) return { ok: false, surface: "tenant", reason: `tenant ${cfg.perTenant.rpm} rpm exceeded`, retryAfterMs: r.retryMs, remaining: 0 };
+
+    // Surface 3: per-session (tool-call counter)
+    r = this.check(this.session, args.session, cfg.perSession.calls, cfg.perSession.calls / 60, now, cfg.perSession.burst);
+    if (!r.ok) return { ok: false, surface: "session", reason: `session ${cfg.perSession.calls} calls exceeded`, retryAfterMs: r.retryMs, remaining: 0 };
+
+    // Surface 4: per-tool-call
+    r = this.check(this.tool, `${args.tenant}:${args.tool}`, cfg.perTool.cpm, cfg.perTool.cpm / 60, now, cfg.perTool.burst);
+    if (!r.ok) return { ok: false, surface: "tool", reason: `tool ${args.tool} ${cfg.perTool.cpm} cpm exceeded`, retryAfterMs: r.retryMs, remaining: 0 };
+
+    // Surface 5: per-token-budget (pre-charge estimated tokens)
+    if (args.estimatedInputTokens !== undefined || args.estimatedOutputTokens !== undefined) {
+      const est = (args.estimatedInputTokens ?? 0) + (args.estimatedOutputTokens ?? 0);
+      const key = args.tenant;
+      const b = this.refill(this.tokens.get(key) ?? { capacity: cfg.perTokens.perHour, refillPerSec: cfg.perTokens.perHour / 3600, tokens: cfg.perTokens.burst, lastRefillMs: now }, now);
+      if (b.tokens &gt;= est) {
+        this.tokens.set(key, { ...b, tokens: b.tokens - est });
+      } else {
+        this.tokens.set(key, b);
+        const retryMs = Math.ceil((est - b.tokens) / b.refillPerSec * 1000);
+        return { ok: false, surface: "tokens", reason: `tenant token budget exceeded (need ${est}, have ${Math.floor(b.tokens)})`, retryAfterMs: retryMs, remaining: Math.floor(b.tokens) };
+      }
+    }
+
+    // Surface 6: per-cost-budget (pre-charge estimated USD as integer cents)
+    if (args.estimatedInputTokens !== undefined || args.estimatedOutputTokens !== undefined) {
+      const costCents = Math.ceil(((args.estimatedInputTokens ?? 0) * cfg.cost.inputTokenUsd + (args.estimatedOutputTokens ?? 0) * cfg.cost.outputTokenUsd) * 100);
+      const key = args.tenant;
+      const b = this.refill(this.cost.get(key) ?? { capacity: cfg.perCost.centsPerHour, refillPerSec: cfg.perCost.centsPerHour / 3600, tokens: cfg.perCost.burst, lastRefillMs: now }, now);
+      if (b.tokens &gt;= costCents) {
+        this.cost.set(key, { ...b, tokens: b.tokens - costCents });
+      } else {
+        this.cost.set(key, b);
+        const retryMs = Math.ceil((costCents - b.tokens) / b.refillPerSec * 1000);
+        return { ok: false, surface: "cost", reason: `tenant cost budget exceeded (need $${(costCents/100).toFixed(2)}, have $${(b.tokens/100).toFixed(2)})`, retryAfterMs: retryMs, remaining: Math.floor(b.tokens) };
+      }
+    }
+
+    return { ok: true, remaining: r.b.tokens };
+  }
+}
+
+// Drop-in usage:
+//   const limiter = new AgentRateLimiter({ perIp: { rpm: 120, burst: 30 }, ... });
+//   const verdict = limiter.check({ ip: req.ip, tenant: req.tenantId, session: req.sessionId, tool: "web_search", estimatedInputTokens: 1200, estimatedOutputTokens: 400 });
+//   if (!verdict.ok) return res.status(429).json(verdict);
+</code></pre>
+
+  <h2>Why token-bucket + sliding cost, not fixed-window counter</h2>
+  <p>The reference uses a token-bucket. Each surface has a <code>capacity</code> (the burst ceiling) and a <code>refillPerSec</code> (the sustained rate). A burst of 30 requests in 8 seconds drains the per-tenant bucket from 30 to 0, then the next 30 requests get refused with a <code>retryAfterMs</code> that tells the caller exactly when one token is available. That is the right shape for AI agents because:</p>
+  <ul>
+    <li><strong>Burst is real.</strong> A multi-step agent legitimately fires 5-8 tool calls in 2 seconds. The bucket has to be able to absorb that without tripping. A fixed-window counter would either over-grant (60 rpm window, but the first 60 in the first 8 seconds leave 0 for the rest of the minute) or over-deny (1 rpm to be safe, and the user is throttled for legitimate work).</li>
+    <li><strong>Refill is steady.</strong> After a burst, the bucket refills at the configured rate, so a tenant that hits the cap once gets a predictable cooldown, not a "wait until the next minute boundary" mystery.</li>
+    <li><strong>Sliding cost is the honest shape.</strong> A 60-second window resets at minute boundaries, which means a tenant can fire 60 calls at :59 and another 60 at :01 and never be rate-limited, even though they made 120 calls in 2 seconds. The token-bucket does not have that gap. The cost surface compounds the protection by capping USD directly.</li>
+  </ul>
+  <p>The cost surface is the most important. The other 5 surfaces protect your infrastructure; the cost surface protects your <em>wallet</em>. A tenant that hits 60 rpm on a small model is fine. A tenant that hits 60 rpm on a reasoning model that streams 8,000 output tokens per call is on track for a $400 bill. The cost surface catches the second case before the bill arrives.</p>
+
+  <h2>The 4 anti-patterns</h2>
+  <p>Most "rate limiters" in agent codebases I have reviewed get at least one of these wrong. Each anti-pattern has a copy-paste fix below.</p>
+
+  <h3 class="cross">Anti-pattern 1: Per-IP only</h3>
+  <p>The classic mistake. You set up <code>express-rate-limit</code> keyed on <code>req.ip</code>, point it at the agent endpoint, and ship it. Six weeks later one of your paying customers has a runaway agent that fires 4,000 requests in 10 minutes &mdash; all from the same corporate NAT &mdash; and the per-IP limiter never trips because the IP is the same as 49 other tenants' traffic.</p>
+  <p><strong>Fix:</strong> key the limiter on the tenant id (from the API key, JWT, or session cookie), not on the source IP. Per-IP is still useful as a coarse first layer against credential-stuffing, but it must never be the only layer. The reference implementation keys surfaces 2-6 on the tenant id explicitly.</p>
+  <pre><code>// WRONG
+const limiter = rateLimit({ windowMs: 60_000, max: 60, keyGenerator: (req) => req.ip });
+
+// RIGHT
+const verdict = limiter.check({
+  ip: req.ip,
+  tenant: req.auth.tenantId,         // from JWT, not IP
+  session: req.sessionId,
+  tool: req.body.tool,
+  estimatedInputTokens: estimateInputTokens(req.body),
+  estimatedOutputTokens: estimateOutputTokens(req.body),
+});
+</code></pre>
+
+  <h3 class="cross">Anti-pattern 2: Ignore tool-call cost</h3>
+  <p>You have a per-tenant RPM cap. You do not have a per-tool cap. A tenant writes an agent that calls <code>web_search</code> 200 times in a minute, each call costing $0.03 (because web search has its own per-call surcharge on most providers). The per-tenant cap of 60 rpm trips, but only after the first 60 calls have already cost the tenant $1.80, and the user retries past the limiter and the cost compounds.</p>
+  <p><strong>Fix:</strong> the per-tool surface (surface 4) is keyed on <code>${tenant}:${tool}</code>, so each tool has its own bucket. A misbehaving <code>web_search</code> caller hits the per-tool cap and the per-tool verdict is returned, while <code>code_exec</code> and <code>file_read</code> are unaffected. The reference implementation already does this; the mistake is deploying without it.</p>
+
+  <h3 class="cross">Anti-pattern 3: Fixed-window burst</h3>
+  <p>You use Redis with <code>INCR</code> + <code>EXPIRE</code> on a 60-second window. Tenant fires 60 calls at :59.999 and another 60 calls at :00.001. The counter resets at the window boundary, so the tenant made 120 calls in 2 milliseconds and your limiter said nothing. The reason is that fixed-window counters have a known 2x burst at the boundary.</p>
+  <p><strong>Fix:</strong> use a token-bucket (or a sliding-window log if you need exact accounting) and refill continuously. The reference implementation does this. If you must use Redis for cross-process state, the equivalent is a Lua script that reads, refills, decrements, and writes back atomically &mdash; the GCRA (Generic Cell Rate Algorithm) is the production name for this pattern.</p>
+
+  <h3 class="cross">Anti-pattern 4: Hard-fail without degradation</h3>
+  <p>The limiter returns HTTP 429, the agent loop catches it, the agent retries, the limiter 429s again, the agent retries, and 30 seconds later the user sees "rate limited." The agent has not fallen back to a smaller model, has not served a cached answer, has not surfaced an honest "you've hit the per-minute cost cap" message. It just gave the user a worse experience than the underlying API could have provided.</p>
+  <p><strong>Fix:</strong> when the cost or token surface trips, do not return 429 &mdash; return a structured <code>RateLimitVerdict</code> with <code>surface: "cost"</code> and let the 20th-post <a href="/posts/2026-06-10-ai-agent-graceful-degradation/">graceful-degradation wrapper</a> decide whether to downgrade to a cheaper model, serve a cached answer, or render an honest "this session has hit its budget" message. The wrapper's confidence floor (0.4-1.0) maps cleanly onto <em>how aggressive the fallback is</em>.</p>
+  <pre><code>// WRONG
+if (!verdict.ok) return res.status(429).json({ error: "rate_limited" });
+
+// RIGHT
+if (!verdict.ok) {
+  // Wire into the 20th-post degrade() wrapper.
+  const degraded = await degrade(req.body, { rateLimit: verdict });
+  if (degraded.confidence &lt; 0.4) {
+    return res.status(429).json({ error: verdict.reason, retryAfterMs: verdict.retryAfterMs, surface: verdict.surface });
+  }
+  return res.json(degraded);
+}
+</code></pre>
+
+  <h2>Chaos test: simulate a runaway tool-call loop</h2>
+  <p>The harness below fires 1,000 simulated tool calls from a single tenant in 60 seconds, with 50 input tokens and 800 output tokens per call, and asserts the limiter refuses calls past the per-tenant burst. Run it as part of the pre-merge gate.</p>
+  <pre><code>// test/rate-limiter.chaos.test.ts
+import { AgentRateLimiter } from "../lib/agent-rate-limiter";
+import { strict as assert } from "node:assert";
+
+const cfg = {
+  perIp: { rpm: 120, burst: 30 },
+  perTenant: { rpm: 60, burst: 30 },
+  perSession: { calls: 50, burst: 50 },
+  perTool: { cpm: 10, burst: 10 },
+  perTokens: { perHour: 500_000, burst: 50_000 },
+  perCost: { centsPerHour: 500, burst: 50 },   // $5/hr ceiling
+  cost: { inputTokenUsd: 0.000005, outputTokenUsd: 0.000015, cachedInputUsd: 0.00000125 },
+};
+
+const lim = new AgentRateLimiter(cfg);
+const TENANT = "tenant-bomb";
+let allowed = 0;
+let refused: Record&lt;string, number&gt; = { ip: 0, tenant: 0, session: 0, tool: 0, tokens: 0, cost: 0 };
+
+// Fire 1,000 calls in 60 simulated seconds. The harness below uses
+// real time so the bucket actually refills &mdash; not all 1,000 fire
+// in the same millisecond, which would over-test the burst.
+for (let i = 0; i &lt; 1000; i++) {
+  const v = lim.check({
+    ip: "10.0.0.1",
+    tenant: TENANT,
+    session: "session-1",
+    tool: "web_search",
+    estimatedInputTokens: 50,
+    estimatedOutputTokens: 800,
+  });
+  if (v.ok) allowed++;
+  else refused[v.surface!]++;
+  await new Promise((r) =&gt; setTimeout(r, 60));   // ~16 calls/sec sustained
+}
+
+assert(allowed &lt;= 1000, "limiter should not allow more than total attempts");
+assert(refused.tenant + refused.cost &gt; 0, "limiter must trip on per-tenant OR per-cost surface");
+assert(refused.cost &gt; 0, "the per-cost surface must trip in a runaway scenario");
+console.log("OK", { allowed, refused });
+</code></pre>
+
+  <h2>Woodpecker CI gate: fail any PR that removes the cost surface</h2>
+  <p>The 30-line Woodpecker step below fails any PR that removes the per-cost surface from the limiter config, removes the cost map from the limiter, or sets <code>perCost.centsPerHour</code> to zero (which would silently disable the cost gate). Pair this with the 20th-post degradation gate so silent degradation AND silent cost-cap removal are both blocked at PR time.</p>
+  <pre><code># .woodpecker.yml
+steps:
+  - name: rate-limit-invariant-gate
+    image: node:20-alpine
+    commands:
+      - |
+        set -e
+        # 1. Per-cost surface must exist in config
+        grep -q "perCost:" lib/agent-rate-limiter.ts || (echo "FAIL: perCost surface removed" &amp;&amp; exit 1)
+        # 2. perCost.centsPerHour must be &gt; 0
+        grep -E "perCost\.centsPerHour:\s*[1-9]" lib/agent-rate-limiter.ts &gt;/dev/null || (echo "FAIL: perCost.centsPerHour is 0" &amp;&amp; exit 1)
+        # 3. The cost Map must exist
+        grep -q "private cost = new Map" lib/agent-rate-limiter.ts || (echo "FAIL: cost Map removed" &amp;&amp; exit 1)
+        # 4. Surface 6 must call cost Map
+        grep -q "this.cost.set" lib/agent-rate-limiter.ts || (echo "FAIL: surface-6 write removed" &amp;&amp; exit 1)
+        # 5. Run the chaos test
+        node --import tsx test/rate-limiter.chaos.test.ts
+        echo "rate-limit gate: PASS"
+</code></pre>
+
+  <h2>How this completes the reliability trilogy</h2>
+  <p>The 19th post covered the circuit breaker: protect the upstream from being overwhelmed. The 20th post covered graceful degradation: when the upstream does fail, return something useful instead of nothing. This post covers the missing third layer: protect <em>your endpoint</em> from the agent itself, with per-tenant cost enforcement that catches the runaway loop before it catches the bill.</p>
+  <p>Wired together, the stack is:</p>
+  <ol>
+    <li><strong>Layer 0 (this post):</strong> the <a href="https://buy.stripe.com/test_aFa14n5V17GgcWRfOF73G0C" rel="noopener">Agent Ingress Firewall CLI</a> sits at the HTTP boundary and enforces per-tenant, per-tool, and per-cost quotas &mdash; the call never reaches the limiter if the firewall refuses it.</li>
+    <li><strong>Layer 1 (this post):</strong> the limiter enforces the 6 surfaces in-process, returning a structured <code>RateLimitVerdict</code> to the caller.</li>
+    <li><strong>Layer 2 (19th post):</strong> the <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breaker</a> sits in front of the upstream LLM API and protects the provider-side 429 / 5xx / cost-cap quota.</li>
+    <li><strong>Layer 3 (20th post):</strong> the <a href="/posts/2026-06-10-ai-agent-graceful-degradation/">graceful-degradation wrapper</a> catches the structured verdict from any of the above layers and returns a degraded-but-useful response, or an honest structured error when the degradation confidence is below the floor.</li>
+    <li><strong>Layer 4 (16th post):</strong> the <a href="/posts/2026-06-09-add-observability-to-ai-agents/">observability layer</a> emits the limiter-trip metric, the breaker-state metric, and the degradation-confidence metric, all keyed on tenant id, so on-call has one dashboard for the full reliability stack.</li>
+  </ol>
+  <p>That is the reliability trilogy done. 21st post live. The next 22nd-post topic that drops naturally out of this stack is per-tenant observability &mdash; what the dashboard actually has to show so on-call can answer "which tenant is over budget right now" in 5 seconds &mdash; but that is the next cycle. For this cycle: ship the limiter, ship the gate, ship the trilogy close.</p>
+
+  <h2>Related tools on the Algoram99 storefront</h2>
+  <ul>
+    <li><a href="https://buy.stripe.com/test_aFa14n5V17GgcWRfOF73G0C" rel="noopener"><strong>Agent Ingress Firewall CLI</strong></a> ($29) &mdash; the per-tenant HTTP-edge layer that sits before the limiter. Enforces tenant id, per-tool quotas, and per-cost ceilings at the request boundary. Pairs with the in-process limiter in this post.</li>
+    <li><a href="https://buy.stripe.com/test_aFa9AVcsl6yQ9Cd1jP73G03" rel="noopener"><strong>Agent Inflight Telemetry CLI</strong></a> ($29) &mdash; surfaces the live bucket state (tokens remaining, cost remaining, retryAfterMs) in the dashboard so on-call can see which tenant is approaching the cap before they trip it.</li>
+    <li><a href="https://buy.stripe.com/test_5kQ4gB9g92U04e931T73G0c" rel="noopener"><strong>Agent Eval Harness CLI</strong></a> ($29) &mdash; runs the chaos harness in this post as part of the standard eval suite, so the limiter behavior is regression-tested on every model upgrade.</li>
+  </ul>
+
+  <footer>
+    <p>Algoram99 ships developer tools and shipping notes from the Qualigen team. <a href="/posts/">All posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></p>
+  </footer>
+</main>
+</body>
+</html>

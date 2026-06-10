@@ -193,6 +193,12 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A 6-pattern playbook for graceful degradation in AI agents: structured error contracts, cached fallbacks, model-tier downgrades, partial responses with confidence, user-visible degradation signal, and degradation telemetry. Includes a 110-line TypeScript <code>degrade()</code> reference that wires all six into a single wrapper, 4 anti-patterns (silent fallback, logged-but-not-propagated, throw-and-hope, intent-vs-prompt caching) with copy-paste fixes, a Woodpecker CI gate that fails any PR introducing silent degradation, and a chaos-test nightly that runs the full eval suite against a killed upstream.</p>
       <p>Directly serves engineering teams whose circuit breaker (19th post) trips correctly but whose users still see &ldquo;Service Unavailable&rdquo; on partial failure. Closes the stop-the-bleeding &rarr; return-something-useful loop. Cross-links to Agent Inflight Telemetry CLI ($29), Agent Ingress Firewall CLI ($29), and the 9-step LLM cost reduction guide. 20th live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">LLM Ops</span><span class="tag">reliability</span><span class="tag">per-tenant quota</span><span class="tag">token bucket</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-10-ai-agent-rate-limiting/" style="color:#dbeafe;text-decoration:none;">How to implement rate limiting for AI agents (token bucket, per-tenant quotas, runaway loop protection)</a></h2>
+      <p class="check">A field-tested playbook for rate-limiting AI agents that protects your endpoint, your budget, and your upstream quota. The 6 enforcement surfaces (per-IP, per-tenant, per-session, per-tool-call, per-token-budget, per-cost-budget), why per-IP-only and fixed-window counters fail for LLM workloads, a 110-line TypeScript token-bucket implementation with a sliding-window cost gate and a structured <code>RateLimitVerdict</code> the caller branches on instead of HTTP 429, 4 anti-patterns (per-IP-only, ignore-tool-cost, fixed-window-burst, hard-fail-no-degrade) with copy-paste fixes, a chaos harness that simulates a runaway tool-call loop and asserts the per-cost surface trips, and a 30-line Woodpecker CI gate that fails any PR that removes the cost surface or zeroes the per-hour cap.</p>
+      <p>Directly serves engineering teams running multi-tenant AI agents where one runaway loop can blow the monthly budget in 90 seconds. Closes the reliability trilogy: Layer 0 (this post) protects the endpoint, Layer 1 (19th-post circuit breaker) protects the upstream after the limiter passes, Layer 2 (20th-post graceful degradation) handles the case where the limiter does trip. Cross-links to Agent Ingress Firewall CLI ($29, per-tenant HTTP-edge layer), Agent Inflight Telemetry CLI ($29, live quota dashboard), and Agent Eval Harness CLI ($29, runs the chaos harness as a regression test). 21st live post.</p>
+    </article>
   </section>
 
   <footer>
@@ -205,3 +211,4 @@ footer { color: var(--muted); margin-top: 3rem; }
 <!-- touched 2026-06-09T12:24:34Z -->
 <!-- touched 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker) -->
 <!-- touched 2026-06-10T12:30:00Z (cycle-63 20th-post-add: AI agent graceful degradation) -->
+<!-- touched 2026-06-10T13:42:00Z (cycle-71 21st-post-add: AI agent rate limiting — reliability trilogy complete) -->
