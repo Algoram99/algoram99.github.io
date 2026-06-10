@@ -2,6 +2,7 @@
 <!-- built: 2026-06-09T23:55:00Z (cycle-55 footer-conversion-fix: replaced alg88 Gumroad footer CTA with alg99 Stripe-catalog reinforcement CTA, demoted Gumroad link to a small secondary line, added id="guides" anchor on Guides & Templates h2 for /#guides footer target; alg99/main was at 9807eb6, pushed via keychain) -->
 <!-- updated: 2026-06-09T23:58:00Z (cycle-56 catalog-add: +1 Side-Hustle Revenue Tracker Template $19 → prod_Ufx3jPg94PVMjJ + price_1Tgb9ARsvOC5Dlfsp3IdqxTM + plink_1Tgb9HRsvOC5Dlfsoyw8ucrh; Guides & Templates 3→4 cards; buy-cards 34→35; plink anchors 38→39) -->
 <!-- updated: 2026-06-10T02:48:00Z (cycle-59 missing-home-card-fix: added 18th home card for 2026-06-09-build-agent-eval-harness post right after the 17th-post schema-drift card; commit 36586a5 added the post body + posts/index.html entry but missed the home card — same off-cycle-drift pattern as cycle-54 LEARN; unique post hrefs 17→18; 18th-post card now live) -->
+<!-- updated: 2026-06-10T03:57:46Z (cycle-60 catalog-add: +1 Agent Tool-Call Validator CLI $29 → prod_UfzHafqtMewxjS + price_1TgdIpRsvOC5Dlfsfhg6gLde + plink_1TgdIxRsvOC5DlfsmHIXcMuL; agent-devtools 7→8 cards; buy.stripe anchors 38→39; pre-LLM tool-call shape CI gate, 8 rules, 14 selftest + 30 unit tests, pairs with Agent Ingress Firewall CLI for egress and Agent Eval Harness CLI for behavior) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -337,6 +338,13 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <p class="tagline">Read-only, local pattern detection for prompt-injection, role-escalation, system-prompt-extraction, tool-call-confusion, and dangerous-URL patterns in incoming agent messages. Returns structured BLOCK / BLUR / ALLOW verdict with per-finding reasons. Zero network calls, zero file writes outside scan results. Drop into any pre-tool-call interceptor, CI gate, or eval harness in 10 minutes. 41 unit tests + 18 in-process selftest cases. Pairs with Agent Safety Audit (config audit) and Agent Eval Harness CLI (multi-turn behavior) — together they cover ingress + config + conversation.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">Security</span><span class="tag">Ingress</span><span class="tag">CI</span></div>
   <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Stripe</a></div></div>
+</div>
+
+<div class="product" data-cat="agent devtools">
+  <h3>Agent Tool-Call Validator CLI</h3>
+  <p class="tagline">Pre-execution tool-call shape CI gate for AI agents. Single-binary, zero-dependency, deterministic validator that returns ALLOW/BLUR/BLOCK on any stream of JSONL tool calls BEFORE they hit the runtime or the LLM. Catches hallucinated tools not in allowedTools, missing/null/empty required args, wrong-typed args, side-effect budget overruns (delete/drop/transfer per session), fanout-retry concurrency spikes, dangerous arg values (deny-list prefixes + regex), and cross-tool invariants (write-before-read). No network, no inference, no signing — finishes in milliseconds. 8 rules, 14 selftest cases, 30+ unit tests. Pairs with Agent Ingress Firewall CLI (egress patterns) and Agent Eval Harness CLI (multi-turn behavior) — together they cover egress + tool-call + conversation.</p>
+  <div class="meta"><span class="tag">CLI</span><span class="tag">Tool-Call</span><span class="tag">CI</span><span class="tag">Agent</span></div>
+  <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_9B63cx4ZT5283a5dGx73G0F">Stripe</a></div></div>
 </div>
 
 </div>
