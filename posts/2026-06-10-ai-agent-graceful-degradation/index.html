@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Graceful Degradation Patterns: Return Useful, Not Nothing</title>
+<meta name="description" content="A complete 6-pattern playbook for graceful degradation in AI agents: partial responses, cached fallbacks, model downgrades, structured error contracts, confidence scoring, and user-visible degradation. Includes a 110-line TypeScript reference implementation, 4 anti-patterns, and a Woodpecker CI gate that fails when degradation is silent.">
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --red: #f97583; --orange: #f0a868; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.6; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); transition: color .15s; text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; color: var(--muted); }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2.25rem, 5vw, 3.5rem); line-height: 1.1; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin: 2.5rem 0 1rem; letter-spacing: -.02em; }
+h3 { font-size: 1.2rem; margin: 1.75rem 0 .75rem; }
+.lead { color: var(--muted); max-width: 720px; font-size: 1.1rem; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+pre { background: #050a14; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.55; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+:not(pre) > code { background: rgba(88,166,255,.10); padding: .1em .35em; border-radius: 4px; font-size: .92em; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid var(--border); padding: .55rem .75rem; text-align: left; font-size: .92rem; }
+th { background: rgba(88,166,255,.08); color: #dbeafe; }
+.check::before { content: "\2713"; color: var(--green); font-weight: 900; margin-right: .5rem; }
+.warn::before { content: "\26A0"; color: var(--orange); font-weight: 900; margin-right: .5rem; }
+.cross::before { content: "\2717"; color: var(--red); font-weight: 900; margin-right: .5rem; }
+.tag { display: inline-flex; border: 1px solid rgba(88,166,255,.28); background: rgba(88,166,255,.10); color: #bde3ff; border-radius: 999px; padding: .2rem .55rem; font-size: .78rem; margin-right: .3rem; }
+footer { color: var(--muted); margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.tldr { background: rgba(88,166,255,.06); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+ul, ol { padding-left: 1.5rem; }
+li { margin: .3rem 0; }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Graceful Degradation Patterns: Return Useful, Not Nothing",
+  "datePublished": "2026-06-10T12:30:00Z",
+  "dateModified": "2026-06-10T12:30:00Z",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://github.com/Algoram99" },
+  "publisher": { "@type": "Organization", "name": "Qualigen", "url": "https://www.qualigen.net/" },
+  "description": "A 6-pattern playbook for graceful degradation in AI agents with a 110-line TypeScript reference, 4 anti-patterns, and a Woodpecker CI gate.",
+  "keywords": ["AI agent", "graceful degradation", "fallback strategy", "LLM reliability", "TypeScript", "Woodpecker CI", "agent observability", "circuit breaker"],
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-06-10-ai-agent-graceful-degradation/" }
+}
+</script>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Posts navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> · <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+  <span class="eyebrow">agent reliability · graceful degradation · TypeScript</span>
+  <h1>AI Agent Graceful Degradation Patterns: Return Useful, Not Nothing</h1>
+  <p class="lead">Your circuit breaker trips, the primary model times out, the tool returns 500. What does the user see? If the answer is a stack trace, a 503, or a vague "try again later" — you don't have a graceful-degradation layer. You have a failure surface. This post lays out the 6 patterns that separate agents that degrade well from agents that crash, plus a 110-line TypeScript reference, 4 anti-patterns to avoid, and a Woodpecker CI gate that fails any PR that ships silent degradation.</p>
+
+  <div class="tldr">
+    <p class="check"><strong>TL;DR</strong> — Graceful degradation for AI agents means returning <em>something useful</em> on partial failure, not throwing or returning empty. Six patterns that work together: (1) structured error contracts the caller can branch on, (2) cached fallbacks keyed on the input signature, (3) model-tier downgrades from the primary to a smaller model, (4) partial responses with a confidence score, (5) user-visible degradation signal so the UI can render an honest "less reliable" badge, and (6) degradation telemetry that lets your circuit breaker (the 19th-post guide) learn from real failure shape. The TypeScript reference below wires all six into a single <code>degrade()</code> function you can drop into any agent loop. The Woodpecker CI gate fails when degradation goes silent.</p>
+  </div>
+
+  <h2>Why graceful degradation is the missing half of agent reliability</h2>
+  <p>The previous post in this series, <a href="/posts/2026-06-10-circuit-breaker-llm-api/">Circuit Breaker for LLM APIs</a>, covered the <em>stop the bleeding</em> half of agent reliability: when the upstream is unhealthy, stop calling it. But a circuit breaker that <em>only</em> stops the bleeding leaves the user staring at a "Service Unavailable" page. That's not reliability — that's a polite 503.</p>
+  <p>Reliability is the property that holds when something has gone wrong. The three things an agent must do on a partial failure are: (a) return <em>some</em> value to the user, (b) signal the value's quality so downstream code and the UI can render it honestly, and (c) emit telemetry that the circuit breaker can use to decide when the upstream is healthy again. Skip any of the three and you have a different failure mode — silent corruption, opaque UX, or breakers that never recover.</p>
+  <p>The six patterns below cover all three. They're ordered from the cheapest (error contracts) to the most expensive (degradation telemetry), but in practice you want all of them wired up — each one fixes a failure mode the others can't.</p>
+
+  <h2>The 6 patterns at a glance</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Pattern</th><th>Failure mode it covers</th><th>Cost</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Structured error contracts</td><td>Catch-all <code>throw "something broke"</code> that callers can't branch on</td><td>0 (refactor only)</td></tr>
+      <tr><td>2</td><td>Cached fallbacks</td><td>Recurring identical queries hitting a dead upstream</td><td>Storage + invalidation</td></tr>
+      <tr><td>3</td><td>Model-tier downgrades</td><td>Primary model down, but a smaller model is still serving</td><td>Latency (still useful)</td></tr>
+      <tr><td>4</td><td>Partial responses with confidence</td><td>Streaming interrupted mid-response</td><td>Schema change + scorer</td></tr>
+      <tr><td>5</td><td>User-visible degradation signal</td><td>UI renders degraded response identically to healthy</td><td>UI hook</td></tr>
+      <tr><td>6</td><td>Degradation telemetry</td><td>Breaker can't tell <em>why</em> the upstream is unhealthy</td><td>Metric + dashboard</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Pattern 1: Structured error contracts</h2>
+  <p>The base layer. Every failure path in your agent must return an object with a stable shape: <code>{ ok: false, code, message, retriable, fallback }</code>. The caller branches on <code>code</code>, not on the exception type or the message string. The <code>fallback</code> field is the bridge to pattern 2 — it tells the caller "here's the cached answer, but it's stale, render it with a confidence badge."</p>
+  <p>The classic anti-pattern is to throw a string and let the caller string-match: <code>catch (e) { if (e.message.includes("rate limit")) ... }</code>. That breaks the moment the upstream changes its error wording. The fix is to map upstream error shapes to your own enum at the boundary, and only your own enum touches the rest of the code.</p>
+
+  <h2>Pattern 2: Cached fallbacks</h2>
+  <p>For high-traffic deterministic queries ("what's the status of order #12345", "summarize ticket #ABC"), a cache layer in front of the LLM turns an upstream outage into a degraded-but-correct response. The cache key should be the <em>semantic</em> signature of the request, not the literal prompt — the same logical question phrased two different ways should hit the same cache slot.</p>
+  <p>Two design choices matter. First, <strong>stale-while-revalidate</strong>: serve the cached answer immediately, mark it stale, refresh in the background. The user gets a fast response; the cache self-heals. Second, <strong>confidence discount</strong>: cached answers get a <code>confidence: 0.7</code> cap instead of 1.0, so the UI can render them as "based on data from 2 hours ago" without lying.</p>
+
+  <h2>Pattern 3: Model-tier downgrades</h2>
+  <p>When the primary model (say, a frontier reasoning model) is timing out but a smaller model on a different provider is still healthy, downgrade. The smaller model's answer is usually wrong on harder questions, but it's right on the 60% of queries that don't need full reasoning power. The user gets an answer instead of a timeout.</p>
+  <p>The downgrade tier list is built from your eval data, not from vibes. If your eval shows the small model gets 60% of queries correct and the big model gets 80%, the downgrade is worth it when the big model is in a breaker-OPEN state and the user is blocked. If the small model only gets 30%, the downgrade is worse than nothing — show the user the breaker error and let them retry later.</p>
+
+  <h2>Pattern 4: Partial responses with confidence</h2>
+  <p>When a stream is interrupted mid-response (network drop, breaker trip, model stall), don't throw the partial tokens away. Return them with a <code>partial: true</code> flag and a <code>confidence</code> score that reflects how much of the planned response was delivered. The caller decides: short partial &rarr; try to recover, long partial &rarr; ship it as a degraded response.</p>
+  <p>The 19th-post circuit breaker is what triggers this path. When the breaker trips during an in-flight stream, it aborts the stream and the partial-tokens buffer is handed to the degradation layer. Without this layer, those tokens are dropped on the floor and the user sees nothing.</p>
+
+  <h2>Pattern 5: User-visible degradation signal</h2>
+  <p>The UI must render degraded responses <em>differently</em> from healthy ones. A response served from cache, from a downgraded model, or as a partial should show a small badge: "less reliable than usual" or "based on 2-hour-old data." This is the honest-UX half of graceful degradation. Without it, the user has no way to know that a "no" from the downgraded model might actually be a "yes" from the primary model that they should retry.</p>
+  <p>The signal is a boolean or enum on the response object (<code>degraded: true | "cached" | "downgraded" | "partial"</code>), and the UI tests for it the same way it tests for <code>ok</code>. The most common anti-pattern is to log the degradation but not propagate it — the response is degraded in your metrics but the UI shows it identically to a healthy response.</p>
+
+  <h2>Pattern 6: Degradation telemetry</h2>
+  <p>The circuit breaker from the 19th-post guide needs to know <em>why</em> the upstream is unhealthy, not just that it is. Degradation telemetry is the channel: every <code>degrade()</code> call emits a metric with the <code>code</code>, the <code>fallback</code> used, and the duration. When the breaker sees that 90% of the last 1000 calls degraded to "downgraded," it knows the primary is down. When it sees 90% degraded to "partial" with the same <code>code</code>, it knows the upstream is returning corrupt data — different breaker behavior.</p>
+  <p>The cheapest place to store this is a counter per <code>code</code> in your existing metrics pipeline (Prometheus, OpenTelemetry, CloudWatch — the backend doesn't matter as long as the breaker can read it). A daily review of degradation rates per upstream is the single best signal of "is this provider degrading without anyone noticing."</p>
+
+  <h2>The 110-line TypeScript reference</h2>
+  <p>The function below wires all six patterns into a single <code>degrade()</code> wrapper you can drop into any agent loop. The shape is <em>guard + fallback + telemetry</em> — the guard classifies the failure, the fallback returns a useful value, the telemetry emits the signal.</p>
+
+<pre><code>// agent-degradation.ts
+// Drop into any agent loop. Returns { ok, value, degraded, confidence, code, fallback }.
+
+type ErrorCode =
+  | "rate_limited"      // 429, retriable
+  | "timeout"           // upstream slow, retriable
+  | "breaker_open"      // circuit breaker tripped
+  | "upstream_5xx"      // 500/502/503/504
+  | "schema_invalid"    // upstream returned bad JSON
+  | "stream_aborted"    // partial response
+  | "unknown";          // catch-all
+
+type FallbackKind = "none" | "cached" | "downgraded" | "partial" | "synthetic";
+
+interface Degraded&lt;T&gt; {
+  ok: boolean;
+  value?: T;
+  degraded: boolean;
+  confidence: number;       // 0.0 - 1.0
+  code?: ErrorCode;
+  fallback?: FallbackKind;
+  message?: string;
+}
+
+// 1. Classify upstream errors into our enum.
+function classifyError(err: unknown): { code: ErrorCode; retriable: boolean } {
+  if (err instanceof Error) {
+    if (err.name === "AbortError") return { code: "stream_aborted", retriable: false };
+    const msg = err.message.toLowerCase();
+    if (msg.includes("429") || msg.includes("rate")) return { code: "rate_limited", retriable: true };
+    if (msg.includes("timeout") || msg.includes("econnreset")) return { code: "timeout", retriable: true };
+    if (msg.includes("breaker") || msg.includes("open")) return { code: "breaker_open", retriable: false };
+    if (msg.match(/5\d\d/)) return { code: "upstream_5xx", retriable: true };
+  }
+  return { code: "unknown", retriable: false };
+}
+
+// 2. Cache lookup. Returns null on miss. Stale entries are flagged.
+async function cacheLookup&lt;T&gt;(key: string): Promise&lt;{ value: T; stale: boolean } | null&gt; {
+  // Replace with your cache (Redis, KV, in-memory LRU).
+  // null = miss. { value, stale: true } = hit but needs refresh.
+  return null;
+}
+
+// 3. Downgrade to a smaller model. Returns null if the small model also fails.
+async function downgrade&lt;T&gt;(input: unknown): Promise&lt;T | null&gt; {
+  try { return await callSmallerModel(input); } catch { return null; }
+}
+
+// 4. The main degradation wrapper.
+export async function degrade&lt;T&gt;(
+  primary: () =&gt; Promise&lt;T&gt;,
+  opts: { cacheKey?: string; partialBuffer?: T; confidenceFloor?: number }
+): Promise&lt;Degraded&lt;T&gt;&gt; {
+  const confidenceFloor = opts.confidenceFloor ?? 0.5;
+  const startedAt = Date.now();
+
+  // Try primary first.
+  try {
+    const value = await primary();
+    return { ok: true, value, degraded: false, confidence: 1.0 };
+  } catch (err) {
+    const { code, retriable } = classifyError(err);
+    emitMetric("agent.degrade", { code, durationMs: Date.now() - startedAt });
+
+    // Path 1: cached fallback.
+    if (opts.cacheKey) {
+      const hit = await cacheLookup&lt;T&gt;(opts.cacheKey);
+      if (hit) {
+        return {
+          ok: true, value: hit.value, degraded: true,
+          confidence: hit.stale ? 0.7 : 0.85,
+          code, fallback: "cached",
+          message: hit.stale ? "Served from stale cache" : "Served from cache",
+        };
+      }
+    }
+
+    // Path 2: model downgrade.
+    if (retriable) {
+      const downgraded = await downgrade&lt;T&gt;(/* input from primary closure */);
+      if (downgraded !== null) {
+        return {
+          ok: true, value: downgraded, degraded: true,
+          confidence: 0.6, // smaller model = lower confidence
+          code, fallback: "downgraded",
+          message: "Served by smaller model",
+        };
+      }
+    }
+
+    // Path 3: partial response (stream was aborted but produced some output).
+    if (code === "stream_aborted" &amp;&amp; opts.partialBuffer) {
+      return {
+        ok: true, value: opts.partialBuffer, degraded: true,
+        confidence: Math.max(0.4, partialCompleteness(opts.partialBuffer)),
+        code, fallback: "partial",
+        message: "Partial response from interrupted stream",
+      };
+    }
+
+    // No fallback worked. Return structured error.
+    return {
+      ok: false, degraded: true,
+      confidence: 0, code, fallback: "none",
+      message: retriable ? "Transient failure, retry suggested" : "Permanent failure",
+    };
+  }
+}
+
+// 5. Heuristic: how complete is a partial response?
+function partialCompleteness(partial: unknown): number {
+  if (typeof partial === "string") return Math.min(1, partial.length / 500);
+  if (typeof partial === "object" &amp;&amp; partial !== null) {
+    const fields = Object.keys(partial).length;
+    return Math.min(1, fields / 6); // expect ~6 fields
+  }
+  return 0.3;
+}
+
+// 6. Telemetry hook. Wire to your metrics pipeline.
+function emitMetric(name: string, fields: Record&lt;string, unknown&gt;): void {
+  // Replace with: prometheus.counter(name).inc(1, fields);
+  // Or: otel.metrics.getMeter("agent").createCounter(name).add(1, fields);
+  console.log(JSON.stringify({ metric: name, ...fields }));
+}</code></pre>
+
+  <p class="check">Three things to notice in the implementation. First, <code>classifyError()</code> is the only place that touches the upstream's raw error shape — the rest of the code branches on the <code>ErrorCode</code> enum, so changing the upstream's error wording never breaks the degradation layer. Second, the <code>degrade()</code> function never throws — even when every fallback fails, it returns a <code>{ ok: false, degraded: true, code }</code> object, which the caller can branch on safely. Third, the <code>emitMetric()</code> call happens <em>before</em> the fallback paths, so the circuit breaker sees the failure classification even on the calls that the degradation layer successfully recovers from.</p>
+
+  <h2>4 anti-patterns to avoid</h2>
+
+  <h3><span class="cross"></span>Anti-pattern 1: Silent fallback</h3>
+  <p>Wrapping the primary call in a try/catch that returns a hard-coded "Sorry, I can't help with that right now" string. The user sees a response, your metrics show a successful call, and the breaker has no signal. Fix: every fallback must set <code>degraded: true</code> and the telemetry hook must fire.</p>
+
+  <h3><span class="cross"></span>Anti-pattern 2: Logging the degradation but not propagating it</h3>
+  <p>The response is degraded in your logs but the API response shape is identical to a healthy response. Downstream callers and the UI have no way to render it honestly. Fix: include <code>degraded</code> and <code>fallback</code> in the response object; the UI tests for them the same way it tests for <code>ok</code>.</p>
+
+  <h3><span class="cross"></span>Anti-pattern 3: Throwing on every error and hoping the caller catches</h3>
+  <p>Sometimes the upstream returns 200 with a malformed body. Throwing a <code>TypeError</code> in your agent and hoping the HTTP layer turns it into a 500 means the caller gets an HTTP error, not a structured degradation. Fix: validate the upstream response shape inside the primary function and return a classified error, not an exception, when the shape is wrong.</p>
+
+  <h3><span class="cross"></span>Anti-pattern 4: Caching the <em>prompt</em> instead of the <em>intent</em></h3>
+  <p>Two users asking the same question with slightly different wording miss the cache and hit a dead upstream. Fix: normalize the input to a canonical intent signature before keying the cache, and store the canonical form alongside the cached value.</p>
+
+  <h2>Woodpecker CI gate: fail on silent degradation</h2>
+  <p>The hardest part of graceful degradation is making sure it doesn't accidentally go silent. The Woodpecker CI gate below fails any PR that introduces a try/catch around an upstream call without a corresponding <code>degrade()</code> wrapper. It runs on every PR and on nightly.</p>
+
+<pre><code># .woodpecker.yml — degradation gate
+when:
+  - event: pull_request
+  - event: cron
+    cron: "nightly-degradation-audit"
+
+steps:
+  - name: degradation-audit
+    image: node:20
+    commands:
+      # 1. Every try/catch around a fetch/openai/anthropic call must be inside a degrade() wrapper.
+      - node scripts/audit-degradation.mjs
+      # 2. Every response that contains a fallback must include the degraded signal in the type.
+      - node scripts/audit-degraded-signal.mjs
+      # 3. Nightly: run the full chaos test (kill the upstream, confirm degrade() returns useful values).
+      - npm run test:chaos-degradation || (test "$CI_COMMIT_EVENT" = "cron" &amp;&amp; exit 1)
+</code></pre>
+
+  <p>The <code>audit-degradation.mjs</code> script is a 30-line AST walk: find every <code>try { ... await openai... } catch</code> block, and assert that the catch block either calls <code>degrade()</code> or throws a <code>Degraded</code> object. If a PR introduces a raw try/catch around an LLM call, the gate fails with the file and line number. Nightly, the chaos test kills the upstream and runs the full eval suite — every eval case must still produce a <code>{ ok: true, degraded: true }</code> response, not an exception.</p>
+
+  <h2>How this connects to the rest of the series</h2>
+  <p>This post is the seventh in the agent-reliability series:</p>
+  <ul>
+    <li><a href="/posts/2026-06-10-circuit-breaker-llm-api/">Circuit breaker for LLM APIs</a> — stops the bleeding when the upstream is unhealthy.</li>
+    <li><a href="/posts/2026-06-09-add-observability-to-ai-agents/">Add observability to AI agents</a> — the spans that let the degradation layer know what to degrade.</li>
+    <li><a href="/posts/2026-06-09-build-agent-eval-harness/">Build an agent eval harness</a> — the eval cases that prove your degradation works under chaos.</li>
+    <li><a href="/posts/2026-06-09-llm-schema-drift-detection/">LLM schema drift detection</a> — catches the case where the upstream returns 200 with bad JSON, the failure mode that breaks anti-pattern 3.</li>
+  </ul>
+  <p>The breaker decides whether to call the upstream. The degradation layer decides what to return when the breaker says no. The eval harness proves it works. The observability layer makes the failure shape visible.</p>
+
+  <h2>What to ship this week</h2>
+  <ol>
+    <li><strong>Today:</strong> pick your single most failure-prone agent call (the one that throws the most in production). Wrap it in <code>degrade()</code> with at least the cache fallback. Verify the user gets a useful response the next time the upstream dies.</li>
+    <li><strong>This week:</strong> add the structured error contract (pattern 1) to every agent entry point. Replace any try/catch that returns a hard-coded string with one that returns a <code>Degraded</code> object.</li>
+    <li><strong>This month:</strong> wire the Woodpecker CI gate so silent degradation fails the build. Add a chaos test to the nightly cron. Watch the dashboard for degradation rate per upstream.</li>
+  </ol>
+
+  <h2>Related tools</h2>
+  <p>The 110-line <code>degrade()</code> function is a stripped-down version of the Agent Inflight Telemetry CLI on the <a href="https://nepo6.gumroad.com/" rel="noopener">Qualigen storefront</a> ($29), which adds per-call latency histograms, OpenTelemetry span emission, and a chaos-test harness with 12 failure-mode scenarios. The Agent Ingress Firewall CLI ($29) handles the upstream classification half — mapping provider error shapes to your enum at the boundary.</p>
+
+  <footer>
+    <p>Algoram99 · <a href="/posts/">All posts</a> · <a href="https://github.com/Algoram99" rel="noopener">GitHub</a></p>
+    <p class="updated">Published 2026-06-10 · 20th live post</p>
+  </footer>
+</main>
+</body>
+</html>

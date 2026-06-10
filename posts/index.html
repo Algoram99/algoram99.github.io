@@ -187,14 +187,21 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A field-tested playbook for wrapping LLM API calls in a circuit breaker that survives 429 storms, 5xx outages, latency spikes, streaming stalls, and runaway token costs. Why HTTP-default breakers fail for LLM APIs, the 6-signal LLM-aware detector (HTTP 429, 5xx, p95 latency, per-window USD cost, streaming-token-stall, queue depth), a 110-line reference TypeScript implementation with CLOSED/OPEN/HALF_OPEN state machine and streaming cancel via AbortController, configurable cost-cap and latency-cap trips, the 4 anti-patterns (fixed 429-only detection, no streaming cancel on open, no cost cap, swallow-and-retry inside the breaker) with copy-paste fixes, a 3-of-3 chaos-test harness that kills the API mid-stream, and a Woodpecker CI smoke that fails PRs if the breaker cannot trip, cancel, and recover.</p>
       <p>Directly serves engineering teams shipping LLM-backed services who have been paged at 3am by a 429-storm-induced cost spike and want a 30-line drop-in guard that compounds savings. Cross-links to the Agent Inflight Telemetry CLI ($29, real-time breaker-state dashboards), Agent Ingress Firewall CLI ($29, per-tenant quota gate that prevents one tenant tripping the breaker for everyone), and the 9-step LLM cost reduction guide. 19th live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">agents</span><span class="tag">reliability</span><span class="tag">fallback</span><span class="tag">TypeScript</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-10-ai-agent-graceful-degradation/" style="color:#dbeafe;text-decoration:none;">AI agent graceful degradation patterns: return useful, not nothing</a></h2>
+      <p class="check">A 6-pattern playbook for graceful degradation in AI agents: structured error contracts, cached fallbacks, model-tier downgrades, partial responses with confidence, user-visible degradation signal, and degradation telemetry. Includes a 110-line TypeScript <code>degrade()</code> reference that wires all six into a single wrapper, 4 anti-patterns (silent fallback, logged-but-not-propagated, throw-and-hope, intent-vs-prompt caching) with copy-paste fixes, a Woodpecker CI gate that fails any PR introducing silent degradation, and a chaos-test nightly that runs the full eval suite against a killed upstream.</p>
+      <p>Directly serves engineering teams whose circuit breaker (19th post) trips correctly but whose users still see &ldquo;Service Unavailable&rdquo; on partial failure. Closes the stop-the-bleeding &rarr; return-something-useful loop. Cross-links to Agent Inflight Telemetry CLI ($29), Agent Ingress Firewall CLI ($29), and the 9-step LLM cost reduction guide. 20th live post.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-10T11:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-10T12:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
 </html>
 <!-- touched 2026-06-09T12:24:34Z -->
 <!-- touched 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker) -->
+<!-- touched 2026-06-10T12:30:00Z (cycle-63 20th-post-add: AI agent graceful degradation) -->
