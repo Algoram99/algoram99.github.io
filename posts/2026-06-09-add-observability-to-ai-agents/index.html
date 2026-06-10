@@ -136,7 +136,7 @@ a:hover { color: #dbeafe; }
 <li>Span serialization dominates your actual LLM latency. A 50k-token prompt takes 80ms to serialize through protobuf; 80ms per turn x 100 turns/min x 5 spans = real money.</li>
 </ol>
 </div>
-<p><strong>Fix.</strong> Store the prompt and response as a span <em>event</em> on a separate, write-only, encrypted store keyed by <code>trace_id</code>, and put a hash + length + first-100-chars preview into the span attributes. The OTel SDK makes this two lines:</p>
+<p><strong>Fix.</strong> Store the prompt and response as a span <em>event</em> on a separate, write-only, encrypted store keyed by <code>trace_id</code>, and put a hash + length + first-100-chars preview into the span attributes. For bullet 2 (PII / secrets in span attributes), drop the <a href="https://github.com/Algoram99">Agent Secrets Redactor CLI</a> <a class="stripe" href="https://buy.stripe.com/test_aFa4gB1NHdyE3a531T73G0J">Buy $29</a> into the span-emit path as a pre-serialize step. 12 deterministic patterns (AWS, GitHub PATs, OpenAI/Anthropic/Stripe, PEM, 64-char hex wallet seeds, JWTs, Slack, GCP, email, phone) with redact / hash / drop actions, sub-millisecond per KB — the same redactor that should run in your log pipeline runs in your OTel exporter. For context-window-blow-up (bullet 1), the <a href="https://github.com/Algoram99">Agent Context Eviction CLI</a> <a class="stripe" href="https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I">Buy $29</a> emits the deterministic eviction plan as a span event so you can see what was thrown away. The OTel SDK makes this two lines:</p>
 
 <pre><code>import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 import { createHash } from 'node:crypto';
