@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-07T10:48:00Z -->
+<!-- built: 2026-06-10T08:36:00Z (cycle-64 catalog-add: +1 Agent Trace Replay CLI $29 → prod_Ug3mMw3DSfqJqh + price_1TghfTRsvOC5DlfsicDjKCVK + plink_1TghfaRsvOC5Dlfs6eDwtYxQ; AI Agent CLIs section 8→9 cards; numberOfItems 36→37; prose All 36→All 37; table 8→9; section header (8)→(9); Agent Trace Replay CLI is the regression-diff half of the agent regression trio (capture + score + diff)) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -25,8 +25,8 @@
   "@context": "https://schema.org",
   "@type": "ItemList",
   "name": "Algoram99 AI Agent Tools Catalog",
-  "description": "All 36 products available on the Algoram99 storefront, organized by category, with prices and direct Stripe buy links.",
-  "numberOfItems": 36,
+  "description": "All 37 products available on the Algoram99 storefront, organized by category, with prices and direct Stripe buy links.",
+  "numberOfItems": 37,
   "itemListElement": [
     {
       "@type": "ListItem",
@@ -495,6 +495,19 @@
         "url": "https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D",
         "availability": "https://schema.org/InStock"
       }
+    },
+    {
+      "@type": "ListItem",
+      "position": 37,
+      "name": "Agent Trace Replay CLI",
+      "description": "Deterministic offline agent trace diff. Reads two JSONL agent session traces (baseline + candidate), produces a per-step verdict (SAME / MODIFIED / ADDED / REMOVED / REORDERED) and a session-level drift ratio (IDENTICAL / MINOR_DRIFT / DRIFT / MAJOR_DRIFT), with a single CI-gate exit code. Does NOT re-execute the agent — compares structural fingerprints (tool name, arg shape, result shape, error status). Zero-dep Node 14+ CLI, &lt;100ms, no network, no inference, no signing. 3 JSONL example traces, 18KB core + 24KB test suite. Pairs with Agent Inflight Telemetry (trace capture) and Agent Eval Harness (behavior scoring) — together the regression trio: capture + score + diff.",
+      "offers": {
+        "@type": "Offer",
+        "price": "29",
+        "priceCurrency": "USD",
+        "url": "https://buy.stripe.com/test_aFabJ34ZT528aCx45X73G0G",
+        "availability": "https://schema.org/InStock"
+      }
     }
   ]
 }
@@ -543,7 +556,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
 </head>
 <body>
 <h1>Algoram99 AI Agent Tools Catalog</h1>
-<p class="subtitle">All 36 products on the storefront, organized by category. Find the right tool in 10 seconds with the fit table, or browse the full catalog below.</p>
+<p class="subtitle">All 37 products on the storefront, organized by category. Find the right tool in 10 seconds with the fit table, or browse the full catalog below.</p>
 <p class="meta">Published 2026-06-07 · 6 min read · Catalog / AI Agent Tools · Prices captured from <a href="https://algoram99.github.io/" style="color: var(--accent);">algoram99.github.io</a> at 10:48Z</p>
 
 <div class="tldr">
@@ -818,7 +831,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
   <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Buy</a></div>
 </div>
 </div>
-<h2>AI Agent CLIs (8)</h2>
+<h2>AI Agent CLIs (9)</h2>
 <div class="grid">
 <div class="card">
   <h4>AgentLint</h4>
@@ -867,6 +880,12 @@ td.why { color: #8b949e; font-size: 0.88rem; }
   <p class="tagline">Per-turn agent runtime health inspector. Score every turn of a multi-turn agent run — latency, tokens, tool-call fanout, errors, retries — and emit a CI-gate verdict, before you ship. Zero-dep Node 18+ CLI reads JSONL session logs (one record per turn) and emits per-turn scoring with 3 severity tiers (HARD/SOFT/INVALID) plus a session verdict (PASS/WARN/FAIL). Exit 0 on PASS, 1 on FAIL, 1 on WARN if --fail-on warn. 35 unit tests + selftest mode. Pairs with Agent Inflight Telemetry, Prompt Regression CLI, and Agent Eval Harness CLI — together the four cover: spans → turns → prompts → conversations.</p>
   <div class="meta"><span class="tag">CLI</span> <span class="tag">Runtime</span> <span class="tag">Health</span></div>
   <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_9B6cN7dwp5286mhfOF73G0C">Buy</a></div>
+</div>
+<div class="card">
+  <h4>Agent Trace Replay CLI</h4>
+  <p class="tagline">Deterministic offline agent trace diff. Read two JSONL agent session traces (baseline + candidate), produce a per-step verdict (SAME / MODIFIED / ADDED / REMOVED / REORDERED), a session-level drift ratio (IDENTICAL / MINOR_DRIFT / DRIFT / MAJOR_DRIFT), and a single CI-gate exit code. Does NOT re-execute the agent — compares structural fingerprints (tool name, arg shape, result shape, error status). Zero-dep Node 14+ CLI, &lt;100ms, no network, no inference, no signing. 3 JSONL example traces, 18KB core + 24KB test suite. Pairs with Agent Inflight Telemetry (trace capture) and Agent Eval Harness (behavior scoring) — together the regression trio: capture + score + diff.</p>
+  <div class="meta"><span class="tag">CLI</span> <span class="tag">Trace</span> <span class="tag">Diff</span> <span class="tag">CI</span></div>
+  <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_aFabJ34ZT528aCx45X73G0G">Buy</a></div>
 </div>
 </div>
 <h2>Business & Bounty (1)</h2>
@@ -948,7 +967,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
 <tr><td><strong>Guides & Templates</strong></td><td>4</td><td>$9-$39</td><td>Written playbooks, checklists, and template packs for adopting specific tools or operating schemas. Instant download.</td></tr>
 <tr><td><strong>Analysis Services</strong></td><td>3</td><td>$149-$999</td><td>Done-for-you competitive intelligence with a fixed 3-7 day delivery. PDF report, sometimes with editable Sheets.</td></tr>
 <tr><td><strong>Security & MCP CLIs</strong></td><td>10</td><td>$29-$39</td><td>Scanners, auditors, and linters for MCP server configs, agent configurations, and codebases. All run locally, all CI-gateable.</td></tr>
-<tr><td><strong>AI Agent CLIs</strong></td><td>8</td><td>$19-$49</td><td>Tooling for AI agent builders: linters, continuity kits, runtime guards, model-arena comparisons, prompt regression testing, multi-turn eval harnesses, turn-level health inspectors. All run locally.</td></tr>
+<tr><td><strong>AI Agent CLIs</strong></td><td>9</td><td>$19-$49</td><td>Tooling for AI agent builders: linters, continuity kits, runtime guards, model-arena comparisons, prompt regression testing, multi-turn eval harnesses, turn-level health inspectors, deterministic trace diff. All run locally.</td></tr>
 <tr><td><strong>Business & Bounty</strong></td><td>1</td><td>$39-$39</td><td>Decision-support tooling for bounty hunting and opportunity scoring.</td></tr>
 <tr><td><strong>DevOps & Migration</strong></td><td>5</td><td>$19-$29</td><td>Cron monitoring, repo health grading, ESM migration references, workflow template packs, plus LLM cost pre-flight and multi-agent cost ledgering. Pre-built for common tasks.</td></tr>
 <tr><td><strong>Crypto CLIs & Webapp</strong></td><td>3</td><td>$19-$39</td><td>Solana and Birdeye token discovery dashboards, plus a rent-reclaim utility. Webapp variant runs in the browser, CLIs are local.</td></tr>
@@ -960,7 +979,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
 <ul>
 <li><strong>Subscriptions and SaaS.</strong> Every product is a one-time purchase (with the single exception of the 6-month intelligence subscription). There is no monthly retainer, no per-seat license, no annual fee. This is a deliberate constraint &mdash; recurring billing has higher support cost per dollar than one-shot artifact delivery, and the catalog is optimized for the latter.</li>
 <li><strong>Coaching or implementation services.</strong> If you want help adopting the PAI v5.0.0 guide or any of the security CLIs, the product is the artifact. The catalog does not sell hours, only deliverables.</li>
-<li><strong>Free tools.</strong> All 36 products have a price. There is no "free tier" and no "community edition." The lower bound of the catalog is $9, not $0, because the maintenance cost of supporting a free tier alongside paid products is not sustainable at this scale.</li>
+<li><strong>Free tools.</strong> All 37 products have a price. There is no "free tier" and no "community edition." The lower bound of the catalog is $9, not $0, because the maintenance cost of supporting a free tier alongside paid products is not sustainable at this scale.</li>
 </ul>
 
 <h2>How to buy</h2>

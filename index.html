@@ -4,6 +4,7 @@
 <!-- updated: 2026-06-10T02:48:00Z (cycle-59 missing-home-card-fix: added 18th home card for 2026-06-09-build-agent-eval-harness post right after the 17th-post schema-drift card; commit 36586a5 added the post body + posts/index.html entry but missed the home card — same off-cycle-drift pattern as cycle-54 LEARN; unique post hrefs 17→18; 18th-post card now live) -->
 <!-- updated: 2026-06-10T03:57:46Z (cycle-60 catalog-add: +1 Agent Tool-Call Validator CLI $29 → prod_UfzHafqtMewxjS + price_1TgdIpRsvOC5Dlfsfhg6gLde + plink_1TgdIxRsvOC5DlfsmHIXcMuL; agent-devtools 7→8 cards; buy.stripe anchors 38→39; pre-LLM tool-call shape CI gate, 8 rules, 14 selftest + 30 unit tests, pairs with Agent Ingress Firewall CLI for egress and Agent Eval Harness CLI for behavior) -->
 <!-- updated: 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker w/ streaming cancel + cost-cap + chaos test; home page got new 19th card right after 18th-post eval-harness card; posts/index.html got new card at end + 23:59:00Z→11:30:00Z timestamp; 18→19 unique post hrefs; same off-cycle-drift recovery pattern as cycle-59) -->
+<!-- updated: 2026-06-10T08:36:00Z (cycle-64 catalog-add: +1 Agent Trace Replay CLI $29 → prod_Ug3mMw3DSfqJqh + price_1TghfTRsvOC5DlfsicDjKCVK + plink_1TghfaRsvOC5Dlfs6eDwtYxQ; agent-devtools 8→9 cards; buy.stripe anchors 39→40; deterministic offline agent trace diff CLI, 4 step-class verdicts + 4 session-verdict tiers, <100ms zero-dep, 18KB core + 24KB test + 3 JSONL examples, pairs with Agent Inflight Telemetry CLI for trace capture and Agent Eval Harness CLI for behavior scoring — closes the agent-regression trio) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -56,7 +57,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 </div>
 
 <div class="stripe-note">
-  <strong>Stripe checkout is live.</strong> 57 product cards (agent devtools, devtools, security, guides, services, crypto) — 40 buy-links on the page + 31 GitHub release links (test mode). 1 active Stripe plink (plink_1TZ2cyRsvOC5Dlfs9mDAbeps, $9 "AI Agent Orchestration Checklist - 50-Point System") is deferred because it is a stale duplicate of the canonical $19 "AI Agent Orchestration Checklist" card above (plink_1TZ4PX, prod_UYAlE8J1a5WzGv). Stripe account must be switched to live mode in the Dashboard to receive real payments. cycle-2026-06-10T06.
+  <strong>Stripe checkout is live.</strong> 59 product cards (agent devtools, devtools, security, guides, services, crypto) — 40 buy-links on the page + 31 GitHub release links (test mode). 1 active Stripe plink (plink_1TZ2cyRsvOC5Dlfs9mDAbeps, $9 "AI Agent Orchestration Checklist - 50-Point System") is deferred because it is a stale duplicate of the canonical $19 "AI Agent Orchestration Checklist" card above (plink_1TZ4PX, prod_UYAlE8J1a5WzGv). Stripe account must be switched to live mode in the Dashboard to receive real payments. cycle-2026-06-10T08:36Z.
 </div>
 
 <h2 id="guides" style="margin-top:2.5rem; color: var(--accent); font-size:1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Guides &amp; Templates</h2>
@@ -346,6 +347,13 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <p class="tagline">Pre-execution tool-call shape CI gate for AI agents. Single-binary, zero-dependency, deterministic validator that returns ALLOW/BLUR/BLOCK on any stream of JSONL tool calls BEFORE they hit the runtime or the LLM. Catches hallucinated tools not in allowedTools, missing/null/empty required args, wrong-typed args, side-effect budget overruns (delete/drop/transfer per session), fanout-retry concurrency spikes, dangerous arg values (deny-list prefixes + regex), and cross-tool invariants (write-before-read). No network, no inference, no signing — finishes in milliseconds. 8 rules, 14 selftest cases, 30+ unit tests. Pairs with Agent Ingress Firewall CLI (egress patterns) and Agent Eval Harness CLI (multi-turn behavior) — together they cover egress + tool-call + conversation.</p>
   <div class="meta"><span class="tag">CLI</span><span class="tag">Tool-Call</span><span class="tag">CI</span><span class="tag">Agent</span></div>
   <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_9B63cx4ZT5283a5dGx73G0F">Stripe</a></div></div>
+</div>
+
+<div class="product" data-cat="agent devtools">
+  <h3>Agent Trace Replay CLI</h3>
+  <p class="tagline">Deterministic, offline, zero-dependency Node 14+ CLI that diffs two agent session traces (baseline + candidate) and produces a structured per-step regression verdict (SAME / MODIFIED / ADDED / REMOVED / REORDERED) with a session-level drift ratio (IDENTICAL / MINOR_DRIFT / DRIFT / MAJOR_DRIFT) and a single exit code suitable for CI gating. Compares structural fingerprints of each step (tool name, arg shape, result shape, error status) WITHOUT re-executing the agent — runs in &lt;100ms, makes zero network calls, never signs. Ships with 3 JSONL example traces, 18KB core + 24KB test suite, and 4 step-class + 4 session-verdict output tiers. Pairs with Agent Inflight Telemetry CLI (trace capture) and Agent Eval Harness CLI (behavior scoring) — together they form the agent regression-detection trio (capture + score + diff). No inference, no replay of tools, no LLM call required.</p>
+  <div class="meta"><span class="tag">CLI</span><span class="tag">Trace</span><span class="tag">Diff</span><span class="tag">CI</span></div>
+  <div class="bottom-row"><span class="price">$29</span><div class="actions-row"><a class="buy" href="https://github.com/Algoram99">GitHub</a><a class="stripe" href="https://buy.stripe.com/test_aFabJ34ZT528aCx45X73G0G">Stripe</a></div></div>
 </div>
 
 </div>
