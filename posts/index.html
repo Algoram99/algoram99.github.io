@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker w/ streaming cancel + cost-cap + chaos test) -->
+<!-- built: 2026-06-10T22:30:00Z (cycle-80 22nd-post-add: ai-agent-memory-architecture; 5 invariants + 110-line TypeScript + 4 anti-patterns + Woodpecker CI gate; cross-links Agent Context Eviction CLI $29 + Agent Inflight Telemetry CLI $29 + Agent Tool-Call Validator CLI $29) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -199,11 +199,17 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A field-tested playbook for rate-limiting AI agents that protects your endpoint, your budget, and your upstream quota. The 6 enforcement surfaces (per-IP, per-tenant, per-session, per-tool-call, per-token-budget, per-cost-budget), why per-IP-only and fixed-window counters fail for LLM workloads, a 110-line TypeScript token-bucket implementation with a sliding-window cost gate and a structured <code>RateLimitVerdict</code> the caller branches on instead of HTTP 429, 4 anti-patterns (per-IP-only, ignore-tool-cost, fixed-window-burst, hard-fail-no-degrade) with copy-paste fixes, a chaos harness that simulates a runaway tool-call loop and asserts the per-cost surface trips, and a 30-line Woodpecker CI gate that fails any PR that removes the cost surface or zeroes the per-hour cap.</p>
       <p>Directly serves engineering teams running multi-tenant AI agents where one runaway loop can blow the monthly budget in 90 seconds. Closes the reliability trilogy: Layer 0 (this post) protects the endpoint, Layer 1 (19th-post circuit breaker) protects the upstream after the limiter passes, Layer 2 (20th-post graceful degradation) handles the case where the limiter does trip. Cross-links to Agent Ingress Firewall CLI ($29, per-tenant HTTP-edge layer), Agent Inflight Telemetry CLI ($29, live quota dashboard), and Agent Eval Harness CLI ($29, runs the chaos harness as a regression test). 21st live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">AI Agents</span><span class="tag">memory</span><span class="tag">3-store</span><span class="tag">eviction</span><span class="tag">CI gate</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-10-ai-agent-memory-architecture/" style="color:#dbeafe;text-decoration:none;">How to build agent memory that survives production (5 invariants, 4 anti-patterns, drop-in TypeScript)</a></h2>
+      <p class="check">A field-tested playbook for the memory subsystem of an LLM-backed agent. The 5 invariants every production memory must satisfy (write-coalesce, read-rank by composite score, TTL, semantic-distance eviction, cross-session persistence), why naive &ldquo;append everything to the prompt&rdquo; and &ldquo;LLM-as-retriever&rdquo; architectures silently break at scale, the 3-store layout (working 8-32 entries / episodic 100-1000 with 30d TTL / semantic unbounded write-curated), a 110-line drop-in TypeScript implementation with deterministic composite retrieval (recency 0.3 + relevance 0.5 + importance 0.2), 4 anti-patterns (unbounded append, LLM-as-retriever, single-store, no-eviction) with copy-paste fixes, a 5-of-5 chaos-test harness that exercises each invariant directly, and a Woodpecker CI smoke that fails any PR that breaks the invariants.</p>
+      <p>Directly serves engineering teams whose agent &ldquo;forgets&rdquo; the user&rsquo;s name on turn 8 of a 20-turn conversation, or burns 80% of the context window on stale facts, or loses session continuity across cold starts. Pairs with the reliability trilogy (19th circuit breaker + 20th graceful degradation + 21st rate limiting). Cross-links to the Agent Context Eviction CLI ($29, pre-context-fill enforcement layer), Agent Inflight Telemetry CLI ($29, real-time memory hit/miss dashboards), and Agent Tool-Call Validator CLI ($29, gates the write paths). 22nd live post.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-10T12:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-10T22:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
