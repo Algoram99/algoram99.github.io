@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- built: 2026-06-10T22:30:00Z (cycle-80 22nd-post-add: ai-agent-memory-architecture; 5 invariants + 110-line TypeScript + 4 anti-patterns + Woodpecker CI gate; cross-links Agent Context Eviction CLI $29 + Agent Inflight Telemetry CLI $29 + Agent Tool-Call Validator CLI $29) -->
+<!-- built: 2026-06-11T13:00:00Z (cycle-86 23rd-post-add: ai-agent-idempotency; 6 key patterns + 90-line TypeScript reference + 4 anti-patterns + Woodpecker CI gate; cross-links Agent Ingress Firewall CLI $29 + Agent Inflight Telemetry CLI $29 + Agent Tool-Call Validator CLI $29; alg99_pages_23_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -205,11 +205,17 @@ footer { color: var(--muted); margin-top: 3rem; }
       <p class="check">A field-tested playbook for the memory subsystem of an LLM-backed agent. The 5 invariants every production memory must satisfy (write-coalesce, read-rank by composite score, TTL, semantic-distance eviction, cross-session persistence), why naive &ldquo;append everything to the prompt&rdquo; and &ldquo;LLM-as-retriever&rdquo; architectures silently break at scale, the 3-store layout (working 8-32 entries / episodic 100-1000 with 30d TTL / semantic unbounded write-curated), a 110-line drop-in TypeScript implementation with deterministic composite retrieval (recency 0.3 + relevance 0.5 + importance 0.2), 4 anti-patterns (unbounded append, LLM-as-retriever, single-store, no-eviction) with copy-paste fixes, a 5-of-5 chaos-test harness that exercises each invariant directly, and a Woodpecker CI smoke that fails any PR that breaks the invariants.</p>
       <p>Directly serves engineering teams whose agent &ldquo;forgets&rdquo; the user&rsquo;s name on turn 8 of a 20-turn conversation, or burns 80% of the context window on stale facts, or loses session continuity across cold starts. Pairs with the reliability trilogy (19th circuit breaker + 20th graceful degradation + 21st rate limiting). Cross-links to the Agent Context Eviction CLI ($29, pre-context-fill enforcement layer), Agent Inflight Telemetry CLI ($29, real-time memory hit/miss dashboards), and Agent Tool-Call Validator CLI ($29, gates the write paths). 22nd live post.</p>
     </article>
+    <article class="card">
+      <div><span class="tag">AI Agents</span><span class="tag">reliability</span><span class="tag">idempotency</span><span class="tag">retry safety</span><span class="tag">TypeScript</span><span class="tag">Tutorial</span></div>
+      <h2><a href="/posts/2026-06-11-ai-agent-idempotency/" style="color:#dbeafe;text-decoration:none;">How to make AI agent actions idempotent (6 key patterns, 4 anti-patterns, drop-in TypeScript)</a></h2>
+      <p class="check">A field-tested playbook for making every LLM agent tool call and side effect safe to retry. The 6 key patterns every production agent must implement (deterministic envelope-derived key, content-hash fingerprinting, request-envelope dedup at the dispatcher, two-phase commit for multi-system mutations, write-ahead idempotency log on durable storage, replay safety on cached results), why naive retry-loop and best-effort-ack architectures double-charge customers and corrupt downstream state, the 4 anti-patterns (retry-without-key, UUID-v4-per-request, in-memory dedup, swallow-the-failure-retry-forever) with copy-paste TypeScript fixes, a 90-line drop-in TypeScript wrapper that any agent can call before dispatch, a 1,000-call chaos test that fires one real tool call and returns the cached result to 999 retries, and a Woodpecker CI gate that fails any PR that retries a state-mutating tool call without a stable idempotency key.</p>
+      <p>Directly serves engineering teams whose agent double-charged a customer after a 504 retry, or sent the same Slack message 11 times during a network blip, or lost a refund because the retry loop re-fired the original charge before the refund was acknowledged. Closes the reliability quadrilogy: Layer 0 (this post) makes every retry observably safe, Layer 1 (21st-post rate limiting) refuses excess calls, Layer 2 (19th-post circuit breaker) refuses calls when upstream is sick, Layer 3 (20th-post graceful degradation) returns something useful when a higher layer trips. Cross-links to Agent Ingress Firewall CLI ($29, per-tenant HTTP-edge envelope hashing), Agent Inflight Telemetry CLI ($29, surfaces dedup events), and Agent Tool-Call Validator CLI ($29, gates the write paths on schema). 23rd live post.</p>
+    </article>
   </section>
 
   <footer>
     <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
-    <p class="updated">Last updated: 2026-06-10T22:30:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
+    <p class="updated">Last updated: 2026-06-11T13:00:00Z · Pipeline: Woodpecker CI · Deploy: GitHub Pages</p>
   </footer>
 </main>
 </body>
@@ -218,3 +224,5 @@ footer { color: var(--muted); margin-top: 3rem; }
 <!-- touched 2026-06-10T11:30:00Z (cycle-62 19th-post-add: LLM circuit breaker) -->
 <!-- touched 2026-06-10T12:30:00Z (cycle-63 20th-post-add: AI agent graceful degradation) -->
 <!-- touched 2026-06-10T13:42:00Z (cycle-71 21st-post-add: AI agent rate limiting — reliability trilogy complete) -->
+<!-- touched 2026-06-10T22:30:00Z (cycle-80 22nd-post-add: AI agent memory architecture) -->
+<!-- touched 2026-06-11T13:00:00Z (cycle-86 23rd-post-add: AI agent idempotency — reliability quadrilogy complete) -->

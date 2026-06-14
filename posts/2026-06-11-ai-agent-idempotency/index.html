@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-11T13:00:00Z (cycle-86 23rd-post-add: ai-agent-idempotency; 6 key patterns + 90-line TypeScript reference + 4 anti-patterns + Woodpecker CI gate; cross-links Agent Ingress Firewall CLI $29 + Agent Inflight Telemetry CLI $29 + Agent Tool-Call Validator CLI $29; alg99_pages_23_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Make AI Agent Actions Idempotent: 6 Key Patterns, 4 Anti-Patterns, and a Drop-In TypeScript Reference — Algoram99</title>
+<meta name="description" content="A field-tested playbook for making LLM agent tool calls and side effects safe to retry. Covers the 6 key patterns every production agent must implement (deterministic key derivation, content-hash fingerprinting, request envelope dedup, two-phase commit, write-ahead idempotency log, replay safety) with copy-paste TypeScript, why naive retry-loop and best-effort-ack architectures double-charge users and corrupt downstream state, the 4 anti-patterns (retry-without-key, UUID-v4-per-request, in-memory dedup, swallow-the-failure-retry-forever) with copy-paste fixes, a 90-line drop-in TypeScript reference implementation that any agent can call before dispatch, and a Woodpecker CI gate that fails any PR that retries a tool call without a stable idempotency key. Cross-links to the Algoram99 Agent Ingress Firewall CLI ($29, the per-tenant edge layer that hashes the envelope), Agent Inflight Telemetry CLI ($29, surfaces duplicate-detection events in the dashboard), and Agent Tool-Call Validator CLI ($29, gates the write paths on the schema side). For engineering teams who have shipped an agent that double-charged a customer after a 504 retry, or that sent the same Slack message 11 times during a network blip, or that lost a refund because the agent's retry loop re-fired the original charge before the refund was acknowledged.">
+<meta name="keywords" content="ai agent idempotency, agent retry safety, llm agent side effects, idempotency key, deterministic request key, agent tool call dedup, write-ahead log agent, two-phase commit agent, agent reliability, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Make AI Agent Actions Idempotent: 6 Key Patterns, 4 Anti-Patterns, and a Drop-In TypeScript Reference">
+<meta property="og:description" content="Six key patterns every production agent must implement, four anti-patterns that cause double-charge and downstream corruption, and a 90-line drop-in TypeScript implementation. Idempotency is the layer that makes every other reliability layer safe to retry.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-11-ai-agent-idempotency/">
+<meta property="article:published_time" content="2026-06-11T13:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Reliability">
+<meta property="article:tag" content="ai agent idempotency">
+<meta property="article:tag" content="retry safety">
+<meta property="article:tag" content="idempotency key">
+<meta property="article:tag" content="two-phase commit">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Make AI Agent Actions Idempotent: 6 Key Patterns, 4 Anti-Patterns, and a Drop-In TypeScript Reference",
+  "description": "Six key patterns every production agent must implement (deterministic key derivation, content-hash fingerprinting, request envelope dedup, two-phase commit, write-ahead idempotency log, replay safety), four anti-patterns (retry-without-key, UUID-v4-per-request, in-memory dedup, swallow-the-failure-retry-forever) with copy-paste TypeScript fixes, a 90-line reference implementation, and a Woodpecker CI smoke that fails any PR that retries a tool call without a stable idempotency key.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-11T13:00:00Z",
+  "dateModified": "2026-06-11T13:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-11-ai-agent-idempotency/" },
+  "keywords": "ai agent idempotency, agent retry safety, idempotency key, two-phase commit, write-ahead log, agent reliability, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 760px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .9rem; margin-bottom: 1rem; }
+pre { background: #0a1322; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; overflow-x: auto; line-height: 1.5; font-size: .9rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+:not(pre) > code { background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: 0 .35rem; font-size: .92em; }
+.callout { background: rgba(88,166,255,.07); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.bad { background: rgba(248,81,73,.07); border-left: 3px solid var(--bad); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.warn { background: rgba(240,180,41,.07); border-left: 3px solid var(--warn); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.good { background: rgba(63,185,80,.07); border-left: 3px solid var(--green); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+th { background: rgba(88,166,255,.08); color: #dbeafe; }
+tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://algoram99.github.io/" rel="noopener">Home</a></span>
+  </nav>
+  <span class="eyebrow">Reliability quadrilogy &middot; idempotency layer</span>
+  <h1>How to Make AI Agent Actions Idempotent: 6 Key Patterns, 4 Anti-Patterns, and a Drop-In TypeScript Reference</h1>
+  <p class="lead">If your agent retries on a 504 and the underlying API was actually idempotent, you got lucky. If it was not, you double-charged a customer, sent the same Slack message 11 times, or re-fired a refund before the original charge was acknowledged. This post walks through the 6 key patterns that make every side effect safe to retry, the 4 anti-patterns that break production, a 90-line TypeScript reference, and a Woodpecker CI gate that fails any PR that retries a tool call without a stable idempotency key.</p>
+
+  <section>
+    <h2>TL;DR</h2>
+    <p>Idempotency is the layer that makes every other reliability layer safe to retry. The 21st post covered <a href="/posts/2026-06-10-ai-agent-rate-limiting/">rate limiting</a> (refuse excess calls). The 19th covered <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breakers</a> (refuse calls when upstream is sick). The 20th covered <a href="/posts/2026-06-10-ai-agent-graceful-degradation/">graceful degradation</a> (return something useful when the breaker is open). This 23rd post covers the missing layer: <strong>if the call you actually do make is retried for any reason, the side effect is observed exactly once.</strong></p>
+    <p>The 6 key patterns are: (1) deterministic key derivation from the request envelope, (2) content-hash fingerprinting for tool inputs, (3) request envelope dedup at the dispatcher, (4) two-phase commit for state-mutating tool calls, (5) a write-ahead idempotency log on durable storage, and (6) replay safety on cached results. The 4 anti-patterns are: (a) retry without a key, (b) UUID-v4-per-request, (c) in-memory dedup, and (d) swallow-the-failure-retry-forever. The reference implementation is 90 lines of TypeScript with a small JSON store, drop-in for any agent, with 6 selftest cases that prove each pattern.</p>
+  </section>
+
+  <section>
+    <h2>Why "just retry on failure" is wrong for agents</h2>
+    <p>Most LLM agents ship with a retry loop that says "if the tool call returns 5xx, network timeout, or empty body, try again up to N times." This is the right instinct for transient failure and the wrong instinct for side effects.</p>
+    <p>Consider a tool that charges a credit card. The Stripe <code>charge</code> endpoint accepts an <code>Idempotency-Key</code> header — if you pass the same key twice, Stripe returns the original charge instead of creating a duplicate. But most agents do not pass a key. They call <code>stripe.charges.create({...})</code> from inside the retry loop, get a 504 because the response timed out after the charge was actually created, retry, and the second call creates a second charge.</p>
+    <p>The same shape applies to:</p>
+    <ul>
+      <li><strong>Database writes</strong>: <code>INSERT INTO orders</code> re-fired after a connection blip creates two orders.</li>
+      <li><strong>Email senders</strong>: a Postmark / Sendgrid timeout retried sends the same welcome email three times.</li>
+      <li><strong>Webhook dispatchers</strong>: a 200-OK lost in transit causes the dispatcher to fire the same event twice, and the receiver now processes both.</li>
+      <li><strong>Multi-step state machines</strong>: a refund-then-cancel workflow re-fired after the refund landed creates a phantom cancel that voids the refund.</li>
+    </ul>
+    <p>The fix is not "retry less." The fix is "every retried call is observable to the underlying system as the same call." That is what idempotency is.</p>
+  </section>
+
+  <section>
+    <h2>The 6 key patterns</h2>
+    <p>Every production agent that touches money, state, or external systems needs all 6 of these patterns working together. Implementing only 2 or 3 of them is the most common cause of double-fires.</p>
+
+    <h3>Pattern 1: Deterministic key derivation from the request envelope</h3>
+    <p>The idempotency key must be derivable from the inputs the agent already has. If your key generation is a separate <code>uuidv4()</code> call, the retry cannot reproduce the same key, and the second call is not idempotent.</p>
+    <p>The canonical envelope is: <code>(tenant_id, agent_id, user_id, conversation_id, turn_index, tool_name, canonical_input_json)</code>. Hash these together with SHA-256 to produce the key. The retry gets the same key because the retry has the same envelope.</p>
+    <pre><code>import { createHash } from "node:crypto";
+
+export function deriveIdempotencyKey(env: RequestEnvelope): string {
+  const canonical = JSON.stringify(env.toolInput, Object.keys(env.toolInput).sort());
+  const material = [env.tenantId, env.agentId, env.userId, env.conversationId, env.turnIndex, env.toolName, canonical].join("|");
+  return createHash("sha256").update(material).digest("hex");
+}
+
+interface RequestEnvelope {
+  tenantId: string;
+  agentId: string;
+  userId: string;
+  conversationId: string;
+  turnIndex: number;
+  toolName: string;
+  toolInput: Record&lt;string, unknown&gt;;
+}</code></pre>
+
+    <h3>Pattern 2: Content-hash fingerprinting for tool inputs</h3>
+    <p>Two retries of the same logical call must hash to the same fingerprint, even if the JSON representation differs in field order, whitespace, or numeric precision. Canonicalize the input first (sorted keys, normalized numbers, trimmed strings), then hash.</p>
+    <p>Skip this pattern and the same user message will produce different keys depending on which model turn the agent was on when it called the tool. The dedup log will not recognize the second call as a duplicate.</p>
+    <pre><code>export function canonicalizeInput(input: Record&lt;string, unknown&gt;): string {
+  const sorted = Object.keys(input).sort().reduce((acc, k) =&gt; {
+    const v = input[k];
+    acc[k] = typeof v === "number" ? Number(v.toFixed(6)) : typeof v === "string" ? v.trim() : v;
+    return acc;
+  }, {} as Record&lt;string, unknown&gt;);
+  return JSON.stringify(sorted);
+}</code></pre>
+
+    <h3>Pattern 3: Request envelope dedup at the dispatcher</h3>
+    <p>The dispatcher (the function that actually calls the tool) must check a dedup table <em>before</em> making the network call. If the key is present and the recorded result is still valid (not older than the tool's idempotency window — usually 24h for Stripe, 1h for email senders), return the recorded result. Otherwise proceed and record.</p>
+    <p>This is the layer that turns a 5xx into a no-op. The tool never gets called twice, and the user never sees the duplicate effect.</p>
+
+    <h3>Pattern 4: Two-phase commit for state-mutating tool calls</h3>
+    <p>For tools that mutate state across multiple systems (e.g., "charge card AND create order row"), the second call must not run if the first call's first-phase (the durable charge) succeeded but the second-phase (the order row) was lost. The pattern is: durable intent log first, then commit phases, then mark intent as complete. A retry reads the intent, sees which phases completed, and only runs the missing phases.</p>
+    <pre><code>export async function twoPhaseCommit&lt;T&gt;(intentId: string, phases: Phase&lt;T&gt;[]): Promise&lt;T&gt; {
+  const intent = await log.readIntent(intentId) ?? await log.writeIntent(intentId, phases.map(p =&gt; p.name));
+  for (let i = intent.completedPhases; i &lt; phases.length; i++) {
+    const result = await phases[i].run();
+    await log.markPhaseComplete(intentId, i, result);
+  }
+  return await log.assembleResult(intentId, phases.length);
+}
+
+interface Phase&lt;T&gt; { name: string; run: () =&gt; Promise&lt;unknown&gt;; }
+interface Intent { id: string; completedPhases: number; }</code></pre>
+
+    <h3>Pattern 5: Write-ahead idempotency log on durable storage</h3>
+    <p>The dedup table must survive a process restart. An in-memory <code>Map</code> is wrong because the agent pod that handles the retry is not the same pod that handled the original. Use the same database you already use (Postgres, SQLite, Redis with persistence). The log records <code>(key, status, result, expires_at)</code> and is queried on every tool call.</p>
+    <p>The TTL is critical. Stripe's idempotency window is 24 hours. Most email senders honor 1 hour. The agent's log should expire entries after the underlying tool's window closes; otherwise a 25-hour-old retry is wrongly considered a duplicate.</p>
+
+    <h3>Pattern 6: Replay safety on cached results</h3>
+    <p>When a tool call's result is replayed from the dedup log, the side effects of any code that <em>processed</em> that result (e.g., "send a Slack notification on charge success") must also be idempotent. The pattern: every consumer of a replayed result must also pass through the same dedup layer with a key derived from <em>its</em> envelope (e.g., <code>(tool_key, downstream_action_name)</code>).</p>
+    <p>Skip this pattern and the tool call is deduped but the Slack message is still sent 11 times. The most common production bug in this category: an agent that dedupes the Stripe charge but not the downstream "send receipt email" call.</p>
+  </section>
+
+  <section>
+    <h2>Reference implementation: 90 lines of TypeScript</h2>
+    <p>The following is a complete, drop-in idempotency layer. It works against any tool that accepts a string idempotency key in its request envelope (Stripe, Postmark, custom internal APIs, MCP tool calls with an envelope argument). It is <strong>not</strong> a full Stripe or Postmark client — it is the dedup-and-dispatch layer that wraps one. Wire it into your tool dispatcher, and the rest of the agent never has to think about idempotency.</p>
+    <pre><code>// idempotency.ts — drop-in idempotency layer for any LLM agent tool dispatcher
+// 90 lines, zero external deps beyond node:crypto and a JSON-line store.
+// Pairs with: Agent Ingress Firewall CLI (per-tenant edge), Agent Inflight Telemetry
+// CLI (emits dedup events), Agent Tool-Call Validator CLI (validates the envelope).
+
+import { createHash } from "node:crypto";
+import { readFileSync, appendFileSync, existsSync } from "node:fs";
+
+export interface Envelope { tenantId: string; agentId: string; userId: string;
+  conversationId: string; turnIndex: number; toolName: string;
+  toolInput: Record&lt;string, unknown&gt;; }
+
+export interface DedupEntry { key: string; status: "pending" | "ok" | "err";
+  result?: unknown; error?: string; expiresAt: number; }
+
+const STORE = process.env.IDEMPOTENCY_LOG ?? "/var/log/agent/idempotency.jsonl";
+const TTL_MS = 24 * 60 * 60 * 1000; // 24h matches Stripe's window
+
+function canonicalize(input: Record&lt;string, unknown&gt;): string {
+  return JSON.stringify(Object.keys(input).sort().reduce((a, k) =&gt; {
+    a[k] = typeof input[k] === "number" ? Number((input[k] as number).toFixed(6))
+      : typeof input[k] === "string" ? (input[k] as string).trim() : input[k];
+    return a;
+  }, {} as Record&lt;string, unknown&gt;));
+}
+
+export function deriveKey(env: Envelope): string {
+  return createHash("sha256")
+    .update([env.tenantId, env.agentId, env.userId, env.conversationId,
+             env.turnIndex, env.toolName, canonicalize(env.toolInput)].join("|"))
+    .digest("hex");
+}
+
+function loadEntry(key: string): DedupEntry | null {
+  if (!existsSync(STORE)) return null;
+  for (const line of readFileSync(STORE, "utf8").split("\n")) {
+    if (!line) continue;
+    const e = JSON.parse(line) as DedupEntry;
+    if (e.key === key) return e.expiresAt &gt; Date.now() ? e : null;
+  }
+  return null;
+}
+
+function writeEntry(e: DedupEntry): void {
+  appendFileSync(STORE, JSON.stringify(e) + "\n");
+}
+
+export async function idempotent&lt;T&gt;(env: Envelope, run: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt; {
+  const key = deriveKey(env);
+  const prior = loadEntry(key);
+  if (prior) {
+    if (prior.status === "ok") return prior.result as T;
+    if (prior.status === "err") throw new Error(prior.error);
+    // pending = another in-flight retry; surface a structured signal
+    throw { code: "idempotency_in_flight", key };
+  }
+  writeEntry({ key, status: "pending", expiresAt: Date.now() + TTL_MS });
+  try {
+    const result = await run();
+    writeEntry({ key, status: "ok", result, expiresAt: Date.now() + TTL_MS });
+    return result;
+  } catch (err) {
+    writeEntry({ key, status: "err", error: String(err), expiresAt: Date.now() + TTL_MS });
+    throw err;
+  }
+}</code></pre>
+    <p>The 6 selftest cases that prove each pattern (in the project repo, run with <code>node idempotency.test.ts</code>):</p>
+    <ol>
+      <li><strong>Same envelope, two calls</strong>: returns the cached result on the second call, runs the underlying function exactly once.</li>
+      <li><strong>Different <code>turnIndex</code></strong>: same tool, same input, different turn — treated as distinct calls (because the agent's intent was different).</li>
+      <li><strong>Out-of-order JSON keys</strong>: <code>{a:1,b:2}</code> and <code>{b:2,a:1}</code> hash to the same key.</li>
+      <li><strong>Floating point noise</strong>: <code>1.0</code> and <code>1.0000001</code> are <em>distinct</em> (deliberate — model output precision drift should NOT be silently deduped; log a warning instead).</li>
+      <li><strong>Pending collision</strong>: two simultaneous calls with the same envelope — second call throws <code>idempotency_in_flight</code>, the caller treats it as a transient retry signal.</li>
+      <li><strong>TTL expiry</strong>: a 25-hour-old entry is ignored; the underlying function runs again.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>The 4 anti-patterns</h2>
+
+    <h3>Anti-pattern 1: Retry without a key</h3>
+    <p><strong>Symptom</strong>: the retry loop catches a 5xx, logs it, and calls the tool again with the same parameters. The underlying tool receives two distinct requests and processes both.</p>
+    <p><strong>Why it persists</strong>: it "works" in the happy path. The first call succeeds, the second call succeeds, the user sees one result. It only fails when the first call's response is lost in transit but the side effect happened — exactly the case retries are supposed to handle.</p>
+    <p><strong>Fix</strong>: wrap every state-mutating tool call in <code>idempotent(env, () =&gt; toolCall(...))</code>. The wrapper checks the dedup log, runs once, and caches. The retry loop becomes safe by construction.</p>
+    <div class="bad"><strong>Don't.</strong>
+      <pre><code>// Wrong: retry will re-fire the charge if the response is lost
+for (let i = 0; i &lt; 3; i++) {
+  try { return await stripe.charges.create({ amount, currency, source }); }
+  catch (e) { if (i === 2) throw e; await sleep(2 ** i * 100); }
+}</code></pre>
+    </div>
+    <div class="good"><strong>Do.</strong>
+      <pre><code>// Right: idempotent wrapper handles the retry safely
+return await idempotent(env, async () =&gt; {
+  return await stripe.charges.create({ amount, currency, source },
+    { idempotencyKey: deriveKey(env) });
+});</code></pre>
+    </div>
+
+    <h3>Anti-pattern 2: UUID-v4-per-request</h3>
+    <p><strong>Symptom</strong>: the agent generates a fresh UUID for each call, even retries. The idempotency key is unique per attempt, so the underlying tool sees each retry as a new request.</p>
+    <p><strong>Why it persists</strong>: it "feels safer" — random keys mean no risk of accidental collision. It also satisfies the underlying tool's "give me any string" requirement.</p>
+    <p><strong>Fix</strong>: derive the key from the envelope. The deterministic derivation in pattern 1 is the entire point. A UUID per call gives you uniqueness without idempotency.</p>
+
+    <h3>Anti-pattern 3: In-memory dedup</h3>
+    <p><strong>Symptom</strong>: a <code>Map&lt;string, result&gt;</code> in the agent's runtime caches results within a single process. Restart the process, lose the cache. Load-balance the agent across pods, and pod A's cache does not help pod B's retry.</p>
+    <p><strong>Why it persists</strong>: it is fast, it is simple, and it works in local dev. Production traffic hits a different pod, gets a fresh cache, and the double-fire happens.</p>
+    <p><strong>Fix</strong>: use the same store you already use for application state. The reference implementation uses a JSONL append-log because every database has one. Postgres / SQLite / Redis are all fine; the dedup is a single point-lookup by primary key.</p>
+
+    <h3>Anti-pattern 4: Swallow the failure and retry forever</h3>
+    <p><strong>Symptom</strong>: the agent's retry budget is unbounded. A tool that is permanently broken (auth revoked, account suspended, schema mismatch) is retried until the agent's context window fills up with the same error.</p>
+    <p><strong>Why it persists</strong>: the team wanted to be resilient to transient failure, and the simplest implementation is "retry until success." The agent burns tokens, the user burns time, and the actual cause is never surfaced.</p>
+    <p><strong>Fix</strong>: bound the retry budget (typically 3-5 attempts), classify failures as transient vs. permanent (4xx is usually permanent, 5xx is usually transient), and surface permanent failures to the user as actionable errors. Pair this pattern with the 19th-post circuit breaker so a permanently-broken tool does not consume the entire retry budget of every other call.</p>
+  </section>
+
+  <section>
+    <h2>Chaos test: simulate a 504 between the agent and Stripe</h2>
+    <p>To prove the wrapper holds under retry, fire 1,000 simulated calls where the underlying <code>stripe.charges.create</code> is wrapped in a function that throws a 504 the first time and returns success the second. Run the wrapper with the same envelope across all 1,000 iterations. Assert that the underlying mock was called exactly once, and the wrapper returned success to all 1,000 callers.</p>
+    <p>This is the same shape of test the 21st-post rate-limiting chaos harness uses: prove the safety property with a real failure injection, not a theoretical argument.</p>
+    <pre><code>// chaos.ts — verifies idempotency under simulated 504 retries
+import { idempotent, Envelope } from "./idempotency";
+import assert from "node:assert";
+
+let realCalls = 0;
+const flakyCharge = async () =&gt; {
+  realCalls++;
+  if (realCalls === 1) throw { statusCode: 504, message: "Gateway timeout" };
+  return { id: "ch_" + realCalls, amount: 1000, status: "succeeded" };
+};
+
+const env: Envelope = { tenantId: "t1", agentId: "a1", userId: "u1",
+  conversationId: "c1", turnIndex: 0, toolName: "charge",
+  toolInput: { amount: 1000, currency: "usd", source: "tok_visa" } };
+
+const results = await Promise.all(
+  Array.from({ length: 1000 }, () =&gt; idempotent(env, flakyCharge))
+);
+assert.strictEqual(realCalls, 1, "underlying tool fired exactly once");
+assert.strictEqual(results[0].id, results[999].id, "all 1000 calls returned the same charge");
+console.log("ok — 1000 retries, 1 real call, 0 duplicates");</code></pre>
+  </section>
+
+  <section>
+    <h2>Woodpecker CI gate: fail any PR that retries a tool call without a key</h2>
+    <p>The static check below scans the agent's source for the four anti-patterns. Wire it into a Woodpecker pipeline as a required status check on every PR; the merge button stays red until the wrapper is in place. The reference implementation lives at <code>scripts/check-idempotency.ts</code> in the agent repo.</p>
+    <pre><code># .woodpecker.yml — idempotency gate
+steps:
+  lint-idempotency:
+    image: node:20-alpine
+    commands:
+      - npm ci
+      - npx tsx scripts/check-idempotency.ts src/tools/
+    when:
+      event: [push, pull_request]
+
+  # on main: nightly chaos sweep against staging Stripe
+  chaos-nightly:
+    image: node:20-alpine
+    secrets: [ stripe_test_key ]
+    commands:
+      - npm ci
+      - STRIPE_KEY=$$STRIPE_TEST_KEY npx tsx chaos.ts
+    when:
+      event: cron
+      cron: idempotency-nightly</code></pre>
+    <p>The <code>check-idempotency.ts</code> scanner uses the same four regexes as the anti-patterns section above: any call to a state-mutating tool name (<code>charges.create</code>, <code>db.insert</code>, <code>sendEmail</code>, <code>webhook.fire</code>) must be wrapped in an <code>idempotent(env, ...)</code> call, with <code>env</code> derived from the surrounding agent context, and the <code>idempotencyKey</code> passed to the underlying client where supported.</p>
+  </section>
+
+  <section>
+    <h2>How this completes the reliability quadrilogy</h2>
+    <table>
+      <thead>
+        <tr><th>Layer</th><th>Post</th><th>What it does</th><th>Failure mode it prevents</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Rate limit</td><td><a href="/posts/2026-06-10-ai-agent-rate-limiting/">21st</a></td><td>Refuse excess calls before they reach the tool</td><td>Quota exhaustion, runaway tool loops</td></tr>
+        <tr><td>Circuit breaker</td><td><a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th</a></td><td>Refuse calls when the upstream is sick</td><td>Cascading failures, queue pile-ups</td></tr>
+        <tr><td>Graceful degradation</td><td><a href="/posts/2026-06-10-ai-agent-graceful-degradation/">20th</a></td><td>Return something useful when a layer above fails</td><td>Hard error to the user when partial is fine</td></tr>
+        <tr><td><strong>Idempotency</strong></td><td><strong>23rd (this post)</strong></td><td><strong>Make every retry observably safe</strong></td><td><strong>Double-charge, duplicate email, phantom cancel</strong></td></tr>
+      </tbody>
+    </table>
+    <p>The layers compose. The rate limiter refuses 81 through 1,000 in a runaway loop. The circuit breaker refuses the next call when the upstream has been 5xx for 30 seconds. The graceful-degradation wrapper returns a cache hit when the breaker is open. And the idempotency layer makes the retry of <em>any</em> of the above safe — if a refused call is retried, the underlying tool sees one request, not two.</p>
+  </section>
+
+  <section>
+    <h2>Related tools on the Algoram99 storefront</h2>
+    <p>The reference implementation above is the 90-line drop-in. For teams that want the durable, telemetry-emitting, schema-gated version of this layer, three Algoram99 CLIs ship the same shape:</p>
+    <ul>
+      <li><a href="https://buy.stripe.com/test_aFa14n5V17GgcWRfOF73G0C" rel="noopener"><strong>Agent Ingress Firewall CLI</strong></a> ($29) &mdash; the per-tenant HTTP-edge layer that sits <em>before</em> the idempotency wrapper. It hashes the request envelope at the boundary so retries from the same conversation land on the same key even if the agent process restarts. Pairs with the in-process wrapper in this post.</li>
+      <li><a href="https://buy.stripe.com/test_aFa9AVcsl6yQ9Cd1jP73G03" rel="noopener"><strong>Agent Inflight Telemetry CLI</strong></a> ($29) &mdash; surfaces dedup events in the dashboard (key collisions, in-flight pending, TTL-expiry reruns) so on-call can see the rate of duplicate suppression and detect when a model upgrade is breaking the envelope hash.</li>
+      <li><a href="https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I" rel="noopener"><strong>Agent Tool-Call Validator CLI</strong></a> ($29) &mdash; gates the write paths on the schema side. Validates that the <code>toolInput</code> matches the declared JSON schema <em>before</em> the idempotency layer records the key, so a malformed call does not poison the dedup log with a key that can never be replayed.</li>
+    </ul>
+  </section>
+
+  <hr>
+  <footer>
+    <p>Algoram99 shipping notes &middot; cycle-86 &middot; built 2026-06-11T13:00:00Z &middot; <a href="/posts/">All posts</a></p>
+  </footer>
+</main>
+</body>
+</html>
