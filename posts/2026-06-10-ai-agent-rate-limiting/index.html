@@ -383,6 +383,7 @@ steps:
     <li><a href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D" rel="noopener"><strong>Agent Ingress Firewall CLI</strong></a> ($29) &mdash; the per-tenant HTTP-edge layer that sits before the limiter. Enforces tenant id, per-tool quotas, and per-cost ceilings at the request boundary. Pairs with the in-process limiter in this post.</li>
     <li><a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z" rel="noopener"><strong>Agent Inflight Telemetry CLI</strong></a> ($29) &mdash; surfaces the live bucket state (tokens remaining, cost remaining, retryAfterMs) in the dashboard so on-call can see which tenant is approaching the cap before they trip it.</li>
     <li><a href="https://buy.stripe.com/test_5kQ4gB9g92U04e931T73G0c" rel="noopener"><strong>Agent Eval Harness CLI</strong></a> ($29) &mdash; runs the chaos harness in this post as part of the standard eval suite, so the limiter behavior is regression-tested on every model upgrade.</li>
+    <li><a href="https://buy.stripe.com/test_4gMcN73VP8ek5id1XP73G0Q" rel="noopener"><strong>Agent Retry Policy CLI</strong></a> ($29) &mdash; when the limiter trips and the call is allowed to retry, the retry policy decides <em>how</em>: exponential, linear, fibonacci, jittered, circuit-breaker, or adaptive. The jittered and adaptive policies are the standard pair for any limiter; jittered prevents the thundering herd when many tenants retry at the limiter's reset boundary, and adaptive gives up at &ge;80% recent failure rate so a poisoned tenant doesn't loop forever.</li>
   </ul>
 
   <footer>
