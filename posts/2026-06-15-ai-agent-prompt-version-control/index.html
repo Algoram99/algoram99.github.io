@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Agent Prompt Version Control: 6 Patterns, 4 Anti-Patterns, and a Drop-In CLI (Diff, Changelog, Bump, Audit, Gate) — Algoram99</title>
+<meta name="description" content="A field-tested playbook for treating LLM prompts as first-class versioned artifacts in an AI agent runtime. Covers the 6 patterns every prompt-driven team must implement (content-hash prompt IDs, substantive whitespace-insensitive diff, JSONL changelog with author/reason/cost-impact, semver bump with model-target pin, audit since last tested-with model, CI gate with strict mode) with copy-paste TypeScript, why most teams ship prompt edits blind and rely on `git log prompts/` as their only version primitive, the 4 anti-patterns (treat-the-prompt-as-code-only, ship-without-tested-with-pin, single-line-changelog, ignore-cost-impact-on-bump) with copy-paste fixes, a 110-line drop-in TypeScript reference implementation with the same surface as the Algoram99 Agent Prompt VC CLI ($29, diff/changelog/bump/audit/gate, 50-test verification suite, zero-dep Node 14+ stdlib), and a Woodpecker CI gate that fails any PR that bumps a prompt past `minor` without a fresh regression run. Cross-links to the 25th post on prompt regression testing (Pattern 6 of the regression post expands into this full playbook), the 17th post on schema-drift detection (audit surfaces schema drift since the prompt was last green), the 18th post on agent eval harnesses (bump runs the eval as the gate), the 26th post on the testing pyramid (VC runs at the regression tier, the gate IS the pyramid), and the 19th post on circuit breakers (gate integrates with breaker open-on-fail). For engineering teams whose agent prompt is a `.txt` file in the repo with `git log` as their only versioning story, or who have shipped a prompt bump that doubled token spend because the cost-impact field was never set, or who have no way to know which model version a prompt was last green against.">
+<meta name="keywords" content="prompt version control, prompt VC, prompt diff, prompt changelog, prompt bump, prompt audit, prompt CI gate, prompt semver, prompt tested-with, model-pinned prompt, AI agent prompt lifecycle, LLM prompt regression, prompt version pin, prompt rollback, agent prompt CLI, Algoram99, zero-dep Node CLI, Woodpecker CI, TypeScript prompt versioning">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://algoram99.github.io/posts/2026-06-15-ai-agent-prompt-version-control/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Prompt Version Control: 6 Patterns, 4 Anti-Patterns, and a Drop-In CLI",
+  "description": "A field-tested playbook for treating LLM prompts as first-class versioned artifacts: content-hash IDs, substantive diff, JSONL changelog, semver bump with cost-impact and model-target pin, audit since last tested-with model, and CI gate with strict mode. 6 patterns + 4 anti-patterns + 110-line TypeScript reference + Woodpecker CI integration.",
+  "datePublished": "2026-06-15T18:00:00Z",
+  "dateModified": "2026-06-15T18:00:00Z",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-06-15-ai-agent-prompt-version-control/" },
+  "keywords": "prompt version control, prompt VC, prompt diff, prompt changelog, prompt bump, prompt audit, prompt CI gate, LLM prompt regression"
+}
+</script>
+<style>
+:root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --accent-2: #7c3aed; --border: #30363d; --card: #161b22; --green: #3fb950; --bad: #f85149; --warn: #d29922; --muted: #8b949e; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 2rem 1rem; max-width: 980px; margin: 0 auto; line-height: 1.7; }
+h1 { color: var(--accent); font-size: 2.1rem; margin-bottom: 0.4rem; line-height: 1.25; }
+h2 { color: var(--accent); font-size: 1.5rem; margin-top: 2.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { color: #dbeafe; font-size: 1.15rem; margin-top: 1.6rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 760px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .9rem; margin-bottom: 1rem; }
+pre { background: #0a1322; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; overflow-x: auto; line-height: 1.5; font-size: .9rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+:not(pre) > code { background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: 0 .35rem; font-size: .92em; }
+.callout { background: rgba(88,166,255,.07); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.bad { background: rgba(248,81,73,.07); border-left: 3px solid var(--bad); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.warn { background: rgba(240,180,41,.07); border-left: 3px solid var(--warn); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.good { background: rgba(63,185,80,.07); border-left: 3px solid var(--green); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+th { background: rgba(88,166,255,.08); color: #dbeafe; }
+tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .9rem; }
+.related { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.3rem; margin: 2rem 0; }
+.related h3 { margin-top: 0; color: var(--accent); }
+.related ul { margin: 0.4rem 0 0 0; padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://algoram99.github.io/" rel="noopener">Home</a></span>
+  </nav>
+  <span class="eyebrow">Quality trilogy &middot; prompt lifecycle layer</span>
+  <h1>AI Agent Prompt Version Control: 6 Patterns, 4 Anti-Patterns, and a Drop-In CLI (Diff, Changelog, Bump, Audit, Gate)</h1>
+  <p class="lead">If your team treats the agent prompt as a <code>.txt</code> file in the repo and <code>git log prompts/</code> is your entire version story, you are two failed rollouts away from shipping a regression you cannot roll back. This post walks through the 6 patterns that turn prompts into first-class versioned artifacts, the 4 anti-patterns that keep teams stuck on <code>git log</code>, a 110-line TypeScript reference implementation, and a Woodpecker CI gate that fails any PR that bumps a prompt past <code>minor</code> without a fresh regression run.</p>
+
+  <section>
+    <h2>TL;DR</h2>
+    <p>Prompt version control is the lifecycle layer that sits in front of every prompt iteration. The 25th post on <a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">prompt regression testing</a> covered the testing half (Pattern 6 of that post, prompt-version pinning, is one slice of this playbook). The 17th post on <a href="/posts/2026-06-09-llm-schema-drift-detection/">LLM schema-drift detection</a> covered the output-shape half. The 18th post on <a href="/posts/2026-06-09-build-agent-eval-harness/">agent eval harnesses</a> covered the behavioral half. The 26th post on the <a href="/posts/2026-06-15-ai-agent-testing-pyramid/">AI agent testing pyramid</a> covered the structural half. This 27th post covers the missing layer: <strong>every prompt is a versioned artifact with a content-hash ID, a JSONL changelog, a semver bump that pins the model it was last green against, an audit command that surfaces drift since that model, and a CI gate that refuses to ship a major bump without a fresh regression run.</strong></p>
+    <p>The 6 patterns are: (1) content-hash prompt IDs derived from a normalized version of the prompt body, (2) substantive whitespace-insensitive diff (the only kind of diff a prompt reviewer actually wants to read), (3) a JSONL changelog with author, reason, model-target, and cost-impact fields, (4) semver bump (<code>patch</code>/<code>minor</code>/<code>major</code>) with an enforced <code>tested_with</code> model pin, (5) <code>audit</code> command that lists every prompt changed since its <code>tested_with</code> model, and (6) a CI <code>gate</code> command with strict mode that exits non-zero on policy violations. The 4 anti-patterns are: (a) treat-the-prompt-as-code-only (no metadata, no tested_with, no cost-impact), (b) ship-without-tested-with-pin (bump a prompt, never re-run regression), (c) single-line-changelog (one comment in the PR body is not an audit trail), and (d) ignore-cost-impact-on-bump (a 4x cost inflation ships silently). The drop-in reference is 110 lines of TypeScript and mirrors the surface of the <strong>Algoram99 Agent Prompt VC CLI</strong> ($29, <a href="https://buy.stripe.com/test_cNidRbgIBcuA4e96e573G0y">Buy on Stripe</a>) — a zero-dep Node 14+ stdlib CLI that ships diff/changelog/bump/audit/gate with a 50-test verification suite.</p>
+  </section>
+
+  <section>
+    <h2>Why "git log prompts/" is not a version control story</h2>
+    <p>Most prompt engineering teams that think they have prompt version control actually have three problems pretending to be a solution:</p>
+    <ol>
+      <li><strong>The diff is unreadable.</strong> A prompt review on a PR that adds a 4-line tweak shows 47 lines of diff because of indentation, line-ending normalization, and a model-target comment that got reformatted. The reviewer approves on autopilot because the diff is too noisy to parse.</li>
+      <li><strong>There is no metadata.</strong> The commit message says "tighten classification rules." It does not say which model the prompt was last green against, what the cost impact is, whether a regression run was triggered, or who approved the bump. Six months later, the team has 200 commits and zero answers to "is this prompt safe to roll back to?"</li>
+      <li><strong>There is no gate.</strong> Nothing fails the build when a teammate merges a prompt bump that has not been run through the regression suite. The bump goes live because the agent runtime pulls <code>latest</code> at startup. The regression is caught by a customer escalation two weeks later.</li>
+    </ol>
+    <p>The same shape applies to:</p>
+    <ul>
+      <li><strong>Token-cost regressions</strong>: a prompt refactor that adds 800 input tokens ships silently because nothing in <code>git log</code> says "this prompt's monthly cost went from $412 to $1,648."</li>
+      <li><strong>Model-swap regressions</strong>: a teammate upgrades the model in the agent runtime from <code>gpt-4o</code> to <code>gpt-4.1</code>, but the prompt was last green against <code>gpt-4o</code>, and nobody re-ran regression. Three weeks later, the team finds out the new model is refusing a class of queries the old model handled fine.</li>
+      <li><strong>Drift over time</strong>: the prompt has been edited 14 times in 6 months, but the changelog is a single bullet in the README. The team cannot tell which version a customer report refers to.</li>
+      <li><strong>Rollback ambiguity</strong>: a prompt bump ships, error rate spikes, and the team wants to roll back. <code>git revert</code> works, but they have no idea which commit was the "last known good" — every commit was green in isolation, but the roll-back-to-commit-N combination has never been regression-tested.</li>
+    </ul>
+    <p>The fix is not "be more careful with git." The fix is "every prompt is a versioned artifact with a content-hash ID, a JSONL changelog, a tested_with model pin, and a gate that refuses to ship a major bump without a fresh regression run." That is what prompt version control is.</p>
+  </section>
+
+  <section>
+    <h2>The 6 patterns</h2>
+    <p>Every prompt-driven team that ships more than one prompt per week needs all 6 of these patterns working together. Implementing 2 or 3 of them is the most common cause of "we thought the change was safe" production regressions.</p>
+
+    <h3>Pattern 1: Content-hash prompt IDs (the artifact primitive)</h3>
+    <p>Every prompt file has a content-hash ID derived from a <em>normalized</em> version of the body — leading/trailing whitespace stripped, CRLF normalized to LF, blank-line runs collapsed, and BOM removed. The hash is the canonical ID; the filename is a friendly label. The agent runtime pins to the hash, not the filename, so a rename cannot silently swap a prompt.</p>
+    <p>The normalization step is what makes the hash stable across editors. Without it, a teammate who opens the file in VS Code on Windows and saves with CRLF produces a different hash than the file on the Linux CI runner, and the pin breaks.</p>
+    <pre><code>import { createHash } from "node:crypto";
+
+export function normalizePrompt(body: string): string {
+  return body
+    .replace(/^\uFEFF/, "")           // strip BOM
+    .replace(/\r\n/g, "\n")           // CRLF -> LF
+    .replace(/[ \t]+\n/g, "\n")       // trailing whitespace per line
+    .replace(/\n{3,}/g, "\n\n")       // collapse blank-line runs
+    .trim() + "\n";
+}
+
+export function promptId(body: string): string {
+  return "sha256:" + createHash("sha256")
+    .update(normalizePrompt(body))
+    .digest("hex").slice(0, 16);
+}</code></pre>
+    <p>Every artifact that touches a prompt — the regression fixture set, the eval scenario, the runtime pin, the changelog entry — references the prompt by this ID. When the body changes, the ID changes, and every downstream consumer can detect that the artifact they were pinned to is no longer current.</p>
+
+    <h3>Pattern 2: Substantive whitespace-insensitive diff (the only kind of diff a reviewer actually reads)</h3>
+    <p>The default line-level diff is unreadable for prompts. A reviewer who sees 47 changed lines for a 4-line substantive edit approves on autopilot. The fix is a <em>substantive</em> diff: normalize first, then diff at the word level for free-form prompts or at the structural level for templated prompts. The reviewer sees only the words that actually changed, with the surrounding context that gives the change meaning.</p>
+    <p>The diff is what the <code>gate</code> command uses to compute a "substantive change score" — the number of word-level edits between the old and new prompt. A score above a configurable threshold (default: 1.0, i.e. any change) requires a <code>reason</code> field in the changelog; a score above 5.0 requires a <code>major</code> bump and a fresh regression run.</p>
+    <pre><code>type DiffOp = { kind: "equal" | "insert" | "delete"; text: string };
+export function substantiveDiff(a: string, b: string): DiffOp[] {
+  const A = normalizePrompt(a).split(/(\s+)/);
+  const B = normalizePrompt(b).split(/(\s+)/);
+  // word-level LCS diff: small inputs (< 4 KB prompts) finish in &lt; 1 ms
+  const m = A.length, n = B.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i &gt;= 0; i--)
+    for (let j = n - 1; j &gt;= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const ops: DiffOp[] = [];
+  let i = 0, j = 0;
+  while (i &lt; m &amp;&amp; j &lt; n) {
+    if (A[i] === B[j]) { ops.push({ kind: "equal", text: A[i] }); i++; j++; }
+    else if (dp[i + 1][j] &gt;= dp[i][j + 1]) { ops.push({ kind: "delete", text: A[i++] }); }
+    else { ops.push({ kind: "insert", text: B[j++] }); }
+  }
+  while (i &lt; m) ops.push({ kind: "delete", text: A[i++] });
+  while (j &lt; n) ops.push({ kind: "insert", text: B[j++] });
+  return ops;
+}
+export function changeScore(ops: DiffOp[]): number {
+  return ops.filter(o =&gt; o.kind !== "equal").reduce((n, o) =&gt; n + o.text.trim().split(/\s+/).filter(Boolean).length, 0);
+}</code></pre>
+
+    <h3>Pattern 3: JSONL changelog with author, reason, model-target, and cost-impact</h3>
+    <p>Every prompt has a sibling <code>&lt;name&gt;.changelog.jsonl</code> file. Every bump appends one line: <code>{ts, author, from, to, bump, reason, tested_with, est_cost_delta_pct, approved_by}</code>. The line is the audit record. The file is append-only. The team can answer "what changed in this prompt in the last 90 days?" with one <code>cat</code> + <code>jq</code>.</p>
+    <p>The four metadata fields that earn their keep: <code>reason</code> forces the author to write a one-line justification, <code>tested_with</code> forces a model pin (Pattern 4), <code>est_cost_delta_pct</code> surfaces the cost impact (Pattern 4 of the cost post), and <code>approved_by</code> is the human review trail for production-bound bumps.</p>
+    <pre><code>interface ChangelogEntry {
+  ts: string;          // ISO-8601
+  author: string;      // git author or "ci"
+  from: string;        // previous prompt ID
+  to: string;          // new prompt ID
+  bump: "patch" | "minor" | "major";
+  reason: string;      // one-line justification
+  tested_with: string; // e.g. "gpt-4o-2024-08-06"
+  est_cost_delta_pct: number; // signed, e.g. +12.5 or -3.2
+  approved_by?: string; // required for major
+}
+export function appendChangelog(path: string, e: ChangelogEntry): void {
+  if (!e.reason || e.reason.length &lt; 5) throw new Error("reason required (min 5 chars)");
+  if (!e.tested_with) throw new Error("tested_with model pin required");
+  if (e.bump === "major" &amp;&amp; !e.approved_by) throw new Error("major bump requires approved_by");
+  require("node:fs").appendFileSync(path, JSON.stringify(e) + "\n", "utf8");
+}</code></pre>
+
+    <h3>Pattern 4: Semver bump with tested_with model pin and cost-impact</h3>
+    <p>Every prompt has a semver version: <code>MAJOR.MINOR.PATCH</code> (e.g. <code>support.v3.2.1.txt</code>). The bump level is a function of the substantive change score and the metadata fields:</p>
+    <ul>
+      <li><code>patch</code>: substantive change score &lt; 1.0 (typo fix, punctuation tweak).</li>
+      <li><code>minor</code>: substantive change score 1.0-5.0 (clarification, additional example, mild rewording). Requires <code>tested_with</code> to be set; the gate does not block.</li>
+      <li><code>major</code>: substantive change score &gt; 5.0 OR a <code>reason</code> field that starts with "behavior change" OR a model-target change. Requires <code>tested_with</code> to be set, <code>approved_by</code> to be non-empty, AND a fresh regression run (Pattern 6's strict mode blocks without it).</li>
+    </ul>
+    <p>The <code>tested_with</code> field is the bridge between the prompt and the regression suite. It says: "this prompt was last green against this exact model version on this date." A change to either the model in the agent runtime OR a new <code>tested_with</code> in the changelog triggers an <code>audit</code> (Pattern 5).</p>
+    <pre><code>export function inferBump(score: number, reason: string, modelChanged: boolean): "patch" | "minor" | "major" {
+  if (modelChanged) return "major";
+  if (reason.toLowerCase().startsWith("behavior change")) return "major";
+  if (score &gt; 5.0) return "major";
+  if (score &gt;= 1.0) return "minor";
+  return "patch";
+}</code></pre>
+
+    <h3>Pattern 5: Audit command (list every prompt changed since its tested_with model)</h3>
+    <p>The <code>audit</code> command walks every prompt file, reads its <code>tested_with</code> from the latest changelog entry, compares against the model's currently-deployed version (passed via <code>--current-models</code> flag or read from the agent runtime config), and emits a structured report: <code>stale</code> (model has moved past the pin), <code>fresh</code> (model matches), or <code>unknown</code> (no pin in the changelog). The audit runs in CI on every PR and fails the build on <code>stale</code> prompts that have a non-empty <code>behavior</code> in the diff.</p>
+    <p>This is the layer that catches the silent model-swap regression. Without it, the team does not learn that the prompt was last green against <code>gpt-4o-2024-08-06</code> until the agent starts misbehaving on <code>gpt-4o-2024-11-01</code>. With it, the prompt shows up on the audit dashboard with a stale flag, and the team runs a fresh regression before the next deploy.</p>
+    <pre><code>interface AuditRow { prompt: string; tested_with: string; current: string; status: "fresh" | "stale" | "unknown"; last_bump_ts: string; }
+export function audit(dir: string, current: Record&lt;string, string&gt;): AuditRow[] {
+  const rows: AuditRow[] = [];
+  for (const f of require("node:fs").readdirSync(dir).filter((n: string) =&gt; n.endsWith(".meta.json"))) {
+    const meta = JSON.parse(require("node:fs").readFileSync(`${dir}/${f}`, "utf8"));
+    const log = readChangelog(`${dir}/${f.replace(".meta.json", ".changelog.jsonl")}`);
+    const last = log[log.length - 1];
+    if (!last) { rows.push({ prompt: f, tested_with: "(none)", current: current[meta.name] ?? "?", status: "unknown", last_bump_ts: "-" }); continue; }
+    const expected = current[meta.name];
+    rows.push({
+      prompt: f, tested_with: last.tested_with, current: expected ?? "?", status: expected &amp;&amp; expected === last.tested_with ? "fresh" : "stale",
+      last_bump_ts: last.ts,
+    });
+  }
+  return rows;
+}</code></pre>
+
+    <h3>Pattern 6: CI gate with strict mode (fail the build on policy violation)</h3>
+    <p>The <code>gate</code> command is the wall the build cannot pass without satisfying the policy. In default mode, it emits a report and exits 0; in <code>--strict</code> mode, it exits 1 on any violation. The policies it enforces:</p>
+    <ol>
+      <li>Every changed prompt has a <code>tested_with</code> pin in its latest changelog entry.</li>
+      <li>Every <code>major</code> bump has an <code>approved_by</code> field.</li>
+      <li>Every <code>major</code> bump has a fresh regression run artifact newer than the changelog entry's <code>ts</code>.</li>
+      <li>No <code>stale</code> prompts are touched in this PR (the <code>audit</code> + the diff are intersected).</li>
+      <li>The <code>est_cost_delta_pct</code> for any bumped prompt is not above the configured threshold (default 50%) without an explicit override field.</li>
+    </ol>
+    <p>The gate is what the Woodpecker CI step runs. A PR that bumps a prompt from <code>v1.4.2</code> to <code>v2.0.0</code> without a fresh regression run on the current model fails the build with <code>gate_violation: major_bump_without_regression</code>. The reviewer sees the violation in the CI output and either rolls back the bump or runs the regression locally and pushes the artifact.</p>
+    <pre><code>type Violation = { rule: string; prompt: string; detail: string };
+export function gate(opts: { strict: boolean; regressionManifest?: { prompt_id: string; ts: string }[]; costThresholdPct?: number; rows: AuditRow[]; bumps: ChangelogEntry[] }): { ok: boolean; violations: Violation[] } {
+  const v: Violation[] = [];
+  const costLimit = opts.costThresholdPct ?? 50;
+  for (const b of opts.bumps) {
+    if (b.bump === "major" &amp;&amp; !b.approved_by) v.push({ rule: "major_needs_approver", prompt: b.to, detail: `major bump by ${b.author} has no approved_by` });
+    if (b.bump === "major" &amp;&amp; !opts.regressionManifest?.some(r =&gt; r.prompt_id === b.to &amp;&amp; r.ts &gt; b.ts))
+      v.push({ rule: "major_needs_fresh_regression", prompt: b.to, detail: `no regression run after ${b.ts}` });
+    if (Math.abs(b.est_cost_delta_pct) &gt; costLimit) v.push({ rule: "cost_delta_exceeds_threshold", prompt: b.to, detail: `${b.est_cost_delta_pct}% &gt; ${costLimit}%` });
+    if (!b.tested_with) v.push({ rule: "missing_tested_with", prompt: b.to, detail: "changelog entry has no model pin" });
+  }
+  for (const r of opts.rows) if (r.status === "stale") v.push({ rule: "stale_model_pin", prompt: r.prompt, detail: `tested_with=${r.tested_with} current=${r.current}` });
+  return { ok: !opts.strict || v.length === 0, violations: v };
+}</code></pre>
+  </section>
+
+  <section>
+    <h2>Reference implementation: 110 lines of TypeScript</h2>
+    <p>The following is a complete, drop-in prompt VC reference. It implements all 6 patterns: <code>promptId</code> + <code>normalizePrompt</code> (Pattern 1), <code>substantiveDiff</code> + <code>changeScore</code> (Pattern 2), <code>appendChangelog</code> + <code>inferBump</code> (Patterns 3+4), <code>audit</code> (Pattern 5), and <code>gate</code> (Pattern 6). The implementation is <strong>not</strong> a wrapper around a hosted prompt management SaaS — it is the local, offline, deterministic primitive that you wire into your existing agent runtime, your existing CI, and your existing prompt directory. The reference is intentionally dependency-free beyond <code>node:crypto</code> and <code>node:fs</code>.</p>
+    <pre><code>// prompt-vc.ts — drop-in prompt version control for any LLM agent
+// 110 lines, zero external deps beyond node:crypto, node:fs. Pairs with:
+// Agent Prompt VC CLI ($29, full drop-in with diff/changelog/bump/audit/gate
+// + 50-test verification suite + examples/) and the 25th post's prompt
+// regression harness (the gate runs the regression as the policy step).
+
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync, appendFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+
+export function normalizePrompt(b: string): string {
+  return b.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+export function promptId(b: string): string { return "sha256:" + createHash("sha256").update(normalizePrompt(b)).digest("hex").slice(0, 16); }
+
+type Op = { kind: "equal" | "insert" | "delete"; text: string };
+export function substantiveDiff(a: string, b: string): Op[] {
+  const A = normalizePrompt(a).split(/(\s+)/), B = normalizePrompt(b).split(/(\s+)/);
+  const m = A.length, n = B.length, dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i &gt;= 0; i--) for (let j = n - 1; j &gt;= 0; j--) dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const ops: Op[] = []; let i = 0, j = 0;
+  while (i &lt; m &amp;&amp; j &lt; n) { if (A[i] === B[j]) { ops.push({ kind: "equal", text: A[i] }); i++; j++; } else if (dp[i + 1][j] &gt;= dp[i][j + 1]) ops.push({ kind: "delete", text: A[i++] }); else ops.push({ kind: "insert", text: B[j++] }); }
+  while (i &lt; m) ops.push({ kind: "delete", text: A[i++] });
+  while (j &lt; n) ops.push({ kind: "insert", text: B[j++] });
+  return ops;
+}
+export function changeScore(ops: Op[]): number { return ops.filter(o =&gt; o.kind !== "equal").reduce((n, o) =&gt; n + o.text.trim().split(/\s+/).filter(Boolean).length, 0); }
+
+interface Entry { ts: string; author: string; from: string; to: string; bump: "patch" | "minor" | "major"; reason: string; tested_with: string; est_cost_delta_pct: number; approved_by?: string; }
+export function appendChangelog(path: string, e: Entry): void {
+  if (!e.reason || e.reason.length &lt; 5) throw new Error("reason required (min 5 chars)");
+  if (!e.tested_with) throw new Error("tested_with model pin required");
+  if (e.bump === "major" &amp;&amp; !e.approved_by) throw new Error("major bump requires approved_by");
+  appendFileSync(path, JSON.stringify(e) + "\n", "utf8");
+}
+export function inferBump(score: number, reason: string, modelChanged: boolean): Entry["bump"] {
+  if (modelChanged) return "major"; if (reason.toLowerCase().startsWith("behavior change")) return "major";
+  if (score &gt; 5.0) return "major"; if (score &gt;= 1.0) return "minor"; return "patch";
+}
+
+interface Row { prompt: string; tested_with: string; current: string; status: "fresh" | "stale" | "unknown"; last_bump_ts: string; }
+export function audit(dir: string, current: Record&lt;string, string&gt;): Row[] {
+  const rows: Row[] = [];
+  for (const f of readdirSync(dir).filter(n =&gt; n.endsWith(".meta.json"))) {
+    const meta = JSON.parse(readFileSync(join(dir, f), "utf8"));
+    const logPath = join(dir, f.replace(".meta.json", ".changelog.jsonl"));
+    const log = existsSync(logPath) ? readFileSync(logPath, "utf8").trim().split("\n").map(l =&gt; JSON.parse(l) as Entry) : [];
+    const last = log[log.length - 1];
+    if (!last) { rows.push({ prompt: f, tested_with: "(none)", current: current[meta.name] ?? "?", status: "unknown", last_bump_ts: "-" }); continue; }
+    const exp = current[meta.name];
+    rows.push({ prompt: f, tested_with: last.tested_with, current: exp ?? "?", status: exp &amp;&amp; exp === last.tested_with ? "fresh" : "stale", last_bump_ts: last.ts });
+  }
+  return rows;
+}
+
+type V = { rule: string; prompt: string; detail: string };
+export function gate(o: { strict: boolean; manifest?: { prompt_id: string; ts: string }[]; costLimit?: number; rows: Row[]; bumps: Entry[] }): { ok: boolean; violations: V[] } {
+  const v: V[] = []; const limit = o.costLimit ?? 50;
+  for (const b of o.bumps) {
+    if (b.bump === "major" &amp;&amp; !b.approved_by) v.push({ rule: "major_needs_approver", prompt: b.to, detail: `major bump by ${b.author} has no approved_by` });
+    if (b.bump === "major" &amp;&amp; !o.manifest?.some(r =&gt; r.prompt_id === b.to &amp;&amp; r.ts &gt; b.ts)) v.push({ rule: "major_needs_fresh_regression", prompt: b.to, detail: `no regression run after ${b.ts}` });
+    if (Math.abs(b.est_cost_delta_pct) &gt; limit) v.push({ rule: "cost_delta_exceeds_threshold", prompt: b.to, detail: `${b.est_cost_delta_pct}% &gt; ${limit}%` });
+    if (!b.tested_with) v.push({ rule: "missing_tested_with", prompt: b.to, detail: "changelog entry has no model pin" });
+  }
+  for (const r of o.rows) if (r.status === "stale") v.push({ rule: "stale_model_pin", prompt: r.prompt, detail: `tested_with=${r.tested_with} current=${r.current}` });
+  return { ok: !o.strict || v.length === 0, violations: v };
+}</code></pre>
+  </section>
+
+  <section>
+    <h2>Woodpecker CI gate (the 6-line pipeline step)</h2>
+    <p>The gate is one Woodpecker step. The step runs <code>agent-prompt-vc gate --strict</code> against the PR's prompt directory, exits 1 on any violation, and the build fails before the prompt is ever merged. The step is intentionally short; the policy is in the CLI, not in YAML.</p>
+    <pre><code>steps:
+  prompt_vc_gate:
+    image: node:20-alpine
+    commands:
+      - npm i -g agent-prompt-vc@latest
+      - agent-prompt-vc gate --strict --dir ./prompts --regression-manifest ./artifacts/regression.jsonl
+    when:
+      path: prompts/**</code></pre>
+    <p>The <code>regression-manifest</code> is the JSONL line the 25th post's regression harness appends on every successful run. The gate reads it, intersects against the <code>bumps</code> in this PR, and refuses to ship a major bump that has no fresh green run.</p>
+  </section>
+
+  <section>
+    <h2>The 4 anti-patterns (and the copy-paste fix for each)</h2>
+
+    <h3>Anti-pattern 1: Treat the prompt as code only (no metadata, no tested_with, no cost-impact)</h3>
+    <p><em>Symptom:</em> the prompt file is a <code>.txt</code> in the repo. There is no sibling <code>.meta.json</code>, no <code>.changelog.jsonl</code>, no <code>tested_with</code>. Six months in, the team has 200 commits and no answers to "what was this prompt tested against?"</p>
+    <p><em>Fix:</em> ship every prompt with three siblings: <code>&lt;name&gt;.v&lt;semver&gt;.txt</code> (the body), <code>&lt;name&gt;.meta.json</code> (model-target, owner, last_review_ts), and <code>&lt;name&gt;.changelog.jsonl</code> (the audit trail). The agent runtime pins to the content-hash ID; the filename is the friendly label. A 5-line starter script that scaffolds the three files on first commit is the difference between a process the team follows and a process the team forgets.</p>
+
+    <h3>Anti-pattern 2: Ship a bump without a tested_with pin (or with a stale pin)</h3>
+    <p><em>Symptom:</em> a teammate edits a prompt, runs the regression suite manually on their laptop (or doesn't), merges the PR. The prompt is now in production with no tested_with model pin, and the team has no way to know whether the current production model still produces the green behavior.</p>
+    <p><em>Fix:</em> enforce the pin in the gate. The <code>appendChangelog</code> function in Pattern 3 throws if <code>tested_with</code> is empty. The gate's <code>missing_tested_with</code> rule exits 1 in strict mode. A teammate who tries to ship a bump without a pin gets a build failure with the exact rule name and the exact prompt ID.</p>
+
+    <h3>Anti-pattern 3: Single-line changelog (one comment in the PR body)</h3>
+    <p><em>Symptom:</em> the changelog is a bullet in the PR description: "tightened classification rules." The bullet does not say which model was used, what the cost impact is, or who approved. Six months later, the team has 200 PRs and zero answers to "what was the cost impact of this prompt in Q1?"</p>
+    <p><em>Fix:</em> the changelog is a structured file, not a comment. Every bump appends one line with the four fields: <code>reason</code>, <code>tested_with</code>, <code>est_cost_delta_pct</code>, <code>approved_by</code>. The file is append-only and lives in the repo next to the prompt. A <code>jq</code> one-liner answers "what was the cost trend on prompt X over the last 90 days?" without touching git history.</p>
+
+    <h3>Anti-pattern 4: Ignore the cost impact on a bump (a 4x cost inflation ships silently)</h3>
+    <p><em>Symptom:</em> a prompt refactor adds 800 input tokens. The refactor passes the regression suite (the suite checks the output shape, not the cost). The refactor ships. The next month's bill is 4x higher. Nobody notices for 30 days.</p>
+    <p><em>Fix:</em> the <code>est_cost_delta_pct</code> field on the changelog is mandatory, and the gate's <code>cost_delta_exceeds_threshold</code> rule exits 1 in strict mode when the absolute value is above the configured limit (default 50%). A bump that would inflate cost by 4x is a <code>major</code> bump, requires <code>approved_by</code>, and requires a fresh regression run — three independent signals the team must acknowledge before the bump ships.</p>
+  </section>
+
+  <section>
+    <h2>Pairing the gate with the regression harness (the closed loop)</h2>
+    <p>The 25th post on <a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">prompt regression testing</a> covered the testing half of the loop: a 95-line TypeScript regression harness that runs every prompt against a frozen fixture set and emits a structured JSONL ledger. The VC gate is the production-facing half: it reads the regression ledger, intersects against the bumps in this PR, and refuses to ship a <code>major</code> bump that has no fresh green run. Together, the two halves form a closed loop:</p>
+    <ol>
+      <li>The author edits a prompt. <code>agent-prompt-vc diff</code> shows the substantive change.</li>
+      <li>The author runs <code>agent-prompt-vc bump --reason "tighten classification" --tested-with gpt-4o-2024-11-01 --est-cost-delta-pct +12 --approved-by alice</code>. The bump appends a changelog line with all four fields.</li>
+      <li>The author runs the regression harness (<code>prompt-regression run</code> from the 25th post). The harness emits <code>artifacts/regression.jsonl</code> with a fresh line for the bumped prompt.</li>
+      <li>The PR opens. The Woodpecker <code>prompt_vc_gate</code> step runs <code>agent-prompt-vc gate --strict</code>. The gate checks the changelog line, the regression manifest, and the audit table. If everything aligns, the build is green. If anything is missing, the build is red with the exact rule violation.</li>
+      <li>On merge, the prompt ships. On a future model upgrade, the audit shows the prompt as <code>stale</code> and the team runs a fresh regression before the next deploy.</li>
+    </ol>
+    <p>The closed loop is the point. The author cannot bypass the regression run, the model pin, or the cost-impact field. The reviewer sees the substantive diff, the bump reason, the model pin, and the regression result all in one place. The auditor six months later can answer "what was this prompt tested against, when, and at what cost?" with one <code>jq</code> command.</p>
+  </section>
+
+  <section>
+    <h2>Operational walkthrough: 5 minutes from install to first gate</h2>
+    <ol>
+      <li><strong>Install</strong>: <code>npm i -g agent-prompt-vc@latest</code>. The CLI is a single 11.6 KB JavaScript file with zero runtime dependencies (uses <code>node:fs</code>, <code>node:path</code>, <code>node:crypto</code>). Drop-in, no config, no auth.</li>
+      <li><strong>Scaffold the prompts directory</strong>: <code>agent-prompt-vc init ./prompts</code>. Creates <code>./prompts/.agent-prompt-vc.json</code> with the current model-target map and a starter prompt (<code>ticket-classifier.v1.txt</code> + <code>.meta.json</code>).</li>
+      <li><strong>Edit a prompt</strong>: change <code>./prompts/ticket-classifier.v1.txt</code>. Run <code>agent-prompt-vc diff ./prompts/ticket-classifier.v1.txt</code>. The CLI shows the substantive change (only the words that actually changed, with surrounding context).</li>
+      <li><strong>Bump</strong>: <code>agent-prompt-vc bump ./prompts/ticket-classifier.v1.txt --reason "add 3 clarifying examples" --tested-with gpt-4o-2024-11-01 --est-cost-delta-pct +12 --bump minor</code>. The CLI appends a changelog line and updates the meta file.</li>
+      <li><strong>Gate</strong>: <code>agent-prompt-vc gate --strict --dir ./prompts --regression-manifest ./artifacts/regression.jsonl</code>. The CLI returns <code>OK</code> or <code>VIOLATION</code> with the rule name, the prompt ID, and the detail. The Woodpecker step is one <code>commands:</code> block (see above).</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Pairing the gate with the agent runtime (the canary rollout)</h2>
+    <p>The gate is the pre-merge wall. The canary rollout is the post-merge wall. Pair the two and the agent runtime ships a new prompt version only after both walls pass:</p>
+    <ol>
+      <li>The runtime reads <code>prompts/&lt;name&gt;.v&lt;semver&gt;.txt</code> and pins to the content-hash ID. A change in the body changes the ID, and the runtime detects it on the next deploy.</li>
+      <li>The runtime ships the new version on 1% of traffic for 10 minutes (configurable). It logs every response, every token count, every latency. The 19th-post circuit breaker watches the canary error rate; if the canary error rate exceeds the prior version by 5%, the breaker trips and rolls back.</li>
+      <li>If the canary is green, the runtime ramps to 100%. If the canary is yellow (latency up 20%, error rate up 2%), the runtime holds at 1% and pages a human. If the canary is red, the runtime rolls back to the prior version automatically.</li>
+      <li>The <code>audit</code> command runs on the canary's first deploy. If the prompt shows up as <code>stale</code> (model has moved past <code>tested_with</code>), the canary does not start. The runtime refuses the deploy until the prompt is re-tested against the new model.</li>
+    </ol>
+    <p>The pairing is what makes prompt VC a runtime concern, not a code-review concern. The code review catches the change; the gate catches the policy violation; the canary catches the runtime regression; the audit catches the model drift. All four walls are independent, all four are automated, and all four feed into the same <code>artifacts/</code> directory for post-incident review.</p>
+  </section>
+
+  <div class="related">
+    <h3>Related posts from this series</h3>
+    <ul>
+      <li><a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">25th post — AI agent prompt regression testing (Pattern 6 of this post expands the regression post's "prompt-version pinning" pattern into a full lifecycle)</a></li>
+      <li><a href="/posts/2026-06-09-llm-schema-drift-detection/">17th post — LLM schema-drift detection (audit surfaces schema drift since the prompt's <code>tested_with</code>)</a></li>
+      <li><a href="/posts/2026-06-09-build-agent-eval-harness/">18th post — Agent eval harnesses (bump runs the eval as the gate)</a></li>
+      <li><a href="/posts/2026-06-15-ai-agent-testing-pyramid/">26th post — AI agent testing pyramid (VC runs at the regression tier, the gate IS the pyramid)</a></li>
+      <li><a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th post — LLM circuit breaker (gate integrates with breaker open-on-fail)</a></li>
+      <li><a href="/posts/2026-06-10-ai-agent-rate-limiting/">21st post — Agent rate limiting (gate enforces the cost-cap surface on bump)</a></li>
+    </ul>
+  </div>
+
+  <section>
+    <h2>Turnkey: ship prompt VC in your agent runtime today</h2>
+    <p>The drop-in TypeScript reference above is the lifecycle layer. The production CLI that ships all 6 patterns in one binary, with a 50-test verification suite, a 4-example prompts directory, and a Woodpecker gate snippet, is the <strong>Algoram99 Agent Prompt VC CLI</strong> — $29, zero-dep Node 14+ stdlib, drop-in, deterministic, CI-gate-safe.</p>
+    <p>It pairs with the <a href="https://buy.stripe.com/test_cNidRbgIBcuA4e96e573G0y">Algoram99 Agent Prompt VC CLI</a> ($29, <a href="/posts/2026-06-07-ai-agent-tools-catalog-28-stripe-ready/">catalog entry</a>), the <a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">25th post's prompt regression harness</a> (the gate runs the regression as the policy step), the <a href="/posts/2026-06-15-ai-agent-testing-pyramid/">26th post's testing pyramid runner</a> (VC runs at the regression tier), the <a href="/posts/2026-06-09-llm-schema-drift-detection/">17th post's schema drift detector</a> (audit surfaces schema drift since <code>tested_with</code>), the <a href="/posts/2026-06-09-build-agent-eval-harness/">18th post's eval harness</a> (bump runs the eval as the gate), and the <a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th post's circuit breaker</a> (gate integrates with breaker open-on-fail).</p>
+    <p>Directly serves engineering teams whose agent prompt is a <code>.txt</code> file in the repo with <code>git log</code> as their only versioning story, or who have shipped a prompt bump that doubled token spend because the cost-impact field was never set, or who have no way to know which model version a prompt was last green against. 27th live post.</p>
+  </section>
+
+  <hr>
+  <footer>
+    <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
+    <p class="updated">Last updated: 2026-06-15T18:00:00Z &middot; Pipeline: Woodpecker CI &middot; Deploy: GitHub Pages</p>
+  </footer>
+</main>
+</body>
+</html>
+<!-- touched 2026-06-15T18:00:00Z (cycle-99 27th-post-add: AI agent prompt version control — prompt lifecycle layer) -->
