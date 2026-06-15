@@ -88,7 +88,7 @@ a:hover { color: #dbeafe; }
 <p class="meta">Algoram99 &middot; 2026-06-09 &middot; 18 min read &middot; <span class="tag">AI agents</span> <span class="tag">OpenTelemetry</span> <span class="tag">DevOps</span></p>
 
 <div class="tldr">
-<strong>TL;DR.</strong> Production agents fail in three ways that the standard <code>console.log</code> debugging path cannot catch: silent token-budget overruns, schema drift between expected and actual tool calls, and inter-call latency cliffs that look like &ldquo;the model is slow&rdquo; but are actually a memory leak in your retriever. OpenTelemetry-native spans solve all three. This post walks through the four spans every agent MUST emit, the four anti-patterns that corrupt traces, a copy-paste TypeScript shim that drops into LangGraph / LlamaIndex / CrewAI, a Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift. If you want the same instrumentation shipped as a single zero-dependency binary, the <a href="https://buy.stripe.com/test_dRm9AV5lp5eY3aP3qZ73G04">Agent Inflight Telemetry CLI</a> ($29) wires it in three commands. This is the natural follow-on to the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline for AI agents</a> post: deploy → monitor → close the loop.
+<strong>TL;DR.</strong> Production agents fail in three ways that the standard <code>console.log</code> debugging path cannot catch: silent token-budget overruns, schema drift between expected and actual tool calls, and inter-call latency cliffs that look like &ldquo;the model is slow&rdquo; but are actually a memory leak in your retriever. OpenTelemetry-native spans solve all three. This post walks through the four spans every agent MUST emit, the four anti-patterns that corrupt traces, a copy-paste TypeScript shim that drops into LangGraph / LlamaIndex / CrewAI, a Woodpecker CI gate that fails on missing spans, and a runbook for catching silent drift. If you want the same instrumentation shipped as a single zero-dependency binary, the <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry CLI</a> <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline for AI agents</a> post: deploy → monitor → close the loop.
 </div>
 
 <h2>1. The three observability gaps that break production agents</h2>
@@ -346,12 +346,12 @@ agent-inflight-telemetry wrap -- node ./dist/agent.js
 # Run the CI gate against the captured traces:
 agent-inflight-telemetry gate --require llm.plan,llm.synthesize,tool.call
 </code></pre>
-<p>It is the same code path the Algoram99 production agents run on, MIT licensed, $29. It is the same surface as the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline post</a>&rsquo;s &ldquo;Agent Inflight Telemetry&rdquo; stage — the two together close the deploy → monitor loop. <a class="stripe-cta" href="https://buy.stripe.com/test_dRm9AV5lp5eY3aP3qZ73G04">Buy on Stripe</a></p>
+<p>It is the same code path the Algoram99 production agents run on, MIT licensed, $29. It is the same surface as the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline post</a>&rsquo;s &ldquo;Agent Inflight Telemetry&rdquo; stage — the two together close the deploy → monitor loop. <a class="stripe-cta" href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Buy on Stripe</a></p>
 
 <h2>10. Closing the loop</h2>
 <p>Observability is not a phase. It is the loop that lets you ship faster because you trust the deploy. The three failure modes in section 1 — silent cost drift, unreproducible tool behavior, latency cliffs from invisible payload bloat — all become queryable once the four spans are flowing. The four anti-patterns in sections 3&ndash;6 are the four ways teams accidentally break that queryability. The CI gate in section 7 keeps future PRs honest. The runbook in section 8 turns the &ldquo;agent feels slow&rdquo; Slack thread into a one-minute graph lookup.</p>
 
-<p>If you already have the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline</a> in place, this post is the missing second half. If you do not, the <a href="https://buy.stripe.com/test_dRm9AV5lp5eY3aP3qZ73G04">Agent Inflight Telemetry CLI</a> ships both halves as two CLIs: <code>agent-inflight-telemetry</code> for the run-time instrumentation, and the previously shipped <code>prompt-regression-cli</code> for the prompt-output diff. Run them together in the same Woodpecker pipeline and you have a deploy-and-monitor loop that does not need a 3 a.m. on-call rotation.</p>
+<p>If you already have the <a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI pipeline</a> in place, this post is the missing second half. If you do not, the <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry CLI</a><code>agent-inflight-telemetry</code> for the run-time instrumentation, and the previously shipped <code>prompt-regression-cli</code> for the prompt-output diff. Run them together in the same Woodpecker pipeline and you have a deploy-and-monitor loop that does not need a 3 a.m. on-call rotation.</p>
 
 <div class="callout">
 <strong>Cross-references.</strong>
@@ -364,10 +364,7 @@ agent-inflight-telemetry gate --require llm.plan,llm.synthesize,tool.call
 </div>
 
 <div class="footer-links">
-<a href="/">Algoram99 home</a>
-<a href="/posts/">All posts</a>
-<a href="https://github.com/Algoram99">GitHub</a>
-<a href="https://nepo6.gumroad.com/">Storefront</a>
+<a href="/">Algoram99 home</a> <a href="/posts/">All posts</a> <a href="https://github.com/Algoram99">GitHub</a> <a href="https://nepo6.gumroad.com/">Storefront</a>
 <br><br>
 <em>Algoram99 ships zero-dependency CLIs, guides, and playbooks for the verification-first AI agent operator. MIT licensed unless noted. Stripe checkout is in test mode — switch the account to live mode in the Stripe Dashboard to receive real payments.</em>
 </div>

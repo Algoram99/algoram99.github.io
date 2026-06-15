@@ -113,35 +113,35 @@ footer { color: var(--muted); margin-top: 3rem; font-size: .9rem; }
         <td>Tool-call shape, argument count, argument types, enum membership</td>
         <td>&lt;1s for 1000 tools</td>
         <td>Zero (deterministic)</td>
-        <td><a href="https://buy.stripe.com/test_eVqaEX9gF2U0115jR173G3X">Agent Tool-Call Validator</a> ($29)</td>
+        <td><a href="https://buy.stripe.com/test_9B63cx4ZT5283a5dGx73G0F">Agent Tool-Call Validator</a></td>
       </tr>
       <tr>
         <td><strong>Contract</strong></td>
         <td>Output schema match (Zod/JSON-Schema), required fields, edge cases (null, empty array, unicode)</td>
         <td>&lt;100ms for 200 schemas</td>
         <td>Zero (deterministic)</td>
-        <td><a href="https://buy.stripe.com/test_aFa9AV1chhams26aA973G3P">Agent Schema Drift Detector</a> ($29) + <a href="https://buy.stripe.com/test_aFa6oH9gF2U0118jR173G3I">Agent Ingress Firewall</a> ($29)</td>
+        <td><a href="https://algoram99.github.io/posts/2026-06-09-llm-schema-drift-detection/">Schema Drift Detector CLI</a> <a href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Agent Ingress Firewall</a></td>
       </tr>
       <tr>
         <td><strong>Integration</strong></td>
         <td>Multi-step trace replay: did the agent take the right path through the right tools?</td>
         <td>1-5s for 100 traces</td>
         <td>Low (deterministic given fixed seed)</td>
-        <td><a href="https://buy.stripe.com/test_dRm6oHdwp2U0115jR173G3K">Agent Inflight Telemetry</a> ($29) + <a href="https://buy.stripe.com/test_6oU6oH4Hp2U0118jR173G3B">Agent Trace Replay</a> ($29)</td>
+        <td><a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry</a> <a href="https://buy.stripe.com/test_aFabJ34ZT528aCx45X73G0G">Agent Trace Replay</a></td>
       </tr>
       <tr>
         <td><strong>Eval</strong></td>
         <td>Behavioral scoring on held-out scenarios: did the agent solve the task per the rubric?</td>
         <td>5-20 min for 500 scenarios</td>
         <td>Medium (grader LLM has variance)</td>
-        <td><a href="https://buy.stripe.com/test_14k9AV4Hp2U0118jR173G3N">Agent Eval Harness</a> ($29)</td>
+        <td><a href="https://buy.stripe.com/test_fZufZj1NHdyEaCx0TL73G0B">Agent Eval Harness</a></td>
       </tr>
       <tr>
         <td><strong>Regression</strong></td>
         <td>Prompt-edit, model-swap, fixture-change regression across all of the above</td>
         <td>1-2 min for 100 fixtures</td>
         <td>Low (snapshot diff is deterministic)</td>
-        <td><a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> ($29) + <a href="https://buy.stripe.com/test_28E00lbohams26131T73G0L">Prompt Mutator CLI</a> ($29)</td>
+        <td><a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A">Prompt Regression CLI</a> <a href="https://buy.stripe.com/test_dRmaEZdwp8ek7ql31T73G0K">Prompt Mutator CLI</a></td>
       </tr>
     </tbody>
   </table>
@@ -165,7 +165,7 @@ const bad = validateToolCall(
 );
 assert(bad.valid === false);
 assert(bad.violations.includes('unexpected-arg:deprecated_flag'));</code></pre>
-  <p>This tier is where the <a href="https://buy.stripe.com/test_eVqaEX9gF2U0115jR173G3X">Agent Tool-Call Validator</a> lives. It runs in &lt;1 second for 1000 tool specs and is fully deterministic. A failing unit test is a <em>ship blocker</em>: it means the agent runtime is about to call a tool that does not exist or pass the wrong shape, and the failure will be a runtime exception in production.</p>
+  <p>This tier is where the <a href="https://buy.stripe.com/test_9B63cx4ZT5283a5dGx73G0F">Agent Tool-Call Validator</a><em>ship blocker</em>: it means the agent runtime is about to call a tool that does not exist or pass the wrong shape, and the failure will be a runtime exception in production.</p>
 
   <h3 id="level-2-contract">Level 2 &mdash; Contract (LLM output schema)</h3>
   <p>Once the tool call is shape-valid, the next question is: does the <em>final</em> LLM output (the text the user sees, or the JSON the downstream consumer parses) match the contract that the consumer expects? This is where <a href="https://algoram99.github.io/posts/2026-06-09-llm-schema-drift-detection/">LLM schema-drift detection</a> lives &mdash; the 17th post in this series walks the full contract-tier pattern.</p>
@@ -192,7 +192,7 @@ assert(r.ok === true);
 const bad = assertSchema(AgentResponse, { answer: 'x' }, { name: 'agent-response-v3' });
 assert(bad.ok === false);
 assert(bad.errors[0].path === 'confidence');</code></pre>
-  <p>The contract tier is the second-fastest gate in your pipeline. The <a href="https://buy.stripe.com/test_aFa9AV1chhams26aA973G3P">Agent Schema Drift Detector</a> handles the snapshot diff side; the <a href="https://buy.stripe.com/test_aFa6oH9gF2U0118jR173G3I">Agent Ingress Firewall</a> handles the same contract check for tool-call responses coming <em>into</em> the agent from untrusted MCP servers.</p>
+  <p>The contract tier is the second-fastest gate in your pipeline. The <a href="https://algoram99.github.io/posts/2026-06-09-llm-schema-drift-detection/">Schema Drift Detector CLI</a> <a href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Agent Ingress Firewall</a><em>into</em> the agent from untrusted MCP servers.</p>
 
   <div class="warn">
     <strong>Why this tier is often skipped.</strong> Teams that come from a "test pyramid = unit + e2e" mindset assume contract tests are duplicative with unit tests. They are not. Unit tests verify the LLM-emitted tool call shape; contract tests verify the LLM-emitted final-output shape. Two different code paths, two different consumers, two different failure modes.
@@ -217,7 +217,7 @@ assert(verdicts.step_count === 'match');
 assert(verdicts.final_answer_schema === 'match');
 assert(verdicts.sessionVerdict === 'PASS');</code></pre>
   <p>The integration tier is also where you assert the agent's behavior under load and cost constraints. The <a href="https://algoram99.github.io/posts/2026-06-10-ai-agent-rate-limiting/">21st post on rate limiting</a> shows a 1000-tool-call chaos test that asserts the per-cost surface trips, not just the per-IP surface &mdash; an integration-tier test that catches a class of bugs (token-bucket bursts that exhaust the cost budget but stay under the per-IP limit) that no unit or contract test can detect.</p>
-  <p>Capture-side infra is the <a href="https://buy.stripe.com/test_dRm6oHdwp2U0115jR173G3K">Agent Inflight Telemetry</a> CLI; replay-side is the <a href="https://buy.stripe.com/test_6oU6oH4Hp2U0118jR173G3B">Agent Trace Replay</a> CLI.</p>
+  <p>Capture-side infra is the <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry</a> <a href="https://buy.stripe.com/test_aFabJ34ZT528aCx45X73G0G">Agent Trace Replay</a></p>
 
   <h3 id="level-4-eval">Level 4 &mdash; Eval (behavioral scoring)</h3>
   <p>The eval tier is the one every team starts with and the one that gives the worst ROI when run on every PR. Evals are slow (5-20 minutes), expensive (real LLM calls), and have medium flake (the grader is often an LLM with temperature). The eval tier is the <a href="https://algoram99.github.io/posts/2026-06-09-build-agent-eval-harness/">18th post on eval harnesses</a>, and the core lesson there is: evals belong on the merge-to-main pipeline, not on every PR.</p>
@@ -235,7 +235,7 @@ const report = await harness.run({ failOnScoreBelow: 0.85 });
 assert(report.passRate >= 0.85);
 assert(report.medianLatencyMs <= 8000);
 assert(report.totalCostUsd <= 5.00);</code></pre>
-  <p>The <a href="https://buy.stripe.com/test_14k9AV4Hp2U0118jR173G3N">Agent Eval Harness</a> CLI captures the pass rate, median latency, and total cost of the eval run, so you can gate merges on "pass rate &ge; 85% AND median latency &le; 8s AND total cost &le; $5."</p>
+  <p>The <a href="https://buy.stripe.com/test_fZufZj1NHdyEaCx0TL73G0B">Agent Eval Harness</a></p>
 
   <h3 id="level-5-regression">Level 5 &mdash; Regression (prompt + model + fixture snapshots)</h3>
   <p>The regression tier is the one that catches the most common real-world failure: a prompt edit, a model version bump, or a tool-fixture change that quietly shifts behavior on inputs that were not in the eval set. This is the <a href="https://algoram99.github.io/posts/2026-06-14-ai-agent-prompt-regression-testing/">25th post on prompt regression testing</a>, sharpened into a pyramid layer.</p>
@@ -253,7 +253,7 @@ const report = await reg.run();
 assert(report.diffByModel.gpt_5_5.similarity &gt;= 0.92);
 assert(report.diffByModel.claude_sonnet_4_6.tokenBudgetMultiplier &lt;= 1.10);
 assert(report.diffByModel.gpt_5_5.schemaMatch === true);</code></pre>
-  <p>Regression is the tier that catches the silent &dollar;400/day cost inflation that comes from swapping <code>gpt-5.5</code> for <code>gpt-5.5-2025-12-01</code> when the new version has a 7% token-count regression. The <a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> captures this; the <a href="https://buy.stripe.com/test_28E00lbohams26131T73G0L">Prompt Mutator CLI</a> generates new candidate prompts to feed the regression suite.</p>
+  <p>Regression is the tier that catches the silent &dollar;400/day cost inflation that comes from swapping <code>gpt-5.5</code> for <code>gpt-5.5-2025-12-01</code> when the new version has a 7% token-count regression. The <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A">Prompt Regression CLI</a> <a href="https://buy.stripe.com/test_dRmaEZdwp8ek7ql31T73G0K">Prompt Mutator CLI</a></p>
 
   <hr>
 
@@ -285,7 +285,7 @@ assert(report.diffByModel.gpt_5_5.schemaMatch === true);</code></pre>
   <div class="bad">
     <strong>Symptom.</strong> Regression suite always passes, even when the prompt change visibly degrades behavior on inputs not in the golden fixture.
   </div>
-  <p><strong>Fix.</strong> Minimum 20 fixtures per prompt: 5 happy path, 5 edge cases (empty input, very long input, unicode, non-English, conflicting instructions), 5 adversarial (prompt-injection-shaped input, off-topic input, tool-failure-shaped input), 5 regression-pin (snapshots from past production failures that must not recur). The <a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> ships with a fixture-coverage reporter that fails the build if any prompt has &lt;20 fixtures.</p>
+  <p><strong>Fix.</strong> Minimum 20 fixtures per prompt: 5 happy path, 5 edge cases (empty input, very long input, unicode, non-English, conflicting instructions), 5 adversarial (prompt-injection-shaped input, off-topic input, tool-failure-shaped input), 5 regression-pin (snapshots from past production failures that must not recur). The <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A">Prompt Regression CLI</a></p>
 
   <hr>
 
@@ -404,14 +404,14 @@ steps:
 
   <h3 id="related-tools">Related Algoram99 tools ($29 each, MIT, single-file, zero-dep)</h3>
   <ul>
-    <li><a href="https://buy.stripe.com/test_eVqaEX9gF2U0115jR173G3X">Agent Tool-Call Validator CLI</a> &mdash; unit tier (8 rules, 14 selftest + 30 unit tests, &lt;1s for 1000 tools)</li>
-    <li><a href="https://buy.stripe.com/test_aFa9AV1chhams26aA973G3P">Agent Schema Drift Detector CLI</a> &mdash; contract tier (JSON-Schema snapshot diff, 18 selftest cases)</li>
-    <li><a href="https://buy.stripe.com/test_aFa6oH9gF2U0118jR173G3I">Agent Ingress Firewall CLI</a> &mdash; contract tier for untrusted MCP responses</li>
-    <li><a href="https://buy.stripe.com/test_dRm6oHdwp2U0115jR173G3K">Agent Inflight Telemetry CLI</a> &mdash; integration-tier span capture</li>
-    <li><a href="https://buy.stripe.com/test_6oU6oH4Hp2U0118jR173G3B">Agent Trace Replay CLI</a> &mdash; integration-tier trace diff</li>
-    <li><a href="https://buy.stripe.com/test_14k9AV4Hp2U0118jR173G3N">Agent Eval Harness CLI</a> &mdash; eval-tier behavioral scoring</li>
-    <li><a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> &mdash; regression-tier prompt/model/fixture snapshot diff</li>
-    <li><a href="https://buy.stripe.com/test_28E00lbohams26131T73G0L">Prompt Mutator CLI</a> &mdash; offline candidate-prompt generator + ranker (feeds the regression suite)</li>
+    <li><a href="https://buy.stripe.com/test_9B63cx4ZT5283a5dGx73G0F">Agent Tool-Call Validator CLI</a></li>
+    <li><a href="https://algoram99.github.io/posts/2026-06-09-llm-schema-drift-detection/">Schema Drift Detector CLI</a></li>
+    <li><a href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Agent Ingress Firewall CLI</a></li>
+    <li><a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry CLI</a></li>
+    <li><a href="https://buy.stripe.com/test_aFabJ34ZT528aCx45X73G0G">Agent Trace Replay CLI</a></li>
+    <li><a href="https://buy.stripe.com/test_fZufZj1NHdyEaCx0TL73G0B">Agent Eval Harness CLI</a></li>
+    <li><a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A">Prompt Regression CLI</a></li>
+    <li><a href="https://buy.stripe.com/test_dRmaEZdwp8ek7ql31T73G0K">Prompt Mutator CLI</a></li>
   </ul>
 
   <hr>
