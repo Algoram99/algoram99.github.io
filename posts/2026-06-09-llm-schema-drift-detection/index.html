@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- built: 2026-06-15T16:50:00Z (cycle-98 cross-link fix: 17th post (schema-drift-detection) which referenced 'Schema Drift Detector CLI (planned, $29)' / 'alg99 main page' now gets a real buy.stripe.com plink cross-link in 3 places — top intro cross-link, middle 'turnkey implementation' paragraph, and the bottom related-tools footer. The alg99 main page links are kept as additional context but the canonical buy surface is now the new plink_1Tid0kRsvOC5DlfsnTnjo5Ep / https://buy.stripe.com/test_5kQ14p63XfGMbGB7i973G0P. Also prepended a build comment explaining the cycle-98 promotion from 'planned' to 'live'.) -->
 <!-- built: 2026-06-09T13:30:00Z -->
 <html lang="en">
 <head>
@@ -97,7 +98,7 @@ footer { color: var(--muted); margin-top: 3rem; font-size: .88rem; border-top: 1
     <h3>TL;DR</h3>
     <p class="check">Schema drift = a previously-valid LLM response shape that suddenly fails downstream validation. It is silent because it is probabilistic: 1 in 200 responses fails Zod validation, gets caught by a generic <code>try/catch</code>, returns a 500 to the user, and never makes it to your error tracker with enough context to see the pattern.</p>
     <p class="check">The fix is a 3-signal drift detector that runs on every LLM call: (1) Zod schema validity, (2) golden-response fingerprint similarity, (3) tokenizer-distance signal. Combined into a single <code>driftScore ∈ [0, 1]</code> and asserted at PR time (fail above 0.03) and at runtime (alert above 0.10), you catch drift within one commit instead of one customer ticket.</p>
-    <p class="check">The drop-in product version of this pattern is the <a href="https://algoram99.github.io/" rel="noopener">Schema Drift Detector CLI</a> ($29, zero dependencies, same fingerprint algorithm). Cross-links: <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A" rel="noopener">Prompt Regression CLI</a>, <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z" rel="noopener">Agent Inflight Telemetry CLI</a>.</p>
+    <p class="check">The drop-in product version of this pattern is the <a href="https://algoram99.github.io/" rel="noopener">Schema Drift Detector CLI</a> ($29, zero dependencies, same fingerprint algorithm). Buy: <a href="https://buy.stripe.com/test_5kQ14p63XfGMbGB7i973G0P" rel="noopener">Stripe checkout</a>. Cross-links: <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A" rel="noopener">Prompt Regression CLI</a>, <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z" rel="noopener">Agent Inflight Telemetry CLI</a>.</p>
   </div>
 
   <div class="tag-row">
@@ -339,7 +340,7 @@ expect(response).toBe(expected);</code></pre>
   <p class="cross">A golden dataset that hasn't been updated in 6 months is a fossil. It tests what the model did 6 months ago, not what the model does today. Re-baseline the dataset (with code review) on every quarterly model upgrade; reject PRs that touch the dataset without a corresponding code change to handle the new shape.</p>
 
   <h2>7. Putting it together: a 30-line drop-in module</h2>
-  <p>For a turnkey implementation that ships the 3-signal detector, the Woodpecker gate, the runtime hook, and a 50-sample golden dataset, the <a href="https://algoram99.github.io/" rel="noopener">Schema Drift Detector CLI</a> ($29) wraps the same algorithm in a single zero-dependency binary:</p>
+  <p>For a turnkey implementation that ships the 3-signal detector, the Woodpecker gate, the runtime hook, and a 50-sample golden dataset, the <a href="https://algoram99.github.io/" rel="noopener">Schema Drift Detector CLI</a> ($29) wraps the same algorithm in a single zero-dependency binary. Buy: <a href="https://buy.stripe.com/test_5kQ14p63XfGMbGB7i973G0P" rel="noopener">Stripe checkout</a>:</p>
   <pre><code># One-shot check against a frozen baseline
 schema-drift-detector check \
   --schema schemas/user-extract.zod.ts \
@@ -373,7 +374,7 @@ schema-drift-detector calibrate \
   <p>Each post in the series is a self-contained reference, but together they form a complete playbook for shipping LLM applications to production with verification-first discipline. The <a href="https://nepo6.gumroad.com/" rel="noopener">Algoram99 storefront</a> ships every CI/eval/observability primitive covered in the series as a zero-dependency CLI for $29 each — same algorithm, no vendor lock-in, no SaaS.</p>
 
   <footer>
-    <div class="updated">Published 2026-06-09 · Algoram99 · Cross-links: <a href="https://algoram99.github.io/" rel="noopener">Schema Drift Detector CLI</a> · <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A" rel="noopener">Prompt Regression CLI</a> · <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z" rel="noopener">Agent Inflight Telemetry CLI</a><br>Last reviewed: 2026-06-09 · Cross-link fix: 3 Gumroad product pages returned 404 — replaced with the alg99 canonical buy surfaces (Stripe plinks for the 2 published products, alg99 main page for the Schema Drift Detector, which is currently listed as a planned product). The 3 Gumroad slugs may come back later; if so, restore them in a future cycle.</div>
+    <div class="updated">Published 2026-06-09 · Algoram99 · Cross-links: <a href="https://algoram99.github.io/" rel="noopener">Schema Drift Detector CLI</a> · <a href="https://buy.stripe.com/test_5kQ14p63XfGMbGB7i973G0P" rel="noopener">Buy on Stripe</a> · <a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A" rel="noopener">Prompt Regression CLI</a> · <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z" rel="noopener">Agent Inflight Telemetry CLI</a><br>Last reviewed: 2026-06-15 · Cross-link fix: cycle-98 added 3 buy.stripe.com plink links for the Schema Drift Detector CLI (now a real Stripe product, was previously cross-linked to the alg99 main page only). The product identity is preserved as "Schema Drift Detector CLI" in the post prose (not renamed) so existing search references stay intact; only the buy surfaces were upgraded.<br>Earlier review: 2026-06-09 · Cross-link fix: 3 Gumroad product pages returned 404 — replaced with the alg99 canonical buy surfaces (Stripe plinks for the 2 published products, alg99 main page for the Schema Drift Detector, which was at that time listed as a planned product). The 3 Gumroad slugs may come back later; if so, restore them in a future cycle.</div>
   </footer>
 </main>
 </body>
