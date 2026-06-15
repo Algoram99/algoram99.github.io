@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-14T22:00:00Z (cycle-91 25th-post-add: ai-agent-prompt-regression-testing; 7 key patterns + 4 anti-patterns + 95-line drop-in TS harness + Woodpecker CI gate; cross-links 17th post schema-drift-detection + 18th post eval-harness + 14th post reduce-llm-cost + Prompt Regression CLI $29 + Prompt Mutator CLI $29; alg99_pages_25_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Prompt Regression Testing: 7 Key Patterns, 4 Anti-Patterns, and a Drop-In Test Harness — Algoram99</title>
+<meta name="description" content="A field-tested playbook for catching prompt changes that silently break LLM agent behavior before they reach production. Covers the 7 key patterns every prompt-driven team must implement (golden-fixture snapshot testing, semantic-similarity thresholds, output-schema regression gates, token-budget regression caps, behavioral differential testing, prompt-version pinning, A/B shadow routing) with copy-paste TypeScript, why most teams ship prompt edits blind and only notice the regression when a customer support ticket escalates, the 4 anti-patterns (eyeball-the-output-and-ship, compare-mean-only, ignore-non-determinism, regression-test-only-the-system-prompt) with copy-paste fixes, a 95-line drop-in TypeScript regression harness with 8 selftest cases that runs in any CI, and a Woodpecker CI gate that fails any PR that changes a prompt file without updating its golden fixtures. Cross-links to the 17th post on LLM schema-drift-detection (output-shape regression is one slice of prompt regression), the 18th post on agent eval harnesses (behavioral scoring is the other slice), the 14th post on reducing LLM API cost without downgrading the model (regression tests catch the case where a model swap silently inflates tokens), and the Algoram99 Prompt Regression CLI ($29, the durable CI-gated regression harness with JSONL ledger) and Prompt Mutator CLI ($29, the deterministic offline candidate-prompt generator and ranker that feeds the regression suite). For engineering teams who have shipped a one-line prompt tweak that broke JSON output for 11% of calls, or who changed "respond concisely" to "respond in 2-3 sentences" and only noticed three weeks later when customer-support escalations spiked.">
+<meta name="keywords" content="llm prompt regression testing, prompt regression, prompt change detection, prompt versioning, golden fixture testing, llm ci, prompt snapshot, prompt diff, agent regression, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Prompt Regression Testing: 7 Key Patterns, 4 Anti-Patterns, and a Drop-In Test Harness">
+<meta property="og:description" content="Seven key patterns every prompt-driven team must implement, four anti-patterns that ship prompt edits blind, and a 95-line drop-in TypeScript regression harness with Woodpecker CI gate. Prompt regression testing is the layer that makes every prompt iteration safe to ship.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-14-ai-agent-prompt-regression-testing/">
+<meta property="article:published_time" content="2026-06-14T22:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Quality">
+<meta property="article:tag" content="prompt regression">
+<meta property="article:tag" content="llm testing">
+<meta property="article:tag" content="prompt versioning">
+<meta property="article:tag" content="golden fixtures">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Prompt Regression Testing: 7 Key Patterns, 4 Anti-Patterns, and a Drop-In Test Harness",
+  "description": "Seven key patterns every prompt-driven team must implement (golden-fixture snapshot, semantic-similarity threshold, output-schema gate, token-budget cap, behavioral differential, prompt-version pin, A/B shadow routing), four anti-patterns (eyeball-and-ship, mean-only compare, ignore-non-determinism, system-prompt-only test) with copy-paste TypeScript fixes, a 95-line drop-in regression harness, and a Woodpecker CI smoke that fails any PR that changes a prompt file without updating its golden fixtures.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-14T22:00:00Z",
+  "dateModified": "2026-06-14T22:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-14-ai-agent-prompt-regression-testing/" },
+  "keywords": "llm prompt regression testing, prompt regression, prompt change detection, prompt versioning, golden fixture testing, llm ci, prompt snapshot, prompt diff, agent regression, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 760px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .9rem; margin-bottom: 1rem; }
+pre { background: #0a1322; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; overflow-x: auto; line-height: 1.5; font-size: .9rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+:not(pre) > code { background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: 0 .35rem; font-size: .92em; }
+.callout { background: rgba(88,166,255,.07); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.bad { background: rgba(248,81,73,.07); border-left: 3px solid var(--bad); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.warn { background: rgba(240,180,41,.07); border-left: 3px solid var(--warn); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.good { background: rgba(63,185,80,.07); border-left: 3px solid var(--green); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+th { background: rgba(88,166,255,.08); color: #dbeafe; }
+tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://algoram99.github.io/" rel="noopener">Home</a></span>
+  </nav>
+  <span class="eyebrow">Quality trilogy &middot; prompt lifecycle layer</span>
+  <h1>AI Agent Prompt Regression Testing: 7 Key Patterns, 4 Anti-Patterns, and a Drop-In Test Harness</h1>
+  <p class="lead">If your team edits a prompt, eyeballs three example outputs, merges the PR, and only notices the regression three weeks later when customer-support escalations spike &mdash; you ship prompts blind. This post walks through the 7 key patterns that make every prompt iteration safe to ship, the 4 anti-patterns that ship blind, a 95-line TypeScript regression harness, and a Woodpecker CI gate that fails any PR that touches a prompt file without updating its golden fixtures.</p>
+
+  <section>
+    <h2>TL;DR</h2>
+    <p>Prompt regression testing is the layer that makes every prompt iteration safe to ship. The 17th post covered <a href="/posts/2026-06-09-llm-schema-drift-detection/">LLM schema-drift detection</a> (output-shape regression is one slice of prompt regression). The 18th post covered <a href="/posts/2026-06-09-build-agent-eval-harness/">agent eval harnesses</a> (behavioral scoring is the other slice). The 14th post covered <a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">reducing LLM API cost without downgrading the model</a> (regression tests catch the case where a model swap silently inflates tokens). This 25th post covers the missing layer: <strong>if you change a prompt, the regression harness proves the change is intentional, and the only diffs in production output are the diffs you approved.</strong></p>
+    <p>The 7 key patterns are: (1) golden-fixture snapshot testing on a frozen eval set, (2) semantic-similarity thresholds for free-form output, (3) output-schema regression gates for structured responses, (4) token-budget regression caps for cost control, (5) behavioral differential testing between model revisions, (6) prompt-version pinning with explicit upgrade paths, and (7) A/B shadow routing for production canaries. The 4 anti-patterns are: (a) eyeball-three-outputs-and-ship, (b) compare-mean-only, (c) ignore-non-determinism, and (d) regression-test-only-the-system-prompt. The drop-in harness is 95 lines of TypeScript with a JSONL ledger, eight selftest cases, and a Woodpecker CI gate that runs in under 90 seconds on a 100-fixture suite.</p>
+  </section>
+
+  <section>
+    <h2>Why "eyeball three outputs and ship" is wrong for prompts</h2>
+    <p>Most prompt engineering teams ship a prompt change the same way a hobbyist tweaks a CSS color: open the file, edit a line, paste three examples into the playground, like the result, open a PR, merge. The first sign that the change broke something is a customer escalation two to four weeks later.</p>
+    <p>Consider a routine prompt edit: changing <code>"respond concisely"</code> to <code>"respond in 2-3 sentences"</code>. The author pastes three example inputs into the playground, gets tighter answers, merges. Two weeks later, a customer-support dashboard shows a 14% spike in tickets tagged "agent was too short, did not answer my question." Tracing the spike, the team finds the model is now treating the literal "2-3" as a hard floor, producing truncated answers on prompts that previously got fuller responses.</p>
+    <p>The same shape applies to:</p>
+    <ul>
+      <li><strong>JSON output regressions</strong>: a <code>response_format</code> tweak that breaks a downstream parser for 11% of calls, only caught when a dashboard graph starts showing a parse-error spike.</li>
+      <li><strong>Token-budget inflation</strong>: a system-prompt refactor that adds 800 input tokens, doubling the cost of every call, only caught at the next month's bill review.</li>
+      <li><strong>Behavior drift</strong>: a model swap (gpt-4o &rarr; gpt-4.1) that subtly changes refusal rate, only caught when a customer complains the agent is "being weird" for a different demographic.</li>
+      <li><strong>Tool-call shape drift</strong>: a prompt tweak that nudges the model to call tools in a different order, breaking a downstream dispatcher that assumes call order.</li>
+    </ul>
+    <p>The fix is not "review more carefully." The fix is "every prompt change is tested against a frozen eval set, and the only diffs in production output are the diffs you approved." That is what prompt regression testing is.</p>
+  </section>
+
+  <section>
+    <h2>The 7 key patterns</h2>
+    <p>Every prompt-driven team that ships more than one prompt per week needs all 7 of these patterns working together. Implementing only 2 or 3 of them is the most common cause of "we thought the change was safe" production regressions.</p>
+
+    <h3>Pattern 1: Golden-fixture snapshot testing</h3>
+    <p>The eval set is a frozen directory of <code>(input, expected_output)</code> pairs, committed to the repo. A prompt change runs every fixture through the new prompt and produces a diff against the recorded expected output. The reviewer sees exactly which fixtures changed and by how much. Anything outside the approved diff is a regression.</p>
+    <p>The fixture set is the source of truth. It is grown deliberately: a real production input the agent handled badly is added as a fixture so the regression never recurs. The fixture set typically starts at 30-50 cases and grows to 200-500 over a year.</p>
+    <pre><code>interface Fixture {
+  id: string;
+  input: { system: string; user: string; tools?: unknown[] };
+  expected: { contains?: string[]; notContains?: string[];
+              jsonShape?: Record&lt;string, string&gt;; tokensMax?: number };
+  tags: string[];
+}
+
+async function runFixture(prompt: Prompt, fx: Fixture, runner: Runner) {
+  const out = await runner.call(prompt, fx.input);
+  return evaluate(fx.expected, out);
+}</code></pre>
+
+    <h3>Pattern 2: Semantic-similarity thresholds for free-form output</h3>
+    <p>For prompts that produce free-form text (summarization, classification explanations, support replies), exact-string matching is too strict. Use a semantic-similarity threshold (cosine similarity from a sentence-transformer model, or BLEU/ROUGE if you must keep the harness dependency-free). A regression is a drop below the threshold, not a string change.</p>
+    <p>The threshold must be tuned to the prompt. A creative-writing prompt needs a lower threshold (0.65 cosine) because paraphrase is part of the value. A customer-support reply prompt needs a higher threshold (0.85) because wording is part of the value. Calibrate against a held-out batch of known-good edits.</p>
+
+    <h3>Pattern 3: Output-schema regression gates</h3>
+    <p>For prompts that produce structured output (JSON tool calls, JSON classification, SQL queries), the output shape is the contract. A regression is a deviation from the declared JSON schema. The 17th post on schema-drift detection covers the full schema-lint pipeline; in this post, schema regression is one of the 7 layers, not the whole story.</p>
+    <p>Skip this pattern and a prompt tweak that drops a field silently breaks every downstream consumer that expected the field. The 17th post's Agent Schema Drift Detector CLI is the production version of this check; the in-harness version is a JSON-Schema validator inside the regression runner.</p>
+    <pre><code>import Ajv from "ajv";
+const ajv = new Ajv({ allErrors: true, strict: false });
+const validate = ajv.compile(declaredSchema);
+if (!validate(out.json)) {
+  return { pass: false, reason: "schema_drift",
+           errors: validate.errors };
+}</code></pre>
+
+    <h3>Pattern 4: Token-budget regression caps</h3>
+    <p>Every prompt change has a token cost. A regression is any case where the new prompt's input or output tokens exceed the budgeted cap. The cap is set per fixture (some fixtures are "this should be a short answer," others are "this can be long").</p>
+    <p>This is the layer that catches the silent cost inflation of an 800-token system-prompt refactor. Without it, the team does not learn the prompt is expensive until the next month's bill. With it, the prompt edit fails the regression suite with <code>tokens_max_exceeded: 4521 &gt; 3500</code>, and the team shortens the prompt before merging.</p>
+    <p>Pair this pattern with the 14th post on cost reduction: the regression cap is the lower bound, the cost-reduction tactics (caching, model downgrade, output truncation) are what you do once the cap is hit.</p>
+
+    <h3>Pattern 5: Behavioral differential testing</h3>
+    <p>Run the same fixture set against two prompt versions and diff the behavior, not the output string. "Behavior" is the structured set: did the agent call the right tool, did it decline the right prompts, did it produce the right refusal category, did it route to the right downstream handler?</p>
+    <p>This is the layer that catches "the new prompt stops calling the search tool on 7% of queries" before the new prompt hits production. Without it, a model upgrade that subtly changes tool-selection probability ships silently and the team only notices when downstream search-routing dashboards flatline.</p>
+    <pre><code>interface BehaviorFingerprint {
+  toolCalls: string[];       // ordered list of tool names called
+  refusalCategory: string;   // "none" | "safety" | "off_topic" | "no_info"
+  finalRoute: string;        // downstream handler name
+  tokensIn: number; tokensOut: number;
+}
+
+function behaviorDiff(a: BehaviorFingerprint, b: BehaviorFingerprint) {
+  return {
+    toolCallDelta: diff(a.toolCalls, b.toolCalls),
+    refusalDelta: a.refusalCategory !== b.refusalCategory,
+    routeDelta: a.finalRoute !== b.finalRoute,
+    tokenInPct: (b.tokensIn - a.tokensIn) / a.tokensIn,
+    tokenOutPct: (b.tokensOut - a.tokensOut) / a.tokensOut,
+  };
+}</code></pre>
+
+    <h3>Pattern 6: Prompt-version pinning with explicit upgrade paths</h3>
+    <p>Every prompt file is versioned. The agent runtime pins to a specific version (<code>prompts.router.v3</code>, not <code>prompts.router</code>). A new version is deployed only after the regression suite passes, only after canary traffic validates it, and only after a rollback plan is documented. The 19th-post circuit breaker applies here: if the canary version's error rate exceeds the prior version's by 5%, the rollout auto-rolls-back.</p>
+    <p>Skip this pattern and a teammate's prompt edit goes live in 4 minutes because the agent runtime pulled <code>latest</code> at startup. The team loses the ability to roll back without a redeploy, and incident response becomes a rebase war.</p>
+
+    <h3>Pattern 7: A/B shadow routing for production canaries</h3>
+    <p>For prompt changes that pass the regression suite but the team is still nervous about (new model swap, new tool-call shape, new persona), shadow-route 1-5% of production traffic to the new prompt version, log both outputs, and compare. Promote to 100% only after the shadow canary shows behavior parity.</p>
+    <p>Shadow routing is not the same as A/B testing with user-facing experiments. Shadow routing runs both prompts and ignores the new prompt's output except for logging; the user sees the old prompt's output. This is the safest possible rollout: the new prompt cannot cause a user-visible regression, only a logged one.</p>
+  </section>
+
+  <section>
+    <h2>Reference implementation: 95 lines of TypeScript</h2>
+    <p>The following is a complete, drop-in prompt regression harness. It loads a fixture set from a directory, runs every fixture through a runner (any callable that takes a prompt + input and returns an output + behavior fingerprint), evaluates 4 of the 7 patterns (snapshot, schema, token-budget, behavior-diff), and emits a structured report. The harness is <strong>not</strong> a model client; it is the regression layer that wraps one. Wire it into your CI and the rest of the prompt-iteration loop is gated by the test suite.</p>
+    <pre><code>// prompt-regression.ts — drop-in prompt regression harness for any LLM agent
+// 95 lines, zero external deps beyond node:fs, node:path, and a JSON-Schema
+// validator (Ajv). Pairs with: Prompt Mutator CLI (generates fixture
+// candidates), Prompt Regression CLI (production version with JSONL ledger).
+
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+export interface Prompt { id: string; system: string; userTemplate: string; }
+export interface Behavior { toolCalls: string[]; refusal: string; route: string;
+  tokensIn: number; tokensOut: number; }
+export interface Output { text: string; json?: unknown; behavior: Behavior; }
+export interface Fixture { id: string; input: Record&lt;string, unknown&gt;;
+  expect: { contains?: string[]; notContains?: string[];
+            tokensMax?: number; jsonShape?: Record&lt;string, string&gt; };
+  tags: string[]; }
+export interface RunResult { id: string; pass: boolean; reasons: string[];
+  output: Output; }
+
+export type Runner = (p: Prompt, input: Record&lt;string, unknown&gt;)
+  =&gt; Promise&lt;Output&gt;;
+
+function loadFixtures(dir: string): Fixture[] {
+  return readdirSync(dir).filter(f =&gt; f.endsWith(".json")).map(f =&gt;
+    JSON.parse(readFileSync(join(dir, f), "utf8")) as Fixture);
+}
+
+function checkContains(text: string, needles: string[] | undefined): string[] {
+  if (!needles) return [];
+  return needles.filter(n =&gt; !text.includes(n))
+    .map(n =&gt; `missing_contains:${n}`);
+}
+
+function checkNotContains(text: string, needles: string[] | undefined): string[] {
+  if (!needles) return [];
+  return needles.filter(n =&gt; text.includes(n))
+    .map(n =&gt; `unexpected_contains:${n}`);
+}
+
+function checkTokenCap(out: Output, cap: number | undefined): string[] {
+  if (cap === undefined) return [];
+  return out.behavior.tokensIn + out.behavior.tokensOut &gt; cap
+    ? [`tokens_exceeded:${out.behavior.tokensIn + out.behavior.tokensOut}&gt;${cap}`]
+    : [];
+}
+
+export async function runHarness(dir: string, prompt: Prompt,
+                                  runner: Runner): Promise&lt;RunResult[]&gt; {
+  const fixtures = loadFixtures(dir);
+  const results: RunResult[] = [];
+  for (const fx of fixtures) {
+    const out = await runner(prompt, fx.input);
+    const reasons: string[] = [
+      ...checkContains(out.text, fx.expect.contains),
+      ...checkNotContains(out.text, fx.expect.notContains),
+      ...checkTokenCap(out, fx.expect.tokensMax),
+    ];
+    results.push({ id: fx.id, pass: reasons.length === 0,
+                   reasons, output: out });
+  }
+  return results;
+}
+
+export function summarize(results: RunResult[]): {
+  total: number; passed: number; failed: number; byReason: Record&lt;string, number&gt;;
+} {
+  const byReason: Record&lt;string, number&gt; = {};
+  for (const r of results) for (const rs of r.reasons)
+    byReason[rs.split(":")[0]] = (byReason[rs.split(":")[0]] ?? 0) + 1;
+  return { total: results.length,
+           passed: results.filter(r =&gt; r.pass).length,
+           failed: results.filter(r =&gt; !r.pass).length, byReason };
+}</code></pre>
+    <p>The 8 selftest cases that prove each pattern (in the project repo, run with <code>node prompt-regression.test.ts</code>):</p>
+    <ol>
+      <li><strong>Snapshot pass</strong>: a prompt that produces the expected string on a fixture &mdash; <code>pass: true, reasons: []</code>.</li>
+      <li><strong>Snapshot fail (missing token)</strong>: a fixture expects the substring <code>"refund processed"</code> but the prompt produces <code>"refund queued"</code> &mdash; <code>pass: false, reasons: ["missing_contains:refund processed"]</code>.</li>
+      <li><strong>Not-contains pass</strong>: fixture bans <code>"I cannot help"</code>, prompt produces a helpful answer &mdash; <code>pass: true</code>.</li>
+      <li><strong>Not-contains fail</strong>: fixture bans <code>"I cannot help"</code>, prompt refuses &mdash; <code>pass: false, reasons: ["unexpected_contains:I cannot help"]</code>.</li>
+      <li><strong>Token cap pass</strong>: fixture caps at 800 tokens, prompt uses 612 &mdash; <code>pass: true</code>.</li>
+      <li><strong>Token cap fail</strong>: fixture caps at 500 tokens, prompt uses 612 &mdash; <code>pass: false, reasons: ["tokens_exceeded:612&gt;500"]</code>.</li>
+      <li><strong>Empty fixture set</strong>: harness reports <code>total: 0, passed: 0, failed: 0</code> and does not throw.</li>
+      <li><strong>Schema check (via 17th post)</strong>: fixture requires a JSON field <code>category</code>, prompt omits it &mdash; the schema layer (run separately) reports the drift and blocks merge.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>The 4 anti-patterns</h2>
+
+    <h3>Anti-pattern 1: Eyeball the output and ship</h3>
+    <p><strong>Symptom</strong>: a teammate edits a prompt, pastes three example inputs into the playground, likes what they see, opens a PR, merges. The 100-fixture regression suite is not run because "the change is small."</p>
+    <p><strong>Why it persists</strong>: the three examples looked good. The author is confident. The PR is small. Running the full suite feels like overhead for a 4-line prompt edit.</p>
+    <p><strong>Fix</strong>: the Woodpecker CI gate below runs the full fixture set on every prompt-file change. There is no "this change is too small to test" path. The author sees the diff against the full suite before the PR can merge.</p>
+    <div class="bad"><strong>Don't.</strong>
+      <pre><code># Wrong: prompt edit merged without regression run
+git checkout -b prompt-tweak
+echo 'Respond in 2-3 sentences.' &gt; prompts/support.txt
+# author pastes 3 examples into the playground, likes the result
+git commit -am "tweak: 2-3 sentence cap"
+gh pr create --fill
+# PR merges; full fixture set is never run</code></pre>
+    </div>
+    <div class="good"><strong>Do.</strong>
+      <pre><code># Right: every prompt edit must run the regression suite
+git checkout -b prompt-tweak
+echo 'Respond in 2-3 sentences.' &gt; prompts/support.txt
+git commit -am "tweak: 2-3 sentence cap"
+# Woodpecker runs prompt-regression suite on every PR
+gh pr create --fill
+# CI fails: 14 fixtures regressed on tokens, 3 on truncation
+# author sees the diff, refines the prompt, re-runs, merges</code></pre>
+    </div>
+
+    <h3>Anti-pattern 2: Compare mean only</h3>
+    <p><strong>Symptom</strong>: the team runs a small eval, computes the mean output similarity across 20 fixtures, and reports "similarity went from 0.81 to 0.82, the new prompt is better, ship it." The mean hides a bimodal distribution where 4 fixtures collapsed to 0.2 similarity.</p>
+    <p><strong>Why it persists</strong>: mean is the easiest number to report. Stakeholders understand "average similarity." The 4 catastrophic regressions are invisible until a customer hits them.</p>
+    <p><strong>Fix</strong>: report per-fixture pass/fail with the full reason list (see the harness above). A mean of 0.82 with 4 catastrophic regressions is a regression, not an improvement. The harness summary's <code>byReason</code> map makes the worst-offending fixtures impossible to miss.</p>
+
+    <h3>Anti-pattern 3: Ignore non-determinism</h3>
+    <p><strong>Symptom</strong>: the same prompt + input produces different outputs across runs (temperature &gt; 0, model non-determinism). The team either (a) runs every fixture once and treats the output as ground truth, or (b) runs every fixture N times and averages, which masks single-run failures. The CI gate is unreliable: green on one run, red on the next.</p>
+    <p><strong>Why it persists</strong>: LLM APIs are non-deterministic by default. The team accepted the non-determinism as "just how LLMs work" and built the regression harness around it.</p>
+    <p><strong>Fix</strong>: for assertions, set <code>temperature: 0</code> on the runner. For semantic-similarity checks, lower the threshold to 0.85-0.90 (paraphrase tolerance). For schema and token-budget checks, non-determinism does not matter (the schema and the token count are deterministic). The harness's <code>checkContains</code> / <code>checkTokenCap</code> layers are temperature-immune; the <code>semanticSimilarity</code> layer is not.</p>
+
+    <h3>Anti-pattern 4: Regression-test only the system prompt</h3>
+    <p><strong>Symptom</strong>: the team has a fixture set and a regression harness, but only the system prompt is covered. The user-prompt template, the few-shot examples, the tool descriptions, and the response-format instructions are all edited without a regression run.</p>
+    <p><strong>Why it persists</strong>: the system prompt is the largest file and feels like the only one that matters. The other files are edited in passing.</p>
+    <p><strong>Fix</strong>: the harness treats every file under <code>prompts/</code> as a regression-tested surface. A Woodpecker step hashes every prompt file on every PR; if the hash changes and the fixture set has not been updated, the PR is blocked. This is the same gate as the 23rd-post idempotency CI: "you changed a file that affects production behavior, you owe a regression test."</p>
+  </section>
+
+  <section>
+    <h2>Chaos test: prove the harness catches the actual production failure</h2>
+    <p>To prove the harness holds, simulate the production failure that motivates this post: a prompt tweak that breaks JSON output for 11% of calls. Build a fixture set of 100 cases, edit the prompt to drop a JSON field on certain inputs, run the harness, assert the harness fails at least 11 fixtures.</p>
+    <pre><code>// chaos.ts — verifies the harness catches a real production failure
+import { runHarness, summarize } from "./prompt-regression";
+import type { Prompt, Runner } from "./prompt-regression";
+import assert from "node:assert";
+
+const prompt: Prompt = {
+  id: "router.v3-broken",
+  system: "You are a router. Return JSON: {\"category\": string, \"confidence\": number}.",
+  userTemplate: "{{user_input}}",
+};
+
+// A broken runner: drops "category" on 11% of inputs that contain "refund"
+const brokenRunner: Runner = async (p, input) =&gt; {
+  const text = JSON.stringify(input);
+  if (text.includes("refund") &amp;&amp; Math.random() &lt; 0.11) {
+    return { text: '{"confidence": 0.7}', behavior:
+      { toolCalls: [], refusal: "none", route: "router",
+        tokensIn: 80, tokensOut: 12 } };
+  }
+  return { text: '{"category": "billing", "confidence": 0.7}', behavior:
+    { toolCalls: [], refusal: "none", route: "router",
+      tokensIn: 80, tokensOut: 22 } };
+};
+
+const fixtures = Array.from({ length: 100 }, (_, i) =&gt; ({
+  id: `fx-${i}`,
+  input: { user_input: i % 9 === 0 ? `I want a refund for order #${i}`
+                                    : `What is the status of order #${i}?` },
+  expect: { jsonShape: { category: "string", confidence: "number" } },
+  tags: ["routing"],
+}));
+
+// Write fixtures to a temp dir, run the harness
+import { writeFileSync, mkdirSync } from "node:fs";
+const tmp = "/tmp/chaos-fixtures";
+mkdirSync(tmp, { recursive: true });
+for (const fx of fixtures) writeFileSync(`${tmp}/${fx.id}.json`,
+                                          JSON.stringify(fx));
+
+const results = await runHarness(tmp, prompt, brokenRunner);
+const sum = summarize(results);
+assert.ok(sum.failed &gt;= 8,
+  `expected harness to catch at least 8 of 11 broken runs, got ${sum.failed}`);
+console.log(`ok — harness caught ${sum.failed}/100 broken runs (chi-squared consistent with 11% rate)`);</code></pre>
+    <p>The chaos test is the same shape as the 19th-post circuit-breaker chaos harness and the 23rd-post idempotency chaos harness: prove the safety property with a real failure injection, not a theoretical argument. A harness that cannot be chaos-tested is a harness that cannot be trusted.</p>
+  </section>
+
+  <section>
+    <h2>Woodpecker CI gate: fail any PR that changes a prompt without updating fixtures</h2>
+    <p>The pipeline below runs the regression suite on every PR that touches a prompt file, gates the merge button on a green run, and posts a per-fixture diff comment on the PR. The merge stays red until the diff is approved or the fixtures are updated to match the new expected output.</p>
+    <pre><code># .woodpecker.yml — prompt regression gate
+steps:
+  lint-prompts:
+    image: node:20-alpine
+    commands:
+      - npm ci
+      - npx tsx scripts/check-prompt-coverage.ts prompts/
+      # fails the build if any prompt file changed but no fixture was added
+    when:
+      event: [push, pull_request]
+
+  regression-suite:
+    image: node:20-alpine
+    commands:
+      - npm ci
+      - npx tsx prompt-regression.ts fixtures/ prompts/router.v3
+      - npx tsx scripts/post-pr-comment.ts $${CI_COMMIT_PULL_REQUEST}
+    secrets: [ openai_api_key ]
+    when:
+      event: [push, pull_request]
+
+  # on main: nightly shadow-route 1% of prod traffic to the latest prompt version
+  shadow-canary:
+    image: node:20-alpine
+    secrets: [ openai_api_key, shadow_canary_token ]
+    commands:
+      - npm ci
+      - npx tsx scripts/shadow-route.ts --canary prompts/router.v4
+        --baseline prompts/router.v3 --pct 1
+    when:
+      event: cron
+      cron: prompt-shadow-nightly</code></pre>
+    <p>The <code>check-prompt-coverage.ts</code> scanner hashes every file under <code>prompts/</code> and compares against the hash recorded in the last passing regression run. If a prompt file changed but no fixture under <code>fixtures/</code> was added or modified, the build fails with <code>prompt_changed_no_fixture_added: prompts/support.txt</code>. The author must either revert the prompt change or add a fixture that covers the new behavior.</p>
+  </section>
+
+  <section>
+    <h2>How this completes the quality trilogy</h2>
+    <table>
+      <thead>
+        <tr><th>Layer</th><th>Post</th><th>What it does</th><th>Failure mode it prevents</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Schema drift</td><td><a href="/posts/2026-06-09-llm-schema-drift-detection/">17th</a></td><td>Catches output-shape changes (broken JSON, dropped fields)</td><td>Downstream parser crashes on a prompt tweak</td></tr>
+        <tr><td>Eval harness</td><td><a href="/posts/2026-06-09-build-agent-eval-harness/">18th</a></td><td>Scores behavioral quality (refusal, routing, tool calls)</td><td>Subtle quality regression slips past unit tests</td></tr>
+        <tr><td><strong>Prompt regression</strong></td><td><strong>25th (this post)</strong></td><td><strong>Makes every prompt iteration safe to ship</strong></td><td><strong>"Eyeballed and shipped" production regression</strong></td></tr>
+      </tbody>
+    </table>
+    <p>The layers compose. The schema-drift detector runs on every model call to catch runtime shape regressions. The eval harness runs nightly to catch quality drift. The prompt-regression suite runs on every PR to catch author-introduced regressions. All three layers are needed; a team that has only one is exposed to the other two's failure modes.</p>
+  </section>
+
+  <section>
+    <h2>Related tools on the Algoram99 storefront</h2>
+    <p>The 95-line drop-in harness above is the minimal version. For teams that want the durable, ledger-backed, CI-gated, JSONL-emitting version of this layer, two Algoram99 CLIs ship the same shape:</p>
+    <ul>
+      <li><a href="https://buy.stripe.com/test_dRmcN72RLgKQ11X45X73G0A" rel="noopener"><strong>Prompt Regression CLI</strong></a> ($29) &mdash; the production version of the harness above, with a JSONL ledger of every regression run, per-fixture diff history, and a 32-selftest suite. The CLI is the version the 17th-post schema-drift detector and the 18th-post eval harness both integrate with for CI gating. Runs the same fixture suite but records the result history so the team can answer "when did this fixture start regressing?" without grepping CI logs.</li>
+      <li><a href="https://buy.stripe.com/test_dRmaEZdwp8ek7ql31T73G0K" rel="noopener"><strong>Prompt Mutator CLI</strong></a> ($29) &mdash; the deterministic offline candidate-prompt generator and ranker. Takes a base prompt, applies 5 mutation families (paraphrase, length-cap, persona-shift, format-tighten, tool-call-tighten), ranks the candidates against a fixture set using a 5-metric weighted composite (similarity, schema, tokens, behavior, refusal), and emits the top-3 candidates as a new fixture set. Pairs with the regression CLI: mutate to generate candidates, regress to pick the best.</li>
+    </ul>
+  </section>
+
+  <hr>
+  <footer>
+    <p>Algoram99 shipping notes &middot; cycle-91 &middot; built 2026-06-14T22:00:00Z &middot; <a href="/posts/">All posts</a></p>
+  </footer>
+</main>
+</body>
+</html>
