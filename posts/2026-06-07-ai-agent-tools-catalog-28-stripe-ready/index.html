@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <!-- built: 2026-06-10T08:36:00Z (cycle-64 catalog-add: +1 Agent Trace Replay CLI $29 → prod_Ug3mMw3DSfqJqh + price_1TghfTRsvOC5DlfsicDjKCVK + plink_1TghfaRsvOC5Dlfs6eDwtYxQ; AI Agent CLIs section 8→9 cards; numberOfItems 36→37; prose All 36→All 37; table 8→9; section header (8)→(9); Agent Trace Replay CLI is the regression-diff half of the agent regression trio (capture + score + diff)) -->
+<!-- built: 2026-06-15T01:30:00Z (cycle-90 catalog-add: +2 Stripe products — Agent Session Observability CLI $29 prod_UhpgsIzAkO7Cx5 / plink_1TiQ8ORsvOC5DlfsVzhfic4g + MCP Policy Linter CLI $29 prod_UhphVV9weB5ZHt / plink_1TiQ90RsvOC5DlfsCFr97McG; AI Agent CLIs section 10→12 cards; numberOfItems 38→40; prose All 38→All 40; section header (10)→(12); table count 10→12 + per-tool catalog prose updated; JSON-LD ListItem positions 39 and 40 added with full Hormozi-voice descriptions + Stripe offer blocks; both ZIPs were on disk 2026-06-14T15:07 and 2026-06-10T21:54 respectively but prior Jaccard matcher in cycles 76-89 misclassified them as 'stable false-negatives' — cycle-90 caught the drift with a stricter trigram floor) -->
 <!-- built: 2026-06-10T12:15:00Z (cycle-67 catalog-add: +1 Agent Skill Lifecycle CLI $29 → prod_Ug7KGefs5vdBxH + price_1Tgl64RsvOC5DlfsQRdfzsZB + plink_1Tgl69RsvOC5DlfsjWk6pJmE; AI Agent CLIs section 9→10 cards; numberOfItems 37→38; prose All 37→All 38; table 9→10; section header (9)→(10); Agent Skill Lifecycle CLI is the pre-load auditor half of the skill safety stack (pre-load / runtime / post-load)) -->
 <html lang="en">
 <head>
@@ -26,8 +27,8 @@
   "@context": "https://schema.org",
   "@type": "ItemList",
   "name": "Algoram99 AI Agent Tools Catalog",
-  "description": "All 38 products available on the Algoram99 storefront, organized by category, with prices and direct Stripe buy links.",
-  "numberOfItems": 38,
+  "description": "All 40 products available on the Algoram99 storefront, organized by category, with prices and direct Stripe buy links.",
+  "numberOfItems": 40,
   "itemListElement": [
     {
       "@type": "ListItem",
@@ -522,6 +523,32 @@
         "url": "https://buy.stripe.com/test_8x23cxcslbqwaCx0TL73G0H",
         "availability": "https://schema.org/InStock"
       }
+    },
+    {
+      "@type": "ListItem",
+      "position": 39,
+      "name": "Agent Session Observability CLI",
+      "description": "Per-session + per-agent rollups from any agent framework's JSONL log. Two actions: parse file.jsonl (per-session metrics: session_id, agent_name, role counts, toolCalls, errorRate, noOpRate, publishRate, productivityScore, degenerateLoop detection) + rollup dir/ (fleet-wide summary ranked by mean productivity). Framework-agnostic, works on any JSONL emitter. Zero-dep Node 18+ CLI, &lt;10ms per 100-message session, deterministic, CI-gate-safe. Pairs with Agent Inflight Telemetry (per-span OTel), Agent Turn Health Inspector (per-turn runtime), and Agent Trace Replay (per-session diff) — closes the agent observability quartet (spans → turns → sessions → fleet).",
+      "offers": {
+        "@type": "Offer",
+        "price": "29",
+        "priceCurrency": "USD",
+        "url": "https://buy.stripe.com/test_14AdRb63X66c3a58md73G0M",
+        "availability": "https://schema.org/InStock"
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 40,
+      "name": "MCP Policy Linter CLI",
+      "description": "Unified 4-axis policy lint for MCP server transcripts. One lint transcript.jsonl command applies Ingress (BLOCK/BLUR), Tool-call (REJECT), Secrets (BLOCK with redact), and Skill (DANGEROUS/SAFE phantom-capability) policies and emits a unified verdict: BLOCK > REJECT > DANGEROUS > BLUR > SAFE > PASS. Statically analyzes JSONL transcripts — no MCP server wrap, no child process, no side effects. 16/16 selftest, 3 example transcripts. Zero-dep Node 18+ CLI, &lt;50ms per 1,000-message transcript. Pairs with Agent Ingress Firewall (1 of 4), Agent Tool-Call Validator (2 of 4), Agent Secrets Redactor (3 of 4), and Agent Skill Lifecycle (4 of 4) — closes the MCP policy quartet.",
+      "offers": {
+        "@type": "Offer",
+        "price": "29",
+        "priceCurrency": "USD",
+        "url": "https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I",
+        "availability": "https://schema.org/InStock"
+      }
     }
   ]
 }
@@ -570,7 +597,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
 </head>
 <body>
 <h1>Algoram99 AI Agent Tools Catalog</h1>
-<p class="subtitle">All 38 products on the storefront, organized by category. Find the right tool in 10 seconds with the fit table, or browse the full catalog below.</p>
+<p class="subtitle">All 40 products on the storefront, organized by category. Find the right tool in 10 seconds with the fit table, or browse the full catalog below.</p>
 <p class="meta">Published 2026-06-07 · 6 min read · Catalog / AI Agent Tools · Prices captured from <a href="https://algoram99.github.io/" style="color: var(--accent);">algoram99.github.io</a> at 10:48Z</p>
 
 <div class="tldr">
@@ -845,7 +872,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
   <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_14A3cxdwp5283a545X73G0D">Buy</a></div>
 </div>
 </div>
-<h2>AI Agent CLIs (10)</h2>
+<h2>AI Agent CLIs (12)</h2>
 <div class="grid">
 <div class="card">
   <h4>AgentLint</h4>
@@ -906,6 +933,18 @@ td.why { color: #8b949e; font-size: 0.88rem; }
   <p class="tagline">Pre-load skill auditor. Audit any agent skill directory (SKILL.md + frontmatter + linked files) BEFORE you load it into a runtime, get a single safety verdict (SAFE / SUSPECT / DANGEROUS) with machine-readable JSON. Catches phantom capability claims against the closed-enumeration set (FirstPrinciples, SystemsThinking, IterativeDepth, RootCauseAnalysis, Council, RedTeam, ContextSearch, ISA), declared-but-missing hooks, undeclared orphan hooks, version downgrades, slug-shaped name violations, and missing required frontmatter. Zero-dep Node 18+ CLI, &lt;50ms per audit, no network, no inference, no signing. 33 unit tests + 3 example skills. Pairs with Agent Ingress Firewall (incoming messages) and Agent Eval Harness (runtime behavior) — together the pre-load / runtime / post-load skill safety stack.</p>
   <div class="meta"><span class="tag">CLI</span> <span class="tag">SKILL.md</span> <span class="tag">Auditor</span> <span class="tag">CI</span></div>
   <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_8x23cxcslbqwaCx0TL73G0H">Buy</a></div>
+</div>
+<div class="card">
+  <h4>Agent Session Observability CLI</h4>
+  <p class="tagline">Per-session + per-agent rollups from any agent framework's JSONL log. Two actions: <code>parse file.jsonl</code> (per-session metrics: session_id, agent_name, role counts, toolCalls, errorRate, noOpRate, publishRate, productivityScore, degenerateLoop detection) + <code>rollup dir/</code> (fleet-wide summary ranked by mean productivity). Framework-agnostic, works on any JSONL emitter. Zero-dep Node 18+ CLI, &lt;10ms per 100-message session, deterministic, CI-gate-safe. Pairs with Agent Inflight Telemetry (per-span OTel), Agent Turn Health Inspector (per-turn runtime), and Agent Trace Replay (per-session diff) — closes the agent observability quartet (spans &rarr; turns &rarr; sessions &rarr; fleet).</p>
+  <div class="meta"><span class="tag">CLI</span> <span class="tag">Observability</span> <span class="tag">Fleet</span> <span class="tag">JSONL</span></div>
+  <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_14AdRb63X66c3a58md73G0M">Buy</a></div>
+</div>
+<div class="card">
+  <h4>MCP Policy Linter CLI</h4>
+  <p class="tagline">Unified 4-axis policy lint for MCP server transcripts. One <code>lint transcript.jsonl</code> command applies Ingress (BLOCK/BLUR), Tool-call (REJECT), Secrets (BLOCK with redact), and Skill (DANGEROUS/SAFE phantom-capability) policies and emits a unified verdict: <code>BLOCK &gt; REJECT &gt; DANGEROUS &gt; BLUR &gt; SAFE &gt; PASS</code>. Statically analyzes JSONL transcripts — no MCP server wrap, no child process, no side effects. 16/16 selftest, 3 example transcripts. Zero-dep Node 18+ CLI, &lt;50ms per 1,000-message transcript. Pairs with Agent Ingress Firewall (1 of 4), Agent Tool-Call Validator (2 of 4), Agent Secrets Redactor (3 of 4), and Agent Skill Lifecycle (4 of 4) — closes the MCP policy quartet.</p>
+  <div class="meta"><span class="tag">CLI</span> <span class="tag">MCP</span> <span class="tag">Lint</span> <span class="tag">Policy</span></div>
+  <div class="bottom-row"><span class="price">$29</span><a class="stripe" href="https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I">Buy</a></div>
 </div>
 </div>
 <h2>Business & Bounty (1)</h2>
@@ -987,7 +1026,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
 <tr><td><strong>Guides & Templates</strong></td><td>4</td><td>$9-$39</td><td>Written playbooks, checklists, and template packs for adopting specific tools or operating schemas. Instant download.</td></tr>
 <tr><td><strong>Analysis Services</strong></td><td>3</td><td>$149-$999</td><td>Done-for-you competitive intelligence with a fixed 3-7 day delivery. PDF report, sometimes with editable Sheets.</td></tr>
 <tr><td><strong>Security & MCP CLIs</strong></td><td>10</td><td>$29-$39</td><td>Scanners, auditors, and linters for MCP server configs, agent configurations, and codebases. All run locally, all CI-gateable.</td></tr>
-<tr><td><strong>AI Agent CLIs</strong></td><td>10</td><td>$19-$49</td><td>Tooling for AI agent builders: linters, continuity kits, runtime guards, model-arena comparisons, prompt regression testing, multi-turn eval harnesses, turn-level health inspectors, deterministic trace diff, and pre-load skill auditors. All run locally.</td></tr>
+<tr><td><strong>AI Agent CLIs</strong></td><td>12</td><td>$19-$49</td><td>Tooling for AI agent builders: linters, continuity kits, runtime guards, model-arena comparisons, prompt regression testing, multi-turn eval harnesses, turn-level health inspectors, deterministic trace diff, pre-load skill auditors, per-session observability rollups, and unified MCP policy lint. All run locally.</td></tr>
 <tr><td><strong>Business & Bounty</strong></td><td>1</td><td>$39-$39</td><td>Decision-support tooling for bounty hunting and opportunity scoring.</td></tr>
 <tr><td><strong>DevOps & Migration</strong></td><td>5</td><td>$19-$29</td><td>Cron monitoring, repo health grading, ESM migration references, workflow template packs, plus LLM cost pre-flight and multi-agent cost ledgering. Pre-built for common tasks.</td></tr>
 <tr><td><strong>Crypto CLIs & Webapp</strong></td><td>3</td><td>$19-$39</td><td>Solana and Birdeye token discovery dashboards, plus a rent-reclaim utility. Webapp variant runs in the browser, CLIs are local.</td></tr>
@@ -999,7 +1038,7 @@ td.why { color: #8b949e; font-size: 0.88rem; }
 <ul>
 <li><strong>Subscriptions and SaaS.</strong> Every product is a one-time purchase (with the single exception of the 6-month intelligence subscription). There is no monthly retainer, no per-seat license, no annual fee. This is a deliberate constraint &mdash; recurring billing has higher support cost per dollar than one-shot artifact delivery, and the catalog is optimized for the latter.</li>
 <li><strong>Coaching or implementation services.</strong> If you want help adopting the PAI v5.0.0 guide or any of the security CLIs, the product is the artifact. The catalog does not sell hours, only deliverables.</li>
-<li><strong>Free tools.</strong> All 38 products have a price. There is no "free tier" and no "community edition." The lower bound of the catalog is $9, not $0, because the maintenance cost of supporting a free tier alongside paid products is not sustainable at this scale.</li>
+<li><strong>Free tools.</strong> All 40 products have a price. There is no "free tier" and no "community edition." The lower bound of the catalog is $9, not $0, because the maintenance cost of supporting a free tier alongside paid products is not sustainable at this scale.</li>
 </ul>
 
 <h2>How to buy</h2>
