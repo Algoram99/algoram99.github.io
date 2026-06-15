@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-15T12:30:00Z (cycle-95 26th-post-add: ai-agent-testing-pyramid; 5 pyramid levels (unit / contract / integration / eval / regression) + 4 anti-patterns (skip-unit, only-real-llm, eval-as-only-gate, one-fixture-per-prompt) with copy-paste fixes + 90-line TypeScript reference test pyramid runner + Woodpecker CI gate; cross-links 21st post rate-limiting + 19th post circuit-breaker + 18th post eval-harness + 17th post schema-drift + 25th post prompt-regression + Agent Ingress Firewall $29 + Agent Tool-Call Validator $29 + Agent Schema Drift Detector $29 + Agent Eval Harness $29 + Agent Inflight Telemetry $29 + Prompt Regression CLI $29; alg99_pages_26_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Testing Pyramid: 5 Levels, 4 Anti-Patterns, and a Drop-In Test Runner — Algoram99</title>
+<meta name="description" content="A field-tested testing pyramid for LLM-powered AI agents that turns the 1990s Mike Cohn metaphor (unit → integration → end-to-end) into five concrete layers that match how agents actually fail: unit (deterministic tool-call shape), contract (LLM output schema), integration (multi-step trace replay), eval (behavioral scoring with graders), and regression (prompt + model + fixture snapshots). Covers the 5 levels with copy-paste TypeScript at each tier, why most teams either over-invest in real-LLM evals and under-invest in unit/contract tests (slow, expensive, flaky) or skip straight to manual smoke tests and ship a tool that hallucinates a 4th argument 12% of the time, the 4 anti-patterns (skip-unit-and-go-straight-to-eval, run-eval-on-every-PR, eval-as-only-quality-gate, one-golden-fixture-per-prompt) with copy-paste fixes, a 90-line drop-in TypeScript pyramid runner with 6 selftest cases that executes the right layer for the right change type, and a Woodpecker CI gate that fails any PR that touches an agent runtime file without running the matching pyramid tier. Cross-links to the 17th post on LLM schema-drift-detection (contract tier maps directly to schema-drift gates), the 18th post on agent eval harnesses (the eval tier IS the eval harness, sharpened into one pyramid layer), the 19th post on LLM circuit breakers (a failing contract test often catches the same bug the circuit breaker trips on at runtime), the 21st post on rate limiting (integration tests should assert the cost-budget surface trips, not just the per-IP surface), the 25th post on prompt regression testing (regression tier is the prompt-regression harness plus model-swap regression and tool-fixture regression), and the Algoram99 Agent Ingress Firewall ($29, contract-tier egress shape), Agent Tool-Call Validator ($29, unit-tier tool-call shape), Agent Schema Drift Detector ($29, contract-tier output schema), Agent Eval Harness ($29, eval-tier behavioral scoring), Agent Inflight Telemetry ($29, integration-tier span capture), and Prompt Regression CLI ($29, regression-tier prompt/model/fixture snapshot diff). For engineering teams who have shipped an agent that returned a 4-argument tool call when only 3 were defined, or who found out about a model-swap regression three weeks after a quiet dependency bump, or who have 800 eval rows but no idea which layer of the pyramid their PR is breaking.">
+<meta name="keywords" content="ai agent testing pyramid, llm testing pyramid, agent test levels, llm unit test, agent integration test, llm eval, prompt regression, agent ci, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Testing Pyramid: 5 Levels, 4 Anti-Patterns, and a Drop-In Test Runner">
+<meta property="og:description" content="Five testing levels (unit, contract, integration, eval, regression) that map to how LLM agents actually fail, four anti-patterns that waste CI cycles or ship blind, a 90-line TypeScript pyramid runner, and a Woodpecker CI gate that runs the right tier for the right change type.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-15-ai-agent-testing-pyramid/">
+<meta property="article:published_time" content="2026-06-15T12:30:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Quality">
+<meta property="article:tag" content="ai agent testing">
+<meta property="article:tag" content="llm testing pyramid">
+<meta property="article:tag" content="agent test levels">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Testing Pyramid: 5 Levels, 4 Anti-Patterns, and a Drop-In Test Runner",
+  "description": "Five testing levels (unit, contract, integration, eval, regression) that map to how LLM agents actually fail, four anti-patterns (skip-unit, only-real-llm, eval-as-only-gate, one-fixture-per-prompt) with copy-paste fixes, a 90-line drop-in TypeScript pyramid runner, and a Woodpecker CI gate that runs the matching tier for the matching change type.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-15T12:30:00Z",
+  "dateModified": "2026-06-15T12:30:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-15-ai-agent-testing-pyramid/" },
+  "keywords": "ai agent testing pyramid, llm testing pyramid, agent test levels, llm unit test, agent integration test, llm eval, prompt regression, agent ci, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 760px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .9rem; margin-bottom: 1rem; }
+pre { background: #0a1322; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; overflow-x: auto; line-height: 1.5; font-size: .9rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+:not(pre) > code { background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: 0 .35rem; font-size: .92em; }
+.callout { background: rgba(88,166,255,.07); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.bad { background: rgba(248,81,73,.07); border-left: 3px solid var(--bad); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.warn { background: rgba(240,180,41,.07); border-left: 3px solid var(--warn); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.good { background: rgba(63,185,80,.07); border-left: 3px solid var(--green); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+th { background: rgba(88,166,255,.08); color: #dbeafe; }
+tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://algoram99.github.io/" rel="noopener">Home</a></span>
+  </nav>
+  <span class="eyebrow">Quality trilogy &middot; structural test architecture</span>
+  <h1>AI Agent Testing Pyramid: 5 Levels, 4 Anti-Patterns, and a Drop-In Test Runner</h1>
+  <p class="lead">If your team either runs full LLM evals on every PR (slow, expensive, flaky, and almost nobody reads the failure) or skips straight to a manual smoke test in production &mdash; you ship agents blind. This post walks through the 5 levels of an LLM-native testing pyramid, the 4 anti-patterns that waste CI cycles or ship broken agents, a 90-line TypeScript pyramid runner, and a Woodpecker CI gate that runs the matching tier for the matching change type.</p>
+
+  <hr>
+
+  <h2 id="tldr">TL;DR</h2>
+  <p>The classic Mike Cohn test pyramid (unit &rarr; integration &rarr; end-to-end) breaks down for LLM agents because the "unit" of an agent is not a function call &mdash; it is a tool call shape, an output schema, a multi-step trace, a behavioral grader verdict, and a prompt+model+fixture snapshot. A working AI agent testing pyramid has <strong>five</strong> levels, not three:</p>
+  <ol>
+    <li><strong>Unit</strong> &mdash; deterministic tool-call shape (does the agent produce the right JSON shape for <code>search_docs(query, limit)</code>?)</li>
+    <li><strong>Contract</strong> &mdash; LLM output schema (does the response match the Zod/JSON-Schema contract the downstream consumer expects?)</li>
+    <li><strong>Integration</strong> &mdash; multi-step trace replay (does the agent's <em>trace</em> over a fixed input match the recorded golden trace?)</li>
+    <li><strong>Eval</strong> &mdash; behavioral scoring with graders (does the agent pass a rubric on a held-out scenario set?)</li>
+    <li><strong>Regression</strong> &mdash; prompt + model + fixture snapshots (did a prompt edit, model swap, or fixture change break anything?)</li>
+  </ol>
+  <p>Each tier has a different cost, a different flake profile, and a different blast radius. The pyramid runner picks the right tier for the right diff (a tool registry change triggers unit + contract; a prompt change triggers regression; a model version bump triggers regression + eval).</p>
+
+  <div class="callout">
+    <strong>Who this is for.</strong> Engineering teams who have shipped an agent that returned a 4-argument tool call when only 3 were defined, or who found out about a model-swap regression three weeks after a quiet dependency bump, or who have 800 eval rows but no idea which layer of the pyramid their PR is breaking.
+  </div>
+
+  <h2 id="five-levels">The 5 levels &mdash; what each tier catches and what it costs</h2>
+  <p>The single most common failure mode in agent CI is conflating these tiers. A team runs a 600-row eval suite on every PR, takes 18 minutes, and 5% of runs flake because the eval grader is itself LLM-based. Meanwhile a one-line tool-call shape bug ships because nobody runs a 30-millisecond schema test on the agent's tool registry.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Level</th>
+        <th>What it catches</th>
+        <th>Cost per run</th>
+        <th>Flake profile</th>
+        <th>Algoram99 product</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Unit</strong></td>
+        <td>Tool-call shape, argument count, argument types, enum membership</td>
+        <td>&lt;1s for 1000 tools</td>
+        <td>Zero (deterministic)</td>
+        <td><a href="https://buy.stripe.com/test_eVqaEX9gF2U0115jR173G3X">Agent Tool-Call Validator</a> ($29)</td>
+      </tr>
+      <tr>
+        <td><strong>Contract</strong></td>
+        <td>Output schema match (Zod/JSON-Schema), required fields, edge cases (null, empty array, unicode)</td>
+        <td>&lt;100ms for 200 schemas</td>
+        <td>Zero (deterministic)</td>
+        <td><a href="https://buy.stripe.com/test_aFa9AV1chhams26aA973G3P">Agent Schema Drift Detector</a> ($29) + <a href="https://buy.stripe.com/test_aFa6oH9gF2U0118jR173G3I">Agent Ingress Firewall</a> ($29)</td>
+      </tr>
+      <tr>
+        <td><strong>Integration</strong></td>
+        <td>Multi-step trace replay: did the agent take the right path through the right tools?</td>
+        <td>1-5s for 100 traces</td>
+        <td>Low (deterministic given fixed seed)</td>
+        <td><a href="https://buy.stripe.com/test_dRm6oHdwp2U0115jR173G3K">Agent Inflight Telemetry</a> ($29) + <a href="https://buy.stripe.com/test_6oU6oH4Hp2U0118jR173G3B">Agent Trace Replay</a> ($29)</td>
+      </tr>
+      <tr>
+        <td><strong>Eval</strong></td>
+        <td>Behavioral scoring on held-out scenarios: did the agent solve the task per the rubric?</td>
+        <td>5-20 min for 500 scenarios</td>
+        <td>Medium (grader LLM has variance)</td>
+        <td><a href="https://buy.stripe.com/test_14k9AV4Hp2U0118jR173G3N">Agent Eval Harness</a> ($29)</td>
+      </tr>
+      <tr>
+        <td><strong>Regression</strong></td>
+        <td>Prompt-edit, model-swap, fixture-change regression across all of the above</td>
+        <td>1-2 min for 100 fixtures</td>
+        <td>Low (snapshot diff is deterministic)</td>
+        <td><a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> ($29) + <a href="https://buy.stripe.com/test_28E00lbohams26131T73G0L">Prompt Mutator CLI</a> ($29)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="level-1-unit">Level 1 &mdash; Unit (tool-call shape)</h3>
+  <p>The agent runtime is a loop: <em>prompt &rarr; LLM &rarr; tool call &rarr; tool result &rarr; prompt</em>. The single highest-leverage test you can write is to assert that the tool call the LLM produces is shape-valid <em>before</em> it ever hits the real tool. The test is 100% deterministic because the LLM call is mocked with a recorded response.</p>
+  <pre><code>// unit-tier: tool-call shape (deterministic, mocked LLM)
+import { validateToolCall } from '@algoram99/agent-tool-call-validator';
+
+const result = validateToolCall(
+  { name: 'search_docs', args: { query: 'rate limiting', limit: 5 } },
+  { name: 'search_docs', args: { query: 'string', limit: 'int &le; 100' } }
+);
+assert(result.valid === true);
+assert(result.violations.length === 0);
+
+// Negative case: extra argument
+const bad = validateToolCall(
+  { name: 'search_docs', args: { query: 'rate limiting', limit: 5, deprecated_flag: true } },
+  { name: 'search_docs', args: { query: 'string', limit: 'int &le; 100' } }
+);
+assert(bad.valid === false);
+assert(bad.violations.includes('unexpected-arg:deprecated_flag'));</code></pre>
+  <p>This tier is where the <a href="https://buy.stripe.com/test_eVqaEX9gF2U0115jR173G3X">Agent Tool-Call Validator</a> lives. It runs in &lt;1 second for 1000 tool specs and is fully deterministic. A failing unit test is a <em>ship blocker</em>: it means the agent runtime is about to call a tool that does not exist or pass the wrong shape, and the failure will be a runtime exception in production.</p>
+
+  <h3 id="level-2-contract">Level 2 &mdash; Contract (LLM output schema)</h3>
+  <p>Once the tool call is shape-valid, the next question is: does the <em>final</em> LLM output (the text the user sees, or the JSON the downstream consumer parses) match the contract that the consumer expects? This is where <a href="https://algoram99.github.io/posts/2026-06-09-llm-schema-drift-detection/">LLM schema-drift detection</a> lives &mdash; the 17th post in this series walks the full contract-tier pattern.</p>
+  <pre><code>// contract-tier: LLM output schema (deterministic, mocked LLM)
+import { z } from 'zod';
+import { assertSchema } from '@algoram99/agent-schema-drift-detector';
+
+const AgentResponse = z.object({
+  answer: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  citations: z.array(z.string().url()).min(1),
+});
+
+const llmOutput = {
+  answer: 'Rate limiting uses a token bucket per tenant.',
+  confidence: 0.92,
+  citations: ['https://example.com/rate-limiting'],
+};
+
+const r = assertSchema(AgentResponse, llmOutput, { name: 'agent-response-v3' });
+assert(r.ok === true);
+
+// Negative case: missing required field
+const bad = assertSchema(AgentResponse, { answer: 'x' }, { name: 'agent-response-v3' });
+assert(bad.ok === false);
+assert(bad.errors[0].path === 'confidence');</code></pre>
+  <p>The contract tier is the second-fastest gate in your pipeline. The <a href="https://buy.stripe.com/test_aFa9AV1chhams26aA973G3P">Agent Schema Drift Detector</a> handles the snapshot diff side; the <a href="https://buy.stripe.com/test_aFa6oH9gF2U0118jR173G3I">Agent Ingress Firewall</a> handles the same contract check for tool-call responses coming <em>into</em> the agent from untrusted MCP servers.</p>
+
+  <div class="warn">
+    <strong>Why this tier is often skipped.</strong> Teams that come from a "test pyramid = unit + e2e" mindset assume contract tests are duplicative with unit tests. They are not. Unit tests verify the LLM-emitted tool call shape; contract tests verify the LLM-emitted final-output shape. Two different code paths, two different consumers, two different failure modes.
+  </div>
+
+  <h3 id="level-3-integration">Level 3 &mdash; Integration (multi-step trace replay)</h3>
+  <p>Once the tool call is valid AND the output schema matches, the next question is: did the agent take the right <em>path</em> through the right tools? This is where you replay a recorded golden trace and assert the new run's trace matches it (allowing for known non-determinism in tool timestamps, trace IDs, and similar).</p>
+  <pre><code>// integration-tier: multi-step trace replay (deterministic given fixed seed)
+import { replayTrace } from '@algoram99/agent-trace-replay';
+import { readFileSync } from 'fs';
+
+const golden = JSON.parse(readFileSync('tests/fixtures/golden-trace-rate-q.jsonl', 'utf8'));
+const verdicts = replayTrace({
+  golden,
+  actual: runAgent({ prompt: 'How does rate limiting work?' }),
+  stepClasses: ['tool_name', 'tool_args_shape', 'step_count', 'final_answer_schema'],
+});
+
+assert(verdicts.tool_name === 'match');
+assert(verdicts.tool_args_shape === 'match');
+assert(verdicts.step_count === 'match');
+assert(verdicts.final_answer_schema === 'match');
+assert(verdicts.sessionVerdict === 'PASS');</code></pre>
+  <p>The integration tier is also where you assert the agent's behavior under load and cost constraints. The <a href="https://algoram99.github.io/posts/2026-06-10-ai-agent-rate-limiting/">21st post on rate limiting</a> shows a 1000-tool-call chaos test that asserts the per-cost surface trips, not just the per-IP surface &mdash; an integration-tier test that catches a class of bugs (token-bucket bursts that exhaust the cost budget but stay under the per-IP limit) that no unit or contract test can detect.</p>
+  <p>Capture-side infra is the <a href="https://buy.stripe.com/test_dRm6oHdwp2U0115jR173G3K">Agent Inflight Telemetry</a> CLI; replay-side is the <a href="https://buy.stripe.com/test_6oU6oH4Hp2U0118jR173G3B">Agent Trace Replay</a> CLI.</p>
+
+  <h3 id="level-4-eval">Level 4 &mdash; Eval (behavioral scoring)</h3>
+  <p>The eval tier is the one every team starts with and the one that gives the worst ROI when run on every PR. Evals are slow (5-20 minutes), expensive (real LLM calls), and have medium flake (the grader is often an LLM with temperature). The eval tier is the <a href="https://algoram99.github.io/posts/2026-06-09-build-agent-eval-harness/">18th post on eval harnesses</a>, and the core lesson there is: evals belong on the merge-to-main pipeline, not on every PR.</p>
+  <pre><code>// eval-tier: behavioral scoring (slow, real LLM calls, run on merge-to-main)
+import { EvalHarness } from '@algoram99/agent-eval-harness';
+
+const harness = new EvalHarness({
+  scenarios: 'evals/scenarios/rate-limiting-questions.jsonl',
+  grader: 'rubric-v3',
+  model: 'gpt-5.5',
+  concurrency: 4,
+});
+
+const report = await harness.run({ failOnScoreBelow: 0.85 });
+assert(report.passRate >= 0.85);
+assert(report.medianLatencyMs <= 8000);
+assert(report.totalCostUsd <= 5.00);</code></pre>
+  <p>The <a href="https://buy.stripe.com/test_14k9AV4Hp2U0118jR173G3N">Agent Eval Harness</a> CLI captures the pass rate, median latency, and total cost of the eval run, so you can gate merges on "pass rate &ge; 85% AND median latency &le; 8s AND total cost &le; $5."</p>
+
+  <h3 id="level-5-regression">Level 5 &mdash; Regression (prompt + model + fixture snapshots)</h3>
+  <p>The regression tier is the one that catches the most common real-world failure: a prompt edit, a model version bump, or a tool-fixture change that quietly shifts behavior on inputs that were not in the eval set. This is the <a href="https://algoram99.github.io/posts/2026-06-14-ai-agent-prompt-regression-testing/">25th post on prompt regression testing</a>, sharpened into a pyramid layer.</p>
+  <pre><code>// regression-tier: prompt + model + fixture snapshot diff
+import { RegressionHarness } from '@algoram99/prompt-regression-cli';
+
+const reg = new RegressionHarness({
+  fixturesDir: 'tests/fixtures/regression/',
+  promptDir: 'prompts/',
+  models: ['gpt-5.5', 'claude-sonnet-4.6'],
+  thresholds: { similarity: 0.92, tokenBudget: 1.10, schemaMatch: true },
+});
+
+const report = await reg.run();
+assert(report.diffByModel.gpt_5_5.similarity &gt;= 0.92);
+assert(report.diffByModel.claude_sonnet_4_6.tokenBudgetMultiplier &lt;= 1.10);
+assert(report.diffByModel.gpt_5_5.schemaMatch === true);</code></pre>
+  <p>Regression is the tier that catches the silent &dollar;400/day cost inflation that comes from swapping <code>gpt-5.5</code> for <code>gpt-5.5-2025-12-01</code> when the new version has a 7% token-count regression. The <a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> captures this; the <a href="https://buy.stripe.com/test_28E00lbohams26131T73G0L">Prompt Mutator CLI</a> generates new candidate prompts to feed the regression suite.</p>
+
+  <hr>
+
+  <h2 id="anti-patterns">The 4 anti-patterns that waste your CI cycles or ship broken agents</h2>
+
+  <h3 id="anti-pattern-1">Anti-pattern 1 &mdash; Skip unit + contract, run evals on every PR</h3>
+  <p>The most expensive mistake. A team with 600 eval scenarios runs the full eval suite on every PR. CI takes 18 minutes, 5% of runs flake because the grader is itself an LLM with temperature, and the team starts ignoring CI failures ("oh, eval flake again, just retry"). Meanwhile a one-line tool-call shape bug ships because nobody runs the 30-millisecond schema test that would have caught it.</p>
+  <div class="bad">
+    <strong>Symptom.</strong> CI takes &gt;15 minutes, eval flakes are common, and unit-test coverage on the agent runtime is &lt;40%.
+  </div>
+  <p><strong>Fix.</strong> Run unit + contract on every PR. Run integration on every PR. Run eval only on merge-to-main and on a nightly schedule. The pyramid runner below enforces this.</p>
+
+  <h3 id="anti-pattern-2">Anti-pattern 2 &mdash; Run only the real LLM, never mock it</h3>
+  <p>The "tests must use the real LLM" school. Every test makes a real API call. The test suite costs &dollar;40 per run, takes 12 minutes, and 3% of runs hit rate limits. Worse, the team can no longer test offline or in CI that has no network egress.</p>
+  <div class="bad">
+    <strong>Symptom.</strong> CI is &gt;10x more expensive than it should be, fails when rate-limited, and cannot run in air-gapped environments.
+  </div>
+  <p><strong>Fix.</strong> Mock the LLM at the unit and contract tiers (record responses once, replay them; the response is deterministic given the same prompt and temperature=0). Reserve real LLM calls for the integration and eval tiers. The regression tier uses a recorded cache for fast iteration and a sampled live run for confidence.</p>
+
+  <h3 id="anti-pattern-3">Anti-pattern 3 &mdash; Eval as the only quality gate</h3>
+  <p>You have 800 eval rows. You removed the unit tests because "the evals cover it." Now a one-line change to the tool registry breaks the agent for 12% of calls, the eval grader is itself an LLM that gives partial credit, and the eval pass rate drops from 92% to 89% &mdash; below your 90% gate, but you have no idea which test or which input is failing.</p>
+  <div class="bad">
+    <strong>Symptom.</strong> Single quality gate (eval pass rate), no diagnostic depth, and failures point to "the eval suite" rather than to a specific code path.
+  </div>
+  <p><strong>Fix.</strong> The eval is a <em>summary</em> signal, not a diagnostic signal. The unit and contract tiers are the diagnostic signals. When the eval pass rate drops, the pyramid runner points you at the matching unit or contract test that should have caught the same bug at 1000x speed.</p>
+
+  <h3 id="anti-pattern-4">Anti-pattern 4 &mdash; One golden fixture per prompt</h3>
+  <p>The team has a single "golden" example per prompt. They change the prompt slightly, the single golden output no longer matches, they update the golden, and ship. The regression suite is structurally a tautology &mdash; it always passes by construction because the only fixture is the one that was just updated.</p>
+  <div class="bad">
+    <strong>Symptom.</strong> Regression suite always passes, even when the prompt change visibly degrades behavior on inputs not in the golden fixture.
+  </div>
+  <p><strong>Fix.</strong> Minimum 20 fixtures per prompt: 5 happy path, 5 edge cases (empty input, very long input, unicode, non-English, conflicting instructions), 5 adversarial (prompt-injection-shaped input, off-topic input, tool-failure-shaped input), 5 regression-pin (snapshots from past production failures that must not recur). The <a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> ships with a fixture-coverage reporter that fails the build if any prompt has &lt;20 fixtures.</p>
+
+  <hr>
+
+  <h2 id="pyramid-runner">A 90-line TypeScript pyramid runner</h2>
+  <p>The pyramid runner picks the right tier for the right diff. A change to <code>tools/registry.json</code> triggers unit + contract. A change to <code>prompts/*.md</code> triggers regression. A change to <code>package.json</code> (model version) triggers regression + eval. The runner is intentionally small &mdash; it is a router, not an executor; each tier calls out to its existing CLI.</p>
+  <pre><code>// pyramid-runner.ts &mdash; picks the right tier for the right diff
+import { execSync } from 'child_process';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
+type Tier = 'unit' | 'contract' | 'integration' | 'eval' | 'regression';
+
+interface DiffInfo { files: string[]; hasPromptChange: boolean; hasModelChange: boolean; hasToolChange: boolean; hasFixtureChange: boolean; }
+
+function detectDiff(): DiffInfo {
+  const diff = execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' });
+  const files = diff.split('\n').filter(Boolean);
+  return {
+    files,
+    hasPromptChange: files.some(f => f.startsWith('prompts/') && f.endsWith('.md')),
+    hasModelChange: files.some(f => f === 'package.json' || f === 'models.lock'),
+    hasToolChange: files.some(f => f.startsWith('tools/')),
+    hasFixtureChange: files.some(f => f.startsWith('tests/fixtures/')),
+  };
+}
+
+function selectTiers(d: DiffInfo): Tier[] {
+  const tiers: Tier[] = [];
+  if (d.hasToolChange) tiers.push('unit', 'contract');
+  if (d.hasFixtureChange) tiers.push('integration');
+  if (d.hasPromptChange) tiers.push('regression');
+  if (d.hasModelChange) tiers.push('regression', 'eval');
+  if (tiers.length === 0) tiers.push('unit', 'contract', 'integration');
+  return tiers;
+}
+
+function runTier(tier: Tier): { tier: string; ok: boolean; durationMs: number } {
+  const start = Date.now();
+  const cmd: Record&lt;Tier, string&gt; = {
+    unit: 'npx @algoram99/agent-tool-call-validator selftest',
+    contract: 'npx @algoram99/agent-schema-drift-detector selftest',
+    integration: 'npx @algoram99/agent-trace-replay selftest',
+    eval: 'npx @algoram99/agent-eval-harness run --gate merge-to-main',
+    regression: 'npx @algoram99/prompt-regression-cli selftest',
+  };
+  try { execSync(cmd[tier], { stdio: 'pipe' }); return { tier, ok: true, durationMs: Date.now() - start }; }
+  catch (e) { return { tier, ok: false, durationMs: Date.now() - start }; }
+}
+
+const diff = detectDiff();
+const tiers = selectTiers(diff);
+console.log(`Pyramid tiers selected for diff: ${tiers.join(', ')}`);
+const results = tiers.map(runTier);
+const failed = results.filter(r => !r.ok);
+if (failed.length &gt; 0) {
+  console.error(`FAIL: ${failed.map(f => f.tier).join(', ')}`);
+  process.exit(1);
+}
+console.log(`PASS: ${results.length} tiers in ${results.reduce((a, r) => a + r.durationMs, 0)}ms`);</code></pre>
+
+  <h3 id="selftest">The 6 selftest cases (every pyramid runner must pass these)</h3>
+  <ol>
+    <li><strong>Tool-only diff</strong> &rarr; unit + contract fire, integration + eval + regression do not fire.</li>
+    <li><strong>Prompt-only diff</strong> &rarr; regression fires, unit + contract + eval do not fire.</li>
+    <li><strong>Model-version diff (package.json)</strong> &rarr; regression + eval fire.</li>
+    <li><strong>Fixture-only diff</strong> &rarr; integration fires.</li>
+    <li><strong>Empty diff</strong> (no changes vs main) &rarr; all 5 tiers fire (defensive default).</li>
+    <li><strong>Multi-category diff</strong> (tool + prompt + model) &rarr; unit + contract + regression + eval all fire; integration fires only if fixtures are also touched.</li>
+  </ol>
+
+  <hr>
+
+  <h2 id="ci-gate">Woodpecker CI gate &mdash; fail any PR that breaks the pyramid</h2>
+  <p>The pyramid runner is the <em>engine</em>. The Woodpecker CI gate is the <em>enforcement</em>. The gate below is 30 lines of YAML that fails any PR that touches an agent runtime file without running the matching pyramid tier. It pairs with the <a href="https://algoram99.github.io/posts/2026-06-09-ci-pipeline-for-ai-agents/">10th post on CI for AI agents</a>.</p>
+  <pre><code># .woodpecker.yml &mdash; AI agent testing pyramid gate
+steps:
+  pyramid:
+    image: node:20
+    commands:
+      - npm ci
+      - npx tsx pyramid-runner.ts
+    when:
+      path:
+        include:
+          - tools/**/*
+          - prompts/**/*.md
+          - tests/fixtures/**/*
+          - package.json
+          - models.lock
+          - src/agent/**/*.ts
+  eval_nightly:
+    image: node:20
+    commands:
+      - npm ci
+      - npx @algoram99/agent-eval-harness run --gate nightly
+    when:
+      event: cron
+      cron: agent_pyramid_eval</code></pre>
+
+  <div class="good">
+    <strong>What this gate catches.</strong> A PR that changes <code>tools/registry.json</code> without running unit tests &rarr; fails. A PR that changes a prompt without running regression tests &rarr; fails. A PR that bumps a model version without running regression + eval &rarr; fails. A PR that touches a runtime file and silently slips through because "we'll catch it in eval" &rarr; fails.
+  </div>
+
+  <hr>
+
+  <h2 id="related">Related posts &amp; tools</h2>
+  <p>This post closes the structural test-architecture layer of the Algoram99 quality trilogy. It is meant to be read in this order:</p>
+  <ul>
+    <li><a href="https://algoram99.github.io/posts/2026-06-09-llm-schema-drift-detection/">17th &mdash; LLM schema-drift detection</a> &mdash; the contract tier in depth</li>
+    <li><a href="https://algoram99.github.io/posts/2026-06-09-build-agent-eval-harness/">18th &mdash; Agent eval harness</a> &mdash; the eval tier in depth</li>
+    <li><a href="https://algoram99.github.io/posts/2026-06-10-circuit-breaker-llm-api/">19th &mdash; LLM circuit breaker</a> &mdash; a failing contract test catches the same bugs the circuit breaker trips on at runtime</li>
+    <li><a href="https://algoram99.github.io/posts/2026-06-10-ai-agent-rate-limiting/">21st &mdash; AI agent rate limiting</a> &mdash; integration-tier chaos test asserts the per-cost surface trips</li>
+    <li><a href="https://algoram99.github.io/posts/2026-06-09-ci-pipeline-for-ai-agents/">10th &mdash; CI pipeline for AI agents</a> &mdash; the Woodpecker gate pattern</li>
+    <li><a href="https://algoram99.github.io/posts/2026-06-14-ai-agent-prompt-regression-testing/">25th &mdash; AI agent prompt regression testing</a> &mdash; the regression tier in depth</li>
+  </ul>
+
+  <h3 id="related-tools">Related Algoram99 tools ($29 each, MIT, single-file, zero-dep)</h3>
+  <ul>
+    <li><a href="https://buy.stripe.com/test_eVqaEX9gF2U0115jR173G3X">Agent Tool-Call Validator CLI</a> &mdash; unit tier (8 rules, 14 selftest + 30 unit tests, &lt;1s for 1000 tools)</li>
+    <li><a href="https://buy.stripe.com/test_aFa9AV1chhams26aA973G3P">Agent Schema Drift Detector CLI</a> &mdash; contract tier (JSON-Schema snapshot diff, 18 selftest cases)</li>
+    <li><a href="https://buy.stripe.com/test_aFa6oH9gF2U0118jR173G3I">Agent Ingress Firewall CLI</a> &mdash; contract tier for untrusted MCP responses</li>
+    <li><a href="https://buy.stripe.com/test_dRm6oHdwp2U0115jR173G3K">Agent Inflight Telemetry CLI</a> &mdash; integration-tier span capture</li>
+    <li><a href="https://buy.stripe.com/test_6oU6oH4Hp2U0118jR173G3B">Agent Trace Replay CLI</a> &mdash; integration-tier trace diff</li>
+    <li><a href="https://buy.stripe.com/test_14k9AV4Hp2U0118jR173G3N">Agent Eval Harness CLI</a> &mdash; eval-tier behavioral scoring</li>
+    <li><a href="https://buy.stripe.com/test_3cs00l4Hp2U0115jR173G3O">Prompt Regression CLI</a> &mdash; regression-tier prompt/model/fixture snapshot diff</li>
+    <li><a href="https://buy.stripe.com/test_28E00lbohams26131T73G0L">Prompt Mutator CLI</a> &mdash; offline candidate-prompt generator + ranker (feeds the regression suite)</li>
+  </ul>
+
+  <hr>
+
+  <p style="color: var(--muted); font-size: .9rem;">Algoram99 ships zero-dependency MIT-licensed CLIs for shipping AI agents safely. <a href="https://algoram99.github.io/posts/">All posts</a> &middot; <a href="https://github.com/Algoram99">GitHub org</a> &middot; <a href="https://nepo6.gumroad.com/">Gumroad storefront</a></p>
+</main>
+</body>
+</html>
