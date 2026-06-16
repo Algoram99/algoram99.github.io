@@ -397,19 +397,19 @@ steps:
   <p>The 110-line runtime above is the design pattern; the Algoram99 catalog has the production-tested primitives that implement it.</p>
   <div class="product">
     <h3>Agent Inflight Telemetry &mdash; $29</h3>
-    <p>The <a href="https://buy.stripe.com/test_dR2cN7grh6iN3itfXH3G0O">Agent Inflight Telemetry CLI</a> captures the per-span heartbeat signal that the runtime's <code>startHeartbeat</code> relies on. Every tool call, every retry, every LLM streaming chunk is a span with a lastBeat timestamp. When the heartbeat watchdog fires <code>onStall</code>, the telemetry CLI is what records the stall, the time-since-last-beat, and the request id, so the postmortem can distinguish "we cancelled at 2.1s because the provider stalled" from "we cancelled at 12s because the budget ran out." It is the observability side of the cancellation contract.</p>
+    <p>The <a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z">Agent Inflight Telemetry CLI</a> captures the per-span heartbeat signal that the runtime's <code>startHeartbeat</code> relies on. Every tool call, every retry, every LLM streaming chunk is a span with a lastBeat timestamp. When the heartbeat watchdog fires <code>onStall</code>, the telemetry CLI is what records the stall, the time-since-last-beat, and the request id, so the postmortem can distinguish "we cancelled at 2.1s because the provider stalled" from "we cancelled at 12s because the budget ran out." It is the observability side of the cancellation contract.</p>
   </div>
   <div class="product">
     <h3>Agent Tool-Call Validator &mdash; $29</h3>
-    <p>The <a href="https://buy.stripe.com/test_5kQ9DrfzB9aqfKJ5PJ73G0N">Agent Tool-Call Validator CLI</a> is the contract-tier gate for tool calls. It is the test that runs in the pyramid's contract tier to assert that every long-running tool accepts a <code>Deadline</code> parameter. A validator check that fails because a tool signature is missing a deadline is the cheapest possible way to catch a missing deadline before it ships. The CI gate above (<code>audit-deadline-arg.js</code>) is the regex-coarse version; the Tool-Call Validator is the AST-precise version.</p>
+    <p>The <a href="https://buy.stripe.com/test_9B63cx4ZT5283a5dGx73G0F">Agent Tool-Call Validator CLI</a> is the contract-tier gate for tool calls. It is the test that runs in the pyramid's contract tier to assert that every long-running tool accepts a <code>Deadline</code> parameter. A validator check that fails because a tool signature is missing a deadline is the cheapest possible way to catch a missing deadline before it ships. The CI gate above (<code>audit-deadline-arg.js</code>) is the regex-coarse version; the Tool-Call Validator is the AST-precise version.</p>
   </div>
   <div class="product">
     <h3>Agent Idempotency &mdash; $29</h3>
-    <p>The <a href="https://buy.stripe.com/test_eVa3cx6yh7y2cON3vJ73G0M">Agent Idempotency CLI</a> is the production-tested version of the <code>idempotent</code> wrapper above. It handles the cancel-arrives-mid-side-effect case with an idempotency record, a rollback hook, and a retry-safe return. The 23rd post on this site is its deep dive; this post treats it as the standard primitive every side-effecting tool should be wrapped in.</p>
+    <p>The <a href="/posts/2026-06-11-ai-agent-idempotency/">Agent Idempotency CLI</a> is the production-tested version of the <code>idempotent</code> wrapper above. It handles the cancel-arrives-mid-side-effect case with an idempotency record, a rollback hook, and a retry-safe return. The 23rd post on this site is its deep dive; this post treats it as the standard primitive every side-effecting tool should be wrapped in.</p>
   </div>
   <div class="product">
     <h3>Agent SLO Tracker &mdash; $29</h3>
-    <p>The <a href="https://buy.stripe.com/test_5kQ8wH2Rd0KEfKJbvx73G0L">Agent SLO Tracker CLI</a> is what surfaces a stuck-call regression in the production SLO dashboard. The SLO for an agent should be "p99 deadline-respecting completion &lt;= 8s" and the burn rate for that SLO is "stuck calls per minute." When the burn rate exceeds the budget, the SLO tracker fires the alert. It is the production counterpart to the runtime's heartbeat watchdog.</p>
+    <p>The <a href="https://buy.stripe.com/test_cNifZjdwp66cfWRgSJ73G0N">Agent SLO Tracker CLI</a> is what surfaces a stuck-call regression in the production SLO dashboard. The SLO for an agent should be "p99 deadline-respecting completion &lt;= 8s" and the burn rate for that SLO is "stuck calls per minute." When the burn rate exceeds the budget, the SLO tracker fires the alert. It is the production counterpart to the runtime's heartbeat watchdog.</p>
   </div>
 
   <h2>Cross-link summary</h2>
