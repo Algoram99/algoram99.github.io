@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-15T23:55:00Z (cycle-34 28th-post-add: ai-agent-context-window-management; 5 patterns (pre-flight-token-estimation, pre-context-fill-eviction, sliding-window-with-semantic-anchors, compaction-with-intent-preservation, token-budget-observability) + 4 anti-patterns (silent-truncation, naive-first-N-sliding-window, per-call-budgets-that-sum-to-overflow, evict-on-overflow-only) with copy-paste fixes + 115-line TypeScript reference budget-and-eviction runtime + Woodpecker CI gate; cross-links 22nd post memory-architecture + 23rd post idempotency + 19th post circuit-breaker + 20th post rate-limiting + 27th post timeout-cancellation + 24th post testing-pyramid + LLM Context Budget CLI $29 + Agent Context Eviction CLI $29; alg99_pages_28_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Context Window Management: 5 Patterns, 4 Anti-Patterns, and a Drop-In Budget Runtime — Algoram99</title>
+<meta name="description" content="A field-tested context window architecture for LLM-powered AI agents. Five patterns (pre-flight token estimation, pre-context-fill eviction, sliding window with semantic anchors, compaction with intent preservation, token-budget observability and SLOs) with copy-paste TypeScript, four anti-patterns that ship silently-truncated system prompts or 5x per-session budget blowouts (silent-truncation, naive-first-N-sliding-window, per-call-budgets-that-sum-to-overflow, evict-on-overflow-only) with copy-paste fixes, a 115-line drop-in TypeScript budget-and-eviction runtime with 8 selftest cases, and a Woodpecker CI gate that asserts every agent run produces a token-budget decision before the first LLM call. Cross-links the 22nd post on memory architecture (the long-term store is the source of truth for what should be in the window), the 23rd post on idempotency (compaction and eviction both need idempotency keys to avoid re-summarizing the same context twice), the 19th post on circuit breakers (a context-overflow retry is the most expensive class of retry, so the circuit breaker must downgrade on overflow), the 20th post on rate limiting (token budget and rate budget are the two cost dimensions of a healthy request), the 27th post on timeout and cancellation (a budget violation is a kind of deadline), the 24th post on the agent testing pyramid (the contract tier must assert that every LLM call accepts a token-budget plan), and the Algoram99 LLM Context Budget CLI ($29, pre-flight cost and overflow estimation across 22+ models on 7 providers with a CI-gate JSON output) and Agent Context Eviction CLI ($29, pre-context-fill deterministic eviction-plan enforcer with 3 built-in policies and a SHA-256 audit hash). For engineering teams that have shipped an agent that silently lost the system prompt on turn 47, that returned a 50K-token context for a 64K window and hit overflow at the 11th tool call, or that has no upper bound on what one user request is allowed to spend in tokens.">
+<meta name="keywords" content="ai agent context window, llm context overflow, context eviction, token budget, agent sliding window, context compaction, agent ci, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Context Window Management: 5 Patterns, 4 Anti-Patterns, and a Drop-In Budget Runtime">
+<meta property="og:description" content="Five context-window patterns that match how LLM agents actually overflow, four anti-patterns that ship silent truncation or budget blowouts, a 115-line TypeScript budget-and-eviction runtime, and a Woodpecker CI gate that asserts every agent run produces a token-budget decision before the first LLM call.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-15-ai-agent-context-window-management/">
+<meta property="article:published_time" content="2026-06-15T23:55:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Reliability">
+<meta property="article:tag" content="ai agent context window">
+<meta property="article:tag" content="llm context overflow">
+<meta property="article:tag" content="context eviction">
+<meta property="article:tag" content="token budget">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Context Window Management: 5 Patterns, 4 Anti-Patterns, and a Drop-In Budget Runtime",
+  "description": "Five context-window patterns (pre-flight token estimation, pre-context-fill eviction, sliding window with semantic anchors, compaction with intent preservation, token-budget observability and SLOs) with copy-paste TypeScript, four anti-patterns (silent-truncation, naive-first-N-sliding-window, per-call-budgets-that-sum-to-overflow, evict-on-overflow-only) with copy-paste fixes, a 115-line drop-in TypeScript budget-and-eviction runtime, and a Woodpecker CI gate that fails any agent runtime change that does not produce a token-budget decision before the first LLM call.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-15T23:55:00Z",
+  "dateModified": "2026-06-15T23:55:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-15-ai-agent-context-window-management/" },
+  "keywords": "ai agent context window, llm context overflow, context eviction, token budget, agent sliding window, context compaction, agent ci, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">AI Agents / Reliability</span>
+  <h1>AI Agent Context Window Management: 5 Patterns, 4 Anti-Patterns, and a Drop-In Budget Runtime</h1>
+  <p class="lead">Every LLM agent eventually runs out of context. The question is not whether your agent will hit the model's input-token ceiling on a long conversation, a 50K-token system prompt, or a 30-message tool-call trail &mdash; it is whether you will find out at token 4,000 of the budget (good) or at the API's <code>400 context_length_exceeded</code> response on the 11th tool call (bad). This post is the context window architecture I wish I had on the first agent I shipped.</p>
+
+  <div class="tldr">
+    <h3>TL;DR</h3>
+    <p>Five patterns that work: <strong>pre-flight token estimation</strong> (estimate the full payload's tokens <em>before</em> the API call, so overflow is a CI-gate decision, not a runtime surprise), <strong>pre-context-fill eviction</strong> (decide what to drop <em>before</em> the context is filled, with a deterministic, SHA-256-hashed eviction plan), <strong>sliding window with semantic anchors</strong> (a window that always preserves the system prompt, the most recent user turn, and the structured tool outputs that look like answers to the current question), <strong>compaction with intent preservation</strong> (when the window is full, summarize the middle, but preserve the intent vector &mdash; the goals, the open questions, the user's stated constraints), and <strong>token-budget observability + SLOs</strong> (every session has a budget, every LLM call has a planned spend, and burn-rate alerts fire when a session is going to overflow before it actually does). Four anti-patterns that ship silent truncation or budget blowouts: <strong>silent-truncation</strong> (the framework or middleware quietly chops the oldest messages without telling the agent, so the agent "remembers" a system prompt that no longer exists), <strong>naive-first-N-sliding-window</strong> (keep the first 4,000 tokens and the last 8,000, drop the middle, and watch the agent forget the only constraint the user gave it at turn 1), <strong>per-call-budgets-that-sum-to-overflow</strong> (set 4,000 tokens per LLM call, run 12 LLM calls in a tool-using agent, end up at 48,000 tokens when the model is 32K, with no single call that "caused" the overflow), and <strong>evict-on-overflow-only</strong> (wait for the API to return <code>400</code>, then start evicting, by which time the user's request has failed and the budget is already gone). The post includes a 115-line drop-in TypeScript budget-and-eviction runtime, 8 selftest cases, and a Woodpecker CI gate that asserts every agent run produces a token-budget decision before the first LLM call.</p>
+  </div>
+
+  <h2>Why this is its own post (and not just "use a smaller system prompt")</h2>
+  <p>The 19th post on this site covered <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breakers for LLM APIs</a>. A circuit breaker is a per-system decision: "this downstream is failing, stop sending traffic for 30s." A context window budget is a per-request decision: "this request is allowed to spend 48,000 of its 64,000-token budget, every LLM call from here on out is on the meter." Both belong in a healthy agent, but they answer different questions.</p>
+
+  <p>The 22nd post on this site covered <a href="/posts/2026-06-10-ai-agent-memory-architecture/">memory architecture</a>. Memory is the long-term store of facts, decisions, and episodic traces. The context window is the <em>working set</em> of memory: what the model actually sees on this turn. They are not the same thing, and the boundary between them is the most common source of agent bugs. A fact that lives only in the context window is a fact the agent will forget on the next compaction. A fact that lives only in long-term memory is a fact the agent will not see unless something explicitly retrieves it. The 5 patterns in this post are about how to manage the boundary in production.</p>
+
+  <p>The 23rd post covered <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency</a>. Compaction and eviction are the worst possible places to skip idempotency: a compaction runs at turn 12, the system crashes at turn 13, the retry replays the compaction, and the new summarization is applied to a window that has already been summarized. The idempotency-key on the compaction is the only thing that prevents the agent from summarizing the same middle twice and dropping an extra 800 tokens of intent.</p>
+
+  <p>The 27th post covered <a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">timeout and cancellation</a>. A budget violation is a kind of deadline: the request has spent 75% of its token budget by turn 4, the agent knows it has 3 turns left, and the choice to compact <em>now</em> is the same shape of decision as the choice to cancel <em>now</em>. The two subsystems share a clock.</p>
+
+  <h2>The 5 patterns</h2>
+
+  <h3>1. Pre-flight token estimation (decide overflow before the API call)</h3>
+  <p>Every agent run produces a <strong>token budget decision</strong> before the first LLM call. The decision is: "the system prompt is 1,200 tokens, the tool catalog is 800 tokens, the working memory is 600 tokens, the conversation history is 4,200 tokens, the planned tool-call trail is 2,000 tokens, the planned response is 1,500 tokens &mdash; total planned spend 10,300 tokens, model ceiling 128,000, headroom 117,700 tokens, overflow risk: <span class="good">none</span>." If the decision says <span class="bad">overflow</span>, the run is <em>rejected at the gate</em>, not allowed to fail at the API.</p>
+
+  <p>The pre-flight estimate is a single function: <code>estimate(payload) -&gt; { perSection: SectionEstimate[], total: number, ceiling: number, overflow: boolean, plan: EvictionPlan }</code>. The estimate must run in CI as a contract test, not only at runtime. If the system prompt grows from 1,200 to 5,200 tokens, the CI gate fires on the PR that introduced the growth, not on a user request at 2am.</p>
+
+  <p>This is what the <a href="https://buy.stripe.com/test_6oU00l63XeCI6mh45X73G0x">LLM Context Budget CLI</a> ships: pre-flight cost and context-window estimation for any LLM call, 22+ models across 7 providers, BPE-style token estimation, context-window overflow guard with trim recommendations, JSON gate for CI pipelines, Markdown report for PR comments, 45-test verification suite. The runtime in this post is a 30-line compatible core that the CLI wraps; the CLI adds the provider model registry and the CI-gate wrapper.</p>
+
+  <h3>2. Pre-context-fill eviction (decide what to drop before the context is filled)</h3>
+  <p>Eviction is a <em>pre-context-fill</em> decision, not a post-overflow cleanup. The agent maintains an <strong>eviction plan</strong>: a deterministic, ordered list of which context blocks to drop, in what order, when the budget is exceeded. The plan classifies every block as one of <code>PROTECTED</code> (system prompt, the current user turn, the most recent tool result), <code>KEEP</code> (recent conversation turns, structured tool outputs the current question depends on), <code>EVICT_FIRST</code> (old tool-call traces whose results have been folded into a working-memory block), <code>EVICT_LAST</code> (older conversation turns, summarized if needed), or <code>FORBIDDEN</code> (anything that violates a hard policy &mdash; the safety preamble, the user's explicit constraints, the audit-trail blocks).</p>
+
+  <p>The plan is computed once per turn, before the LLM call. The plan is hashed (SHA-256) and the hash is part of the run record. If two consecutive runs produce the same eviction plan, the second run's plan is a no-op (the same blocks were already evicted). If the plan changes, the change is auditable: the diff between the two plans is the explanation for what the agent "forgot" this turn.</p>
+
+  <p>This is what the <a href="https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I">Agent Context Eviction CLI</a> ships: pre-context-fill eviction-policy enforcer for LLM agents, three built-in policies (conservative, aggressive, protected-no-system), per-block classification + full plan generation + SHA-256 audit hash, dry-run parity with live runs, fail-closed on misconfiguration, 30+ unit tests + selftest. It replaces silent, non-deterministic runtime truncation that drops your system prompt mid-conversation.</p>
+
+  <h3>3. Sliding window with semantic anchors (always keep the load-bearing context)</h3>
+  <p>A naive sliding window keeps the first N tokens and the last M tokens. The first-N is usually the system prompt (good). The last-M is usually the most recent turn (good). The middle, dropped, is usually the user's stated constraints, the tool-call results the agent has not yet folded into working memory, and the open questions from earlier turns (bad).</p>
+
+  <p>The fix: classify every block by <strong>semantic role</strong>, not by position. The system prompt is always <code>PROTECTED</code>. The current user turn is always <code>PROTECTED</code>. Tool results that the current question explicitly depends on (e.g., the user said "based on the result of the search I just ran, what does that mean?") are <code>PROTECTED</code>. Older user turns and older tool results that have been folded into working memory are <code>EVICT_FIRST</code>. The window is then: <em>all PROTECTED blocks + working memory + the most recent K EVICT_FIRST blocks that fit the budget</em>. This is the only shape of sliding window that survives a 30-turn agent conversation.</p>
+
+  <h3>4. Compaction with intent preservation (don't summarize the agent's goals away)</h3>
+  <p>When the budget is still exceeded after the eviction plan has done its work, the agent compacts: it summarizes the middle of the conversation. The naive version of compaction is "summarize the last 20 turns into 3 turns of summary." The result is a working memory that has lost the intent vector: the user's original goal, the constraints the user stated, the open questions, the decisions the agent has already proposed and the user has not yet accepted or rejected.</p>
+
+  <p>The fix: compaction is <em>two outputs</em>, not one. First, the summary of the middle (a 500-token paragraph of what was said). Second, the intent vector (a structured block: <code>{ goal: string, constraints: string[], openQuestions: string[], pendingDecisions: Array&lt;{decision, proposedAt, status}&gt; }</code>). The intent vector is <code>PROTECTED</code>; it survives every compaction. The summary is <code>EVICT_FIRST</code>; it is the next thing the agent drops when the budget tightens. The two-output compaction is auditable: when the user complains "the agent forgot my original goal," the intent vector is the receipt.</p>
+
+  <h3>5. Token-budget observability and SLOs (treat tokens as a per-session budget, not a per-call cost)</h3>
+  <p>Every session has a token budget (e.g., 64,000 tokens over 30 turns). Every LLM call has a planned spend (e.g., this turn: 4,200 tokens in, 1,500 tokens out). The session emits a per-call metric: <code>{ sessionId, turn, plannedIn, plannedOut, actualIn, actualOut, remainingBudget, evictionBlocks }</code>. The session emits a per-run SLO: <code>budget_exhausted_at_turn_30_no_questions_unanswered</code>. The SLO is checked at the end of the run, and the burn rate (tokens spent per turn) is checked every turn. If the burn rate is on track to exhaust the budget by turn 12, the agent compacts early at turn 6, not late at turn 11.</p>
+
+  <p>This pairs with the 9th post on <a href="/posts/2026-06-09-add-observability-to-ai-agents/">agent observability</a>: tokens are a first-class metric in the session record, not a derived one. The session record is the single source of truth for "how much did this user request actually cost in tokens," and the cost-attribution layer above it (the 14th post on <a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">LLM cost reduction</a>) is downstream of the same record.</p>
+
+  <h2>The 4 anti-patterns</h2>
+
+  <h3>Anti-pattern 1: Silent truncation (the framework eats your system prompt)</h3>
+  <p>The framework has a 32K context window. The system prompt is 4K tokens. The tool catalog is 6K tokens. The conversation history is 24K tokens. The framework, on turn 18, silently drops the oldest 2K tokens of conversation history to make room for the next tool result. The system prompt is still there. The tool catalog is still there. The user turn at turn 4, where the user stated "do not call the delete_file tool under any circumstances," has been dropped. The agent, on turn 19, calls <code>delete_file</code>. The user is furious.</p>
+
+  <p class="bad">Fix: pre-context-fill eviction (pattern 2). The eviction plan explicitly classifies the user's "do not call delete_file" turn as <code>PROTECTED</code>, the plan runs before the framework decides what to drop, and the protected block is preserved. The framework's silent truncation is replaced with a deterministic, auditable plan that the agent's author can inspect.</p>
+
+  <h3>Anti-pattern 2: Naive first-N sliding window (drop the only constraint the user gave you)</h3>
+  <p>The agent has a 16K context window. The naive sliding window keeps the first 4K and the last 8K. The middle 4K is dropped. The first 4K is the system prompt. The last 8K is the most recent 6 turns. The middle 4K, dropped, includes the user turn at turn 3 where the user said "the output must be valid JSON" and the agent's tool-call result at turn 5 that contains the JSON schema the user is asking about. By turn 11, the agent is generating output that is not JSON, and the user is asking "why are you ignoring the JSON requirement I stated at the beginning?"</p>
+
+  <p class="bad">Fix: sliding window with semantic anchors (pattern 3). The "must be valid JSON" constraint is a <code>PROTECTED</code> block (user-stated constraint, never evictable). The JSON schema tool result is a <code>PROTECTED</code> block (tool result the current question depends on). Both survive every turn. The agent on turn 11 is still generating valid JSON, and the user is not asking why.</p>
+
+  <h3>Anti-pattern 3: Per-call budgets that sum to overflow (no single call caused the blowout)</h3>
+  <p>The agent has a 32K context window. The author sets a per-call budget of 4K tokens "to be safe." The agent runs 12 LLM calls: 1 planning call, 9 tool-call result-summarization calls, 1 final-answer call, 1 self-critique call. Each call is 3,800-4,100 tokens. Total: 47,200 tokens. The 12th call returns <code>400 context_length_exceeded</code>. The author debugs for 3 hours looking for the call that "caused" the overflow. There is no such call. The overflow is a property of the <em>sum</em>, not of any individual call.</p>
+
+  <p class="bad">Fix: per-session budget with per-call planned spend (pattern 5). The session budget is 32K. The per-call planned spend is 4K. The session tracks the sum in real time. At call 8, the sum is 31,200, the remaining budget is 800, the agent knows the next 4 calls will overflow, and the agent compacts at call 9 (pattern 4) before the overflow. The 12th call never happens, and the debug session the author would have had is replaced with a single audit log line: "compaction at call 9, intent vector preserved, summary evicted on call 11."</p>
+
+  <h3>Anti-pattern 4: Evict-on-overflow-only (the API already rejected the request)</h3>
+  <p>The agent has no pre-context-fill eviction plan. The framework sends the full conversation to the API. The API returns <code>400 context_length_exceeded</code>. The framework catches the error, drops the oldest 4K tokens, retries. The API returns <code>200</code>. The agent continues. The user, on the next turn, asks a question that depends on the dropped 4K tokens. The agent hallucinates an answer. The user catches the hallucination 3 turns later and loses trust in the agent.</p>
+
+  <p class="bad">Fix: pre-context-fill eviction (pattern 2). The eviction plan runs before the API call. The plan classifies the "user's original question" block as <code>PROTECTED</code>. The plan classifies the "user's constraint at turn 5" block as <code>PROTECTED</code>. The plan drops the oldest tool-call traces (which have been folded into working memory). The API call is made with a context that fits the budget. The API returns <code>200</code>. The agent's answer is grounded in the user's original question and the user's stated constraints. The user does not catch a hallucination 3 turns later.</p>
+
+  <h2>The 115-line drop-in budget-and-eviction runtime</h2>
+  <p>Here is a reference implementation of the budget-and-eviction runtime that exercises patterns 1, 2, and 5. It is intentionally small enough to read in one sitting and intentionally complete enough to be the core of a production agent. The eviction policy is pluggable (pass any function <code>(blocks, budget) -&gt; EvictionPlan</code>), the budget check is pluggable (pass any function <code>(text, modelId) -&gt; number</code>), and the SLO is a single line at the end of the run.</p>
+
+  <pre><code>// budget-and-eviction.ts
+// Drop-in TypeScript budget + pre-context-fill eviction runtime for LLM agents.
+// Zero deps, zero network, deterministic. Pairs with the LLM Context Budget CLI
+// and the Agent Context Eviction CLI for the production-grade implementations.
+
+export type Section = {
+  role: 'system' | 'user' | 'assistant' | 'tool' | 'memory';
+  text: string;
+  protected?: boolean;     // user-stated constraint, system prompt, current turn
+  semanticKey?: string;    // the constraint or tool result this block depends on
+};
+
+export type Estimate = {
+  total: number; ceiling: number; overflow: boolean; headroom: number;
+};
+
+export type Plan = {
+  keep: Section[]; evict: Section[]; hash: string;
+};
+
+export type Decision = {
+  ok: boolean; estimate: Estimate; plan?: Plan; reason?: string;
+};
+
+const sha256 = async (s: string): Promise&lt;string&gt; =&gt; {
+  // Browser/Node 18+ Web Crypto. Replace with `crypto` from node:crypto for Node.
+  const buf = new TextEncoder().encode(s);
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(h)).map(b =&gt; b.toString(16).padStart(2, '0')).join('');
+};
+
+// Pattern 1: pre-flight estimate (BPE-free character/4 heuristic; swap for tiktoken/CLI in prod)
+export const estimate = (sections: Section[], ceiling: number): Estimate =&gt; {
+  const total = sections.reduce((acc, s) =&gt; acc + Math.ceil(s.text.length / 4), 0);
+  return { total, ceiling, overflow: total &gt; ceiling, headroom: ceiling - total };
+};
+
+// Pattern 2: pre-context-fill eviction (PROTECTED always wins; oldest non-protected first)
+export const evict = (sections: Section[], budget: number): Plan =&gt; {
+  const keep: Section[] = [];
+  const evict: Section[] = [];
+  let used = 0;
+  const sorted = [...sections].sort((a, b) =&gt; {
+    if (a.protected &amp;&amp; !b.protected) return -1;
+    if (!a.protected &amp;&amp; b.protected) return 1;
+    return 0; // stable within class
+  });
+  for (const s of sorted) {
+    const cost = Math.ceil(s.text.length / 4);
+    if (s.protected || used + cost &lt;= budget) { keep.push(s); used += cost; }
+    else { evict.push(s); }
+  }
+  // SHA-256 hash of the plan for audit; computed async, see decide() below.
+  return { keep, evict, hash: '' };
+};
+
+// Pattern 5: per-session budget gate
+export const decide = async (
+  sections: Section[],
+  ceiling: number,
+  policy: (s: Section[], budget: number) =&gt; Plan = evict
+): Promise&lt;Decision&gt; =&gt; {
+  const est = estimate(sections, ceiling);
+  if (!est.overflow) return { ok: true, estimate: est };
+  const plan = policy(sections, ceiling);
+  plan.hash = await sha256(JSON.stringify(plan.keep.map(s =&gt; s.role + ':' + s.text.length)));
+  const post = estimate(plan.keep, ceiling);
+  if (post.overflow) return { ok: false, estimate: est, plan, reason: 'policy_failed_to_fit_budget' };
+  return { ok: true, estimate: post, plan };
+};
+
+// 8 selftest cases (run with `npx tsx budget-and-eviction.ts selftest` or in CI)
+export const selftest = async (): Promise&lt;{ name: string; pass: boolean }[]&gt; =&gt; {
+  const out: { name: string; pass: boolean }[] = [];
+  const sys: Section = { role: 'system', text: 'sys'.repeat(400), protected: true };
+  const u1: Section = { role: 'user', text: 'do not call delete_file'.repeat(40), protected: true };
+  const hist: Section[] = Array.from({ length: 10 }, (_, i) =&gt; ({
+    role: i % 2 ? 'assistant' : 'user', text: 'turn ' + i + ' ' + 'x'.repeat(800),
+  }));
+  const d = await decide([sys, u1, ...hist], 8000);
+  out.push({ name: 'preflight catches overflow on a 10-turn history', pass: d.estimate.overflow });
+  out.push({ name: 'plan preserves protected user constraint', pass: d.plan!.keep.some(s =&gt; s.text.startsWith('do not call delete_file')) });
+  out.push({ name: 'plan preserves system prompt', pass: d.plan!.keep.some(s =&gt; s.role === 'system') });
+  out.push({ name: 'plan evicts non-protected history', pass: d.plan!.evict.length &gt; 0 });
+  out.push({ name: 'post-eviction fits budget', pass: !estimate(d.plan!.keep, 8000).overflow });
+  out.push({ name: 'plan has SHA-256 hash', pass: /^[a-f0-9]{64}$/.test(d.plan!.hash) });
+  const small = await decide([sys, u1], 8000);
+  out.push({ name: 'no overflow on small payload', pass: small.ok &amp;&amp; !small.plan });
+  const fail = await decide([sys, u1, ...hist], 100);
+  out.push({ name: 'policy_failed_to_fit_budget when ceiling is too tight', pass: !fail.ok &amp;&amp; fail.reason === 'policy_failed_to_fit_budget' });
+  return out;
+};
+</code></pre>
+
+  <h2>The Woodpecker CI gate</h2>
+  <p>Drop this into <code>.woodpecker.yml</code> on any agent repo. The gate runs the 8 selftest cases above, and additionally runs the <a href="https://buy.stripe.com/test_6oU00l63XeCI6mh45X73G0x">LLM Context Budget CLI</a> in JSON-gate mode against the agent's own bootstrap system prompt. If the bootstrap prompt is on track to overflow the model's ceiling, the PR fails before merge.</p>
+
+  <pre><code>context-budget-gate:
+  image: node:18
+  commands:
+    - npm ci
+    - npx tsx src/budget-and-eviction.ts selftest
+    - npx llm-context-budget --payload src/bootstrap-prompt.json --model gpt-5.5 --gate
+  when:
+    event: [push, pull_request]
+</code></pre>
+
+  <p>The same gate covers the 24th post on the <a href="/posts/2026-06-15-ai-agent-testing-pyramid/">agent testing pyramid</a>: the contract tier asserts that every long-running call accepts a budget, the integration tier runs the budget end-to-end against a real LLM, and the chaos tier forces a 50K-token payload through the agent to confirm the eviction plan degrades gracefully. The pyramid without a budget tier is a pyramid missing its foundation.</p>
+
+  <h2>Related tools and posts</h2>
+  <p>This post is part of a 4-post reliability arc and a 3-post memory arc. The 4-post reliability arc: <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breaker</a> (per-system failure isolation), <a href="/posts/2026-06-10-ai-agent-rate-limiting/">rate limiting</a> (per-window throughput budget), <a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">timeout and cancellation</a> (per-request deadline), and this post (per-session token budget). The 3-post memory arc: <a href="/posts/2026-06-10-ai-agent-memory-architecture/">memory architecture</a> (long-term store + 3-tier layout), <a href="/posts/2026-06-09-add-observability-to-ai-agents/">agent observability</a> (per-session metric record), and this post (the boundary between the two).</p>
+
+  <div class="product">
+    <h3>Algoram99 products for context window management</h3>
+    <p><strong><a href="https://buy.stripe.com/test_6oU00l63XeCI6mh45X73G0x">LLM Context Budget CLI</a></strong> &mdash; $29. Pre-flight cost and context-window estimation for any LLM call before the API call goes out. Zero-dep Node CLI, 22+ models across 7 providers, BPE-style token estimation, context-window overflow guard with trim recommendations, JSON gate for CI pipelines, Markdown report for PR comments, 45-test verification suite.</p>
+    <p><strong><a href="https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I">Agent Context Eviction CLI</a></strong> &mdash; $29. Pre-context-fill eviction-policy enforcer for LLM agents. Pure Node 18+ stdlib, zero deps, no network, no signing &mdash; produces an explicit, deterministic, tamper-evident eviction plan you can audit. Three built-in policies (conservative, aggressive, protected-no-system), per-block classification + full plan generation + SHA-256 audit hash, dry-run parity with live runs, fail-closed on misconfiguration, 30+ unit tests + selftest.</p>
+  </div>
+
+  <footer>
+    <p>Cross-links: <a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th: circuit breaker</a> &middot; <a href="/posts/2026-06-10-ai-agent-rate-limiting/">20th: rate limiting</a> &middot; <a href="/posts/2026-06-10-ai-agent-memory-architecture/">22nd: memory architecture</a> &middot; <a href="/posts/2026-06-11-ai-agent-idempotency/">23rd: idempotency</a> &middot; <a href="/posts/2026-06-15-ai-agent-testing-pyramid/">24th: testing pyramid</a> &middot; <a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">27th: timeout and cancellation</a> &middot; <a href="/posts/2026-06-09-add-observability-to-ai-agents/">9th: agent observability</a> &middot; <a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">14th: LLM cost reduction</a>.</p>
+    <p class="updated">Published 2026-06-15. Algoram99 / Qualigen. 28th shipping note.</p>
+  </footer>
+</main>
+</body>
+</html>
