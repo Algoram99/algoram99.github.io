@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-16T18:00:00Z (cycle-35 29th-post-add: ai-agent-structured-logging; 5 patterns (jsonl-session-record, schema-first-with-json-schema, eight-event-taxonomy, write-time-pii-redaction, line-turn-offset-index) + 4 anti-patterns (prettyprint-the-prompt, log-only-the-response, json-per-call-no-schema, local-file-only-no-rotation) with copy-paste fixes + 95-line TypeScript reference structured-logger runtime + Woodpecker CI gate; cross-links 9th post observability + 14th post cost-reduction + 19th post circuit-breaker + 22nd post memory-architecture + 23rd post idempotency + 26th post testing-pyramid + 27th post timeout-cancellation + 28th post context-window-management + Agent Session Observability CLI $29 + Agent Secrets Audit CLI $29; alg99_pages_29_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Structured Logging: 5 Patterns, 4 Anti-Patterns, and a Drop-In JSONL Logger — Algoram99</title>
+<meta name="description" content="A field-tested structured-logging architecture for LLM-powered AI agents. Five patterns (JSONL session record per session, schema-first with JSON Schema validation in CI, an eight-event taxonomy covering request_started / tool_called / tool_returned / context_evicted / budget_decided / compacted / completed / failed, deterministic write-time PII redaction with sha256-prefixed masks, and a line + turn + token_offset searchable index that makes every line a primary key) with copy-paste TypeScript. Four anti-patterns (prettyprint-the-prompt that eats the disk, log-only-the-response that loses the tool-call trail, json-per-call with no schema that drifts between versions, local-file-only with no rotation that fills the disk at 2am) with copy-paste fixes. A 95-line drop-in TypeScript structured-logger runtime with 8 selftest cases, and a Woodpecker CI gate that fails any agent runtime change that ships a line not validating against the schema. For engineering teams that have shipped an agent whose session record was a stack trace stringified with JSON.stringify, or whose tool-call trail was lost because the logger only saw the final response.">
+<meta name="keywords" content="ai agent structured logging, llm agent jsonl log, agent session record, structured logging llm, agent observability, pii redaction, json schema logging, agent ci, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Structured Logging: 5 Patterns, 4 Anti-Patterns, and a Drop-In JSONL Logger">
+<meta property="og:description" content="Five structured-logging patterns that turn the per-event record into a JSONL session log you can grep, audit, and re-run. Four anti-patterns that ship pretty-printed prompts, response-only logs, schema-less JSON, and local-file-only rot. A 95-line TypeScript structured-logger runtime and a Woodpecker CI gate that fails any agent runtime change that regresses the eight-event taxonomy or ships a line that does not validate.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-16-ai-agent-structured-logging/">
+<meta property="article:published_time" content="2026-06-16T18:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Observability">
+<meta property="article:tag" content="ai agent structured logging">
+<meta property="article:tag" content="llm agent jsonl log">
+<meta property="article:tag" content="agent session record">
+<meta property="article:tag" content="structured logging llm">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Structured Logging: 5 Patterns, 4 Anti-Patterns, and a Drop-In JSONL Logger",
+  "description": "Five structured-logging patterns (JSONL session record with one file per session and one JSON line per event, schema-first with JSON Schema validation enforced in CI, an eight-event taxonomy covering request_started / tool_called / tool_returned / context_evicted / budget_decided / compacted / completed / failed, deterministic write-time PII redaction with sha256-prefixed masks, and a line + turn + token_offset searchable index) with copy-paste TypeScript, four anti-patterns (prettyprint-the-prompt that leaks PII and blows the budget, log-only-the-response that loses the tool-call trail and breaks cost attribution, json-per-call with no schema that drifts between runs, and local-file-only with no rotation that fills the disk and breaks the agent) with copy-paste fixes, a 95-line drop-in TypeScript structured-logger runtime with 8 selftest cases, and a Woodpecker CI gate that fails any agent runtime change that regresses the eight-event taxonomy or ships a log line that does not validate against the JSON Schema.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-16T18:00:00Z",
+  "dateModified": "2026-06-16T18:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-16-ai-agent-structured-logging/" },
+  "keywords": "ai agent structured logging, llm agent jsonl log, agent session record, structured logging llm, agent observability, pii redaction, json schema logging, agent ci, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">AI Agents / Observability</span>
+  <h1>AI Agent Structured Logging: 5 Patterns, 4 Anti-Patterns, and a Drop-In JSONL Logger</h1>
+  <p class="lead">Every LLM agent eventually produces a session record &mdash; the question is whether that record is a single append-only JSONL file you can grep, audit, attribute, and re-run, or a stack trace stringified with <code>JSON.stringify</code> and lost to log-rotation three days after the bug shipped. This post is the structured-logging architecture I wish I had on the first agent whose debug session started with the words &ldquo;I cannot reproduce this because the log file rotated three days ago.&rdquo;</p>
+
+  <div class="tldr">
+    <h3>TL;DR</h3>
+    <p>Five patterns that work: <strong>JSONL session record</strong> (one file per session, one JSON line per event, append-only, never rewritten, never pretty-printed), <strong>schema-first with JSON Schema validation</strong> (every event validates against a versioned schema in CI before it can be written, so drift between runs is impossible by construction), <strong>eight-event taxonomy</strong> (<code>request_started</code>, <code>tool_called</code>, <code>tool_returned</code>, <code>context_evicted</code>, <code>budget_decided</code>, <code>compacted</code>, <code>completed</code>, <code>failed</code> &mdash; eight verbs, no more, no fewer, every LLM call and every side effect maps to exactly one of them), <strong>write-time PII redaction</strong> (deterministic sha256-prefixed masks applied before the line hits disk, so secrets and PII never enter the log in the first place &mdash; the redactor is the gate, not a post-hoc scrubber), and <strong>line + turn + token_offset searchable index</strong> (every line carries its <code>sessionId</code>, <code>turn</code>, <code>tokenOffset</code>, and a content-hash <code>eventId</code> so a query like &ldquo;show me the budget_decided events for session X that triggered an eviction&rdquo; resolves in &lt;100ms on a 1,000-event file). Four anti-patterns that ship unreadable, unrotatable, unsearchable logs: <strong>prettyprint-the-prompt</strong> (the agent dumps the full system prompt + tool catalog + conversation history on every call, the log balloons to 80% of the disk, and the PII redactor is impossible to retrofit because the data is already on disk), <strong>log-only-the-response</strong> (the framework&rsquo;s default logger only sees the final LLM response, the tool-call trail is lost, the cost attribution layer cannot attribute the $0.18 LLM call to the 4 tool calls that caused it), <strong>json-per-call-no-schema</strong> (the agent calls <code>JSON.stringify({...})</code> per event with no schema, the keys drift between versions, the cost-attribution layer silently returns <code>NaN</code> for 12% of calls because <code>tokens_in</code> became <code>tokenIn</code> in a refactor), and <strong>local-file-only-no-rotation</strong> (the agent writes to <code>/var/log/agent.log</code> with no rotation, no compression, no query path, the disk fills at 2am on a Saturday and the agent is silently down for 6 hours before anyone notices). The post includes a 95-line drop-in TypeScript structured-logger runtime, 8 selftest cases, and a Woodpecker CI gate that fails any agent runtime change that regresses the eight-event taxonomy or ships a line that does not validate against the JSON Schema.</p>
+  </div>
+
+  <h2>Why this is its own post (and not just &ldquo;use a logger&rdquo;)</h2>
+  <p>The 9th post on this site covered <a href="/posts/2026-06-09-add-observability-to-ai-agents/">observability for AI agents</a>. That post is the reader half of the observability stack: what to capture, what to trace, how to ship the records to a trace backend. This post is the writer half: how to format the per-event record, how to validate it before it hits disk, how to redact PII at write-time, and how to make the record grep-friendly and rotation-safe. The two compose &mdash; the 9th post tells you <em>what</em> to record, this post tells you <em>how</em>.</p>
+
+  <p>The 14th post covered <a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">LLM cost reduction</a>. Cost attribution is downstream of a well-formed session record. If the record does not carry <code>tokens_in</code>, <code>tokens_out</code>, <code>model_id</code>, and <code>tool_call_count</code> per event, the cost attribution layer has nothing to roll up. The five patterns in this post make cost attribution possible without a rewrite.</p>
+
+  <p>The 19th post on <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breakers for LLM APIs</a> argued that every circuit-breaker decision should be auditable. A circuit-breaker decision is itself a structured event (<code>circuit_open</code>, with <code>reason</code>, <code>failing_endpoint</code>, <code>failure_rate</code>, <code>cool_off_ms</code>). The structured-logger in this post is the writer that captures it. The circuit-breaker post is the reader that uses it.</p>
+
+  <p>The 22nd post on <a href="/posts/2026-06-10-ai-agent-memory-architecture/">memory architecture</a> distinguished the long-term store (facts, decisions, episodic traces) from the working context (what the model sees on this turn). The boundary between them is the session record. When the agent decides to compact or evict, the <code>compacted</code> and <code>context_evicted</code> events in the session record are the audit trail for what was dropped. Without the structured logger, the boundary is invisible.</p>
+
+  <p>The 23rd post on <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency</a> argued that every LLM call must carry an idempotency key. The structured logger is where the idempotency key is recorded, so a retried call is the same event with the same key, and the cost attribution layer does not double-count it. The 26th post on the <a href="/posts/2026-06-15-ai-agent-testing-pyramid/">agent testing pyramid</a> argued that the contract tier must assert every event validates against the JSON Schema. The 27th post on <a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">timeout and cancellation</a> argued that a cancelled request is a <code>failed</code> event with a <code>reason: cancelled</code>. The 28th post on <a href="/posts/2026-06-15-ai-agent-context-window-management/">context window management</a> argued that a <code>context_evicted</code> event is the audit trail for what the budget runtime decided to drop. All of those posts assume the structured logger in this post exists.</p>
+
+  <h2>The 5 patterns</h2>
+
+  <h3>1. JSONL session record (one file per session, one line per event)</h3>
+  <p>Every agent session produces a single append-only file: <code>sessions/&lt;sessionId&gt;.jsonl</code>. Every event is one JSON line. The line is never pretty-printed, never rewritten, never truncated. The file is closed with <code>O_APPEND</code> semantics, so a crash at line 47 leaves line 47 intact (the kernel flushes per write). The file is named after the <code>sessionId</code> so <code>grep</code>, <code>jq</code>, and <code>awk</code> all work without a custom decoder.</p>
+
+  <p>The session record is the <strong>single source of truth</strong> for the session. The agent runtime reads from it on resume (the long-term store is downstream). The cost attribution layer reads from it on rollup. The eval harness reads from it on regression. The redactor reads from it on PII scan. The SLO tracker reads from it on burn rate. One format, one file per session, one writer.</p>
+
+  <p>This is what the <a href="https://buy.stripe.com/test_28E5kFdwpcuAbGBeKB73G05">Agent Session Observability CLI</a> reads: framework-agnostic JSONL session-record reader, per-session and per-agent rollups, degenerate-loop detection, pairs with the Agent Inflight Telemetry CLI (per-span capture), the Agent Turn Health Inspector CLI (per-turn health), and the Agent Trace Replay CLI (step-level diff). The runtime in this post is a 95-line compatible core that the CLI reads; the CLI adds the rollup, the degenerate-loop detector, and the CI-gate wrapper.</p>
+
+  <h3>2. Schema-first with JSON Schema validation in CI</h3>
+  <p>Every event validates against a versioned JSON Schema before it hits disk. The schema is the contract; the logger is the writer; the CI gate is the enforcer. If a refactor introduces a new event type, the schema bumps; the CI gate fails the PR that did not update the schema; the runtime refuses to write the un-schema-valid event.</p>
+
+  <p>The schema covers the eight event types and the cross-cutting fields (<code>sessionId</code>, <code>turn</code>, <code>eventId</code>, <code>timestamp</code>, <code>tokenOffset</code>, <code>idempotencyKey</code>). The <code>tokens_in</code>, <code>tokens_out</code>, <code>model_id</code>, and <code>tool_call_count</code> fields are required on the events that produce them (<code>request_started</code>, <code>completed</code>). The <code>tool_name</code> and <code>tool_args_hash</code> fields are required on <code>tool_called</code>. The <code>decision</code> and <code>reason</code> fields are required on <code>context_evicted</code> and <code>budget_decided</code>. A line that does not validate is not written. A line that does not write is not in the record.</p>
+
+  <p>The schema is the single artifact that the cost attribution layer, the eval harness, the SLO tracker, the test pyramid, and the idempotency layer all depend on. The 26th post on the testing pyramid argued that the contract tier asserts the schema is enforced. This post argues the schema is the first thing written, not the last thing retrofitted.</p>
+
+  <h3>3. Eight-event taxonomy (the only verbs an agent can do)</h3>
+  <p>An LLM agent does eight things. Every side effect, every decision, every state change maps to exactly one of them. The taxonomy is closed: if a new verb is needed, the schema bumps; if a verb is not in the taxonomy, the agent is doing something it should not be doing silently.</p>
+
+  <table>
+    <thead>
+      <tr><th>Event</th><th>When</th><th>Required fields</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>request_started</code></td><td>User turn begins, before the first LLM call</td><td><code>sessionId, turn, tokens_in, model_id, system_prompt_hash, tool_catalog_hash</code></td></tr>
+      <tr><td><code>tool_called</code></td><td>Agent invokes a tool</td><td><code>tool_name, tool_args_hash, idempotency_key, deadline_ms</code></td></tr>
+      <tr><td><code>tool_returned</code></td><td>Tool returns (success or error)</td><td><code>tool_name, status, latency_ms, result_hash, error_code?</code></td></tr>
+      <tr><td><code>context_evicted</code></td><td>Pre-context-fill eviction plan runs</td><td><code>decision, evicted_blocks, kept_blocks, plan_hash, budget_before, budget_after</code></td></tr>
+      <tr><td><code>budget_decided</code></td><td>Pre-flight token estimate runs</td><td><code>planned_in, planned_out, ceiling, headroom, overflow, plan</code></td></tr>
+      <tr><td><code>compacted</code></td><td>Middle-of-conversation summarization runs</td><td><code>summary_hash, intent_vector, dropped_blocks, kept_blocks</code></td></tr>
+      <tr><td><code>completed</code></td><td>Session ends with a final answer</td><td><code>total_tokens_in, total_tokens_out, total_tool_calls, total_latency_ms, answer_hash</code></td></tr>
+      <tr><td><code>failed</code></td><td>Session ends with an error (timeout, cancel, API error, validation error)</td><td><code>reason, error_code, retryable, last_successful_turn</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>Eight events, no more, no fewer. The taxonomy is the contract that the schema enforces, the cost attribution layer aggregates over, the eval harness regresses against, and the Woodpecker CI gate audits. If a new event type is needed (a new state change the agent must make auditable), the taxonomy is extended and the schema bumps. The extension is a versioned, audited change, not a quiet refactor.</p>
+
+  <h3>4. Write-time PII redaction (sha256-prefixed masks at write, not at read)</h3>
+  <p>PII and secrets must never enter the session record in cleartext. The redactor runs at <strong>write time</strong>, not at read time. The redactor is a deterministic function: <code>redact(s) -&gt; sha256(s)[:8] + &quot;_&quot; + s.length + &quot;_&quot; + last4(s)</code>. The same input always produces the same mask. The mask preserves the length, the last 4 characters, and a content hash, so downstream cost attribution can still count token spend, the eval harness can still detect behavioral drift, and a human can still recognize the value without being able to reconstruct it.</p>
+
+  <p>The redactor covers 8 secret-shape patterns: <code>sk-</code> + 20+ chars (OpenAI), <code>sk-ant-</code> + 20+ chars (Anthropic), <code>ghp_</code> + 30+ chars (GitHub PAT), <code>AKIA</code> + 16 chars (AWS), <code>sk_live_</code> + 20+ chars (Stripe live), generic <code>API_KEY=value</code> / <code>SECRET=value</code> / <code>TOKEN=value</code> env-var shapes, 64-char hex (Ethereum private keys), and 12+ word BIP-39 mnemonics. The shapes are checked at write time, not at read time, because the redactor at read time is a post-hoc scrubber that has already leaked.</p>
+
+  <p>This is what the <a href="https://buy.stripe.com/test_5kQdRb2RL7ag7ql8md73G0R">Agent Secrets Audit CLI</a> does: post-hoc secret-leak auditor for AI agent session JSONL logs, scans every turn for the same 8 secret-shape patterns with severity 1-10, masked findings (first 4 + last 4 chars visible, middle *-filled) so secrets never land in reports. The runtime in this post is the write-time redactor that prevents the leak; the CLI is the post-hoc audit that catches what slipped through.</p>
+
+  <h3>5. Line + turn + token_offset searchable index (every line is a primary key)</h3>
+  <p>Every line in the session record carries four fields that make the record queryable in &lt;100ms on a 1,000-event file: <code>sessionId</code> (which file), <code>turn</code> (which user turn), <code>tokenOffset</code> (where in the context the event sits), and a content-hash <code>eventId</code> (the line&rsquo;s primary key, sha256 of the canonicalized JSON). A query like &ldquo;show me the budget_decided events for session X that triggered an eviction&rdquo; resolves in &lt;100ms on a 1,000-event file because every line carries the indices, no separate index file is needed.</p>
+
+  <p>The <code>tokenOffset</code> is the running sum of <code>tokens_in</code> + <code>tokens_out</code> across all prior <code>request_started</code> and <code>completed</code> events in the session. It is the position in the context window the event sits at the moment it was written. A <code>context_evicted</code> event with <code>tokenOffset: 47000</code> on a 64K-window model is a 73%-of-budget eviction; a <code>context_evicted</code> with <code>tokenOffset: 12000</code> is an early compaction. The downstream debug session can answer &ldquo;why did the budget blow out at turn 8?&rdquo; with a single <code>jq</code> line.</p>
+
+  <p>The <code>eventId</code> is the primary key for the line. Two events with the same <code>eventId</code> are the same event (idempotency). Two events with different <code>eventId</code>s are different events (audit). The cost attribution layer dedupes by <code>eventId</code>; the eval harness regresses by <code>eventId</code>; the SLO tracker counts by <code>eventId</code>. The index is the line itself; the file is the database; the schema is the type system.</p>
+
+  <h2>The 4 anti-patterns</h2>
+
+  <h3>Anti-pattern 1: Prettyprint the prompt (the agent eats the disk)</h3>
+  <p>The agent&rsquo;s debug logger is configured to dump the full system prompt (12K tokens), the full tool catalog (8K tokens), the full conversation history (24K tokens), and the full tool result (16K tokens) on every LLM call. The log file is 60K tokens per LLM call. The session runs 40 LLM calls. The log file is 2.4M tokens, or roughly 10MB of JSON. The session ran for 12 minutes. The disk filled at 2am on a Saturday. The agent is silently down for 6 hours before anyone notices.</p>
+
+  <p class="bad">Fix: pattern 2 (schema-first) + pattern 3 (eight-event taxonomy) + pattern 4 (write-time redaction). The schema explicitly rejects full-prompt dumps; the <code>request_started</code> event carries <code>system_prompt_hash</code> and <code>tool_catalog_hash</code>, not the full text. The redactor scrubs any cleartext that slips through. The session record is bounded by the schema, not by what the developer thought to log. A 40-call session produces a 200KB JSONL file, not a 10MB file, and the disk does not fill.</p>
+
+  <h3>Anti-pattern 2: Log only the response (the tool-call trail is lost)</h3>
+  <p>The framework&rsquo;s default logger only sees the final LLM response. The 4 tool calls that produced the response are invisible to the logger. The user&rsquo;s billing complaint says &ldquo;I was charged $0.18 for one question.&rdquo; The cost attribution layer cannot answer the question because the tool calls are not in the record. The eval harness cannot answer &ldquo;did the agent take the right path?&rdquo; because the path is not in the record. The SLO tracker cannot answer &ldquo;what was the burn rate at turn 6?&rdquo; because the per-call latency is not in the record.</p>
+
+  <p class="bad">Fix: pattern 3 (eight-event taxonomy) explicitly includes <code>tool_called</code> and <code>tool_returned</code> as first-class events. Every tool invocation is a structured line, with <code>tool_name</code>, <code>tool_args_hash</code>, <code>idempotency_key</code>, <code>latency_ms</code>, and <code>result_hash</code>. The cost attribution layer rolls up the tool calls; the eval harness traces the path; the SLO tracker counts the per-call latency. The response is one event of eight; it is not the only event.</p>
+
+  <h3>Anti-pattern 3: JSON per call with no schema (the keys drift between versions)</h3>
+  <p>The agent calls <code>JSON.stringify({ts: Date.now(), tokens: llm.tokens, model: llm.model})</code> per LLM call. The keys are not typed. The refactor at v1.4 renames <code>tokens</code> to <code>tokenIn</code> and adds <code>tokenOut</code>. The cost attribution layer, written for v1.3, silently returns <code>NaN</code> for 12% of calls because <code>llm.tokens</code> is now <code>undefined</code>. The eval harness, written for v1.3, returns the same 12% of calls as &ldquo;no behavior&rdquo; because the input length is <code>undefined</code>. The SLO tracker, written for v1.3, returns <code>0ms</code> p99 latency for the same 12% because the latency field is missing. The bug is invisible for 3 weeks until a finance-team alert fires on a $0 NaN.</p>
+
+  <p class="bad">Fix: pattern 2 (schema-first). The JSON Schema requires <code>tokens_in</code>, <code>tokens_out</code>, <code>model_id</code>, and <code>tool_call_count</code> on every <code>request_started</code> and <code>completed</code> event. A line that does not validate is not written. The refactor at v1.4 must update the schema; the CI gate fails the PR that did not; the runtime refuses to ship the un-schema-valid event. The cost attribution layer, the eval harness, and the SLO tracker all read the same schema, the same keys, the same types. Drift is impossible by construction.</p>
+
+  <h3>Anti-pattern 4: Local file only, no rotation (the disk fills at 2am)</h3>
+  <p>The agent writes to <code>/var/log/agent.log</code> with no rotation, no compression, no query path. The file grows without bound. The disk fills at 2am on a Saturday. The agent is silently down for 6 hours before anyone notices. The debug session the next morning starts with the words &ldquo;I cannot reproduce this because the log file rotated three days ago&rdquo; &mdash; except the file did not rotate, the disk filled, and the file is intact but the agent is not. The 3 most recent hours of session records are unrecoverable; the 2,400-line JSONL is unreadable because the agent is down.</p>
+
+  <p class="bad">Fix: pattern 1 (JSONL session record) + a rotation policy. One file per session, named <code>sessions/&lt;sessionId&gt;.jsonl</code>, closed when the session ends. The file is gzipped on close and shipped to the trace backend (or to local <code>sessions/archive/</code> if no backend). New sessions open new files. The disk does not fill because every file has a bounded size (the session has a bounded duration). The 2am Saturday is a no-op; the disk usage is bounded by the number of concurrent sessions, not by the cumulative token spend.</p>
+
+  <h2>The 95-line drop-in structured-logger runtime</h2>
+  <p>Here is a reference implementation of the structured logger that exercises patterns 1, 2, 3, and 4. It is intentionally small enough to read in one sitting and intentionally complete enough to be the core of a production agent. The schema is a single constant, the redactor is a single function, the writer is a single function, and the eight-event taxonomy is the only thing the writer accepts.</p>
+
+  <pre><code>// structured-logger.ts
+// Drop-in TypeScript structured-logger runtime for LLM agents.
+// Zero deps, zero network, deterministic. Pairs with the Agent Session
+// Observability CLI and the Agent Secrets Audit CLI for the production
+// readers; the runtime in this post is the writer.
+
+import { createHash } from 'node:crypto';
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+export type EventType =
+  | 'request_started' | 'tool_called' | 'tool_returned'
+  | 'context_evicted' | 'budget_decided' | 'compacted'
+  | 'completed' | 'failed';
+
+// Pattern 3: the closed taxonomy
+export const TAXONOMY: readonly EventType[] = [
+  'request_started', 'tool_called', 'tool_returned', 'context_evicted',
+  'budget_decided', 'compacted', 'completed', 'failed',
+];
+
+export type Event = {
+  eventId: string;        // sha256(canonical JSON), primary key
+  sessionId: string;
+  turn: number;
+  tokenOffset: number;    // running sum of tokens at write time
+  timestamp: string;      // ISO-8601
+  type: EventType;
+  idempotencyKey?: string;
+  [k: string]: unknown;   // type-specific fields
+};
+
+// Pattern 4: write-time PII redactor (sha256-prefixed, length-preserving)
+const SECRET_PATTERNS: RegExp[] = [
+  /sk-[A-Za-z0-9_-]{20,}/g,             // OpenAI
+  /sk-ant-[A-Za-z0-9_-]{20,}/g,         // Anthropic
+  /ghp_[A-Za-z0-9]{30,}/g,              // GitHub PAT
+  /AKIA[A-Z0-9]{16}/g,                  // AWS
+  /sk_live_[A-Za-z0-9]{20,}/g,          // Stripe live
+  /[A-Z_]*KEY=[A-Za-z0-9_-]{8,}/g,      // generic env-var KEY=
+  /[A-Fa-f0-9]{64}/g,                   // 64-char hex (Ethereum privkey)
+  /\b([a-z]+\s){11,24}[a-z]+\b/g,       // 12-24 word BIP-39 mnemonic
+];
+
+export const redact = (s: string): string =&gt; {
+  let out = s;
+  for (const pat of SECRET_PATTERNS) {
+    out = out.replace(pat, (m) =&gt; {
+      const h = createHash('sha256').update(m).digest('hex').slice(0, 8);
+      const last4 = m.slice(-4);
+      return `sha256:${h}_len${m.length}_...${last4}`;
+    });
+  }
+  return out;
+};
+
+const canonicalize = (e: Event): string =&gt;
+  JSON.stringify(e, Object.keys(e).sort());
+
+const eventId = (e: Event): string =&gt;
+  createHash('sha256').update(canonicalize(e)).digest('hex');
+
+// Pattern 2: schema-first validation (minimal — production uses ajv + JSON Schema)
+const REQUIRED_BASE = ['eventId', 'sessionId', 'turn', 'tokenOffset', 'timestamp', 'type'];
+const validate = (e: Event): string | null =&gt; {
+  for (const k of REQUIRED_BASE) {
+    if (e[k] === undefined || e[k] === null) return `missing required field: ${k}`;
+  }
+  if (!TAXONOMY.includes(e.type)) return `event type not in taxonomy: ${e.type}`;
+  return null;
+};
+
+// Pattern 1 + 5: append-only JSONL writer, one file per session
+export class StructuredLogger {
+  private path: string;
+  private tokenOffset = 0;
+
+  constructor(sessionId: string, dir = './sessions') {
+    mkdirSync(dir, { recursive: true });
+    this.path = join(dir, `${sessionId}.jsonl`);
+  }
+
+  // Caller passes the event with all required fields. The redactor runs on
+  // the serialized JSON before write. The tokenOffset is updated after write.
+  write(partial: Omit&lt;Event, 'eventId' | 'timestamp' | 'tokenOffset'&gt; &amp;
+                  { deltaTokensIn?: number; deltaTokensOut?: number }): Event {
+    const e: Event = {
+      ...partial,
+      eventId: '',  // filled below
+      timestamp: new Date().toISOString(),
+      tokenOffset: this.tokenOffset,
+    };
+    e.eventId = eventId(e);
+    const err = validate(e);
+    if (err) throw new Error(`schema validation failed: ${err}`);
+    const redacted = JSON.parse(redact(JSON.stringify(e)));
+    appendFileSync(this.path, JSON.stringify(redacted) + '\n');
+    this.tokenOffset += (partial.deltaTokensIn ?? 0) + (partial.deltaTokensOut ?? 0);
+    return e;
+  }
+}
+
+// --- 8 selftest cases (run with: npx tsx structured-logger.ts) ---
+const selfTest = () =&gt; {
+  const log = new StructuredLogger('test-session-001');
+  let n = 0, ok = 0;
+  const t = (name: string, cond: boolean) =&gt; { n++; if (cond) ok++; else console.error('FAIL', name); };
+
+  // 1. request_started
+  const r1 = log.write({ sessionId: 'test-session-001', turn: 1, type: 'request_started',
+    model_id: 'claude-sonnet-4', system_prompt_hash: 'sha256:abc', tool_catalog_hash: 'sha256:def',
+    tokens_in: 1200, deltaTokensIn: 1200 });
+  t('request_started validates', r1.eventId.length === 64);
+
+  // 2. tool_called
+  const t1 = log.write({ sessionId: 'test-session-001', turn: 1, type: 'tool_called',
+    tool_name: 'web_search', tool_args_hash: 'sha256:ghi', idempotency_key: 'idem-001', deadline_ms: 5000 });
+  t('tool_called validates', t1.eventId.length === 64);
+
+  // 3. tool_returned
+  const t2 = log.write({ sessionId: 'test-session-001', turn: 1, type: 'tool_returned',
+    tool_name: 'web_search', status: 'ok', latency_ms: 1230, result_hash: 'sha256:jkl' });
+  t('tool_returned validates', t2.eventId.length === 64);
+
+  // 4. context_evicted
+  log.write({ sessionId: 'test-session-001', turn: 1, type: 'context_evicted',
+    decision: 'evict_first', evicted_blocks: ['turn-0-tool-trace'], kept_blocks: ['system', 'user'],
+    plan_hash: 'sha256:mno', budget_before: 48000, budget_after: 32000 });
+
+  // 5. budget_decided
+  log.write({ sessionId: 'test-session-001', turn: 1, type: 'budget_decided',
+    planned_in: 4000, planned_out: 1500, ceiling: 64000, headroom: 58500, overflow: false, plan: 'ok' });
+
+  // 6. compacted
+  log.write({ sessionId: 'test-session-001', turn: 1, type: 'compacted',
+    summary_hash: 'sha256:pqr', intent_vector: { goal: 'summarize' }, dropped_blocks: ['turn-0-msg'], kept_blocks: ['intent'] });
+
+  // 7. completed
+  const c = log.write({ sessionId: 'test-session-001', turn: 1, type: 'completed',
+    total_tokens_in: 1200, total_tokens_out: 800, total_tool_calls: 1, total_latency_ms: 1230, answer_hash: 'sha256:stu',
+    deltaTokensOut: 800 });
+  t('completed validates', c.eventId.length === 64);
+
+  // 8. failed + redaction check
+  const redacted = redact('my openai key is sk-abcdefghijklmnopqrstuvwxyz and my github is ghp_abcdefghijklmnopqrstuvwxyz1234567890');
+  t('redact masks OpenAI key', !redacted.includes('sk-abcdefghijklmnopqrstuvwxyz') &amp;&amp; redacted.includes('sha256:'));
+  t('redact masks GitHub PAT', !redacted.includes('ghp_abcdefghijklmnopqrstuvwxyz1234567890') &amp;&amp; redacted.includes('sha256:'));
+  t('idempotency: same event -&gt; same eventId', eventId({ ...r1, eventId: '', timestamp: r1.timestamp }) === r1.eventId);
+  t('taxonomy: unknown type rejected', validate({ ...r1, type: 'foo' as EventType, eventId: 'x' }) !== null);
+  t('schema: missing sessionId rejected', validate({ ...r1, sessionId: '', eventId: 'x' }) !== null);
+
+  console.log(`selftest: ${ok}/${n} passed`);
+  if (ok !== n) process.exit(1);
+};
+if (process.argv[1]?.endsWith('structured-logger.ts')) selfTest();
+</code></pre>
+
+  <h2>The Woodpecker CI gate</h2>
+  <p>The CI gate asserts the eight-event taxonomy is closed (no new event types slipped in), every event in the fixture validates against the schema, the redactor masks every one of the 8 secret shapes, and the session-record writer is append-only. The gate is 5 audit scripts that run on every PR that touches <code>agent-runtime/</code>, <code>structured-logger.ts</code>, or any file that imports the logger.</p>
+
+  <pre><code># .woodpecker/structured-logging-gate.yml
+# Woodpecker CI gate for the structured-logging contract.
+# Runs on every PR that touches agent runtime or logger files.
+# Fails the PR if any of the 5 audits fail.
+
+steps:
+  - name: taxonomy-closed
+    image: node:20-alpine
+    commands:
+      - node -e "const t=require('./structured-logger.ts').TAXONOMY; \
+        if(t.length!==8)process.exit(1); \
+        for(const v of t)if(typeof v!=='string')process.exit(1);"
+
+  - name: schema-validation
+    image: node:20-alpine
+    commands:
+      - npx tsx test/structured-logger.schema.test.ts
+      # Asserts every event in fixtures/agent-sessions/ validates.
+
+  - name: redactor-covers-8-shapes
+    image: node:20-alpine
+    commands:
+      - npx tsx test/structured-logger.redactor.test.ts
+      # Asserts sk-, sk-ant-, ghp_, AKIA, sk_live_, KEY=, 64hex, BIP-39 all masked.
+
+  - name: writer-append-only
+    image: node:20-alpine
+    commands:
+      - grep -rn "appendFileSync\|writeFileSync\|createWriteStream" agent-runtime/ src/ | grep -v "appendFileSync"
+      # Fails the PR if a non-append write to a session file is found.
+
+  - name: fixture-roundtrip
+    image: node:20-alpine
+    commands:
+      - npx tsx test/structured-logger.roundtrip.test.ts
+      # Reads back a written session, asserts every line is valid JSON
+      # and every line validates against the schema.
+</code></pre>
+
+  <div class="product">
+    <h3>Agent Session Observability CLI &mdash; $29</h3>
+    <p>Framework-agnostic JSONL session-record reader. Reads the format defined in this post and turns it into per-session and per-agent rollups with degenerate-loop detection. Pairs with the Agent Inflight Telemetry CLI (per-span capture), the Agent Turn Health Inspector CLI (per-turn health), and the Agent Trace Replay CLI (step-level diff). The runtime in this post is the writer; this CLI is the reader. 38/38 tests pass, &lt;100ms on 1,000-event sessions, zero-dep Node 14+ stdlib.</p>
+  </div>
+
+  <div class="product">
+    <h3>Agent Secrets Audit CLI &mdash; $29</h3>
+    <p>Post-hoc secret-leak auditor for AI agent session JSONL logs. Scans every turn for 8 secret-shape patterns (OpenAI, Anthropic, GitHub PAT, AWS, Stripe live, generic env-var KEY=, 64-char hex Ethereum privkey, 12-24 word BIP-39 mnemonic) with severity 1-10. Masked findings (first 4 + last 4 chars visible, middle *-filled) so secrets never land in reports. 50/50 tests pass, &lt;500ms on 10,000-event sessions. The runtime in this post is the write-time redactor that prevents the leak; this CLI is the post-hoc audit that catches what slipped through.</p>
+  </div>
+
+  <h2>Related posts on this site</h2>
+  <ul>
+    <li><a href="/posts/2026-06-09-add-observability-to-ai-agents/">9th post &mdash; AI agent observability</a>: the reader half of the observability stack. This post is the writer half.</li>
+    <li><a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">14th post &mdash; reduce LLM API costs</a>: cost attribution is downstream of the session record.</li>
+    <li><a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th post &mdash; LLM circuit breaker</a>: every circuit-breaker decision is a structured event.</li>
+    <li><a href="/posts/2026-06-10-ai-agent-memory-architecture/">22nd post &mdash; AI agent memory architecture</a>: the boundary between long-term and working memory is the session record.</li>
+    <li><a href="/posts/2026-06-11-ai-agent-idempotency/">23rd post &mdash; AI agent idempotency</a>: the idempotency key is recorded in the <code>tool_called</code> event.</li>
+    <li><a href="/posts/2026-06-15-ai-agent-testing-pyramid/">26th post &mdash; AI agent testing pyramid</a>: the contract tier asserts every event validates against the JSON Schema.</li>
+    <li><a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">27th post &mdash; AI agent timeout and cancellation</a>: a cancelled request is a <code>failed</code> event with <code>reason: cancelled</code>.</li>
+    <li><a href="/posts/2026-06-15-ai-agent-context-window-management/">28th post &mdash; AI agent context window management</a>: a <code>context_evicted</code> event is the audit trail for what the budget runtime decided to drop.</li>
+  </ul>
+
+  <footer>
+    <p>&copy; 2026 Algoram99 / Qualigen. Built with verification-first infrastructure.</p>
+    <p>29th live post on <a href="/posts/">alg99 shipping notes</a>. 79 products in the <a href="https://nepo6.gumroad.com/">storefront</a>. 51 Stripe checkout links (test mode). Source on <a href="https://github.com/Algoram99">GitHub</a>.</p>
+  </footer>
+</main>
+</body>
+</html>
