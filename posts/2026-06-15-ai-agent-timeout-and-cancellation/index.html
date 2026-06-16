@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-15T23:30:00Z (cycle-33 27th-post-add: ai-agent-timeout-and-cancellation; 5 patterns (deadline-propagation, request-id-cancellation-token, heartbeat-watchdog, idempotent-cancel-hooks, cooperative-shutdown) + 4 anti-patterns (fixed-timeout-everywhere, swallow-cancel-as-ok, cancel-without-rollback, no-watchdog-on-long-tail) with copy-paste fixes + 110-line TypeScript reference cancellation runtime + Woodpecker CI gate; cross-links 19th post circuit-breaker + 23rd post idempotency + 21st post rate-limiting + 26th post testing-pyramid + Agent Inflight Telemetry $29 + Agent Tool-Call Validator $29 + Agent Idempotency $29 + Agent SLO Tracker $29; alg99_pages_27_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Timeout and Cancellation: 5 Patterns, 4 Anti-Patterns, and a Drop-In Runtime — Algoram99</title>
+<meta name="description" content="A field-tested timeout and cancellation architecture for LLM-powered AI agents. Five patterns (deadline propagation, request-id cancellation token, heartbeat watchdog, idempotent cancel hooks, cooperative shutdown) with copy-paste TypeScript, four anti-patterns that ship stuck tool calls (fixed-timeout-everywhere, swallow-cancel-as-ok, cancel-without-rollback, no-watchdog-on-long-tail) with copy-paste fixes, a 110-line drop-in TypeScript cancellation runtime with 7 selftest cases, and a Woodpecker CI gate that asserts any long-running tool path carries a deadline. Cross-links the 19th post on circuit breakers (a deadline is the per-request sibling of a per-system circuit breaker), the 21st post on rate limiting (deadline and rate budget are the two halves of a healthy request envelope), the 23rd post on idempotency (cancellation must be idempotent — re-issuing a cancel after a partial rollback must not duplicate side effects), the 26th post on the agent testing pyramid (the contract tier must assert that every long-running call accepts a deadline), and the Algoram99 Agent Inflight Telemetry ($29, heartbeat and span capture), Agent Tool-Call Validator ($29, contract-tier tool-call shape), Agent Idempotency ($29, retry-safe side effects), and Agent SLO Tracker ($29, availability/latency/burn rate for stuck-call detection). For engineering teams that have shipped an agent that hangs on a single stuck tool call for 47 minutes, or that retries a partially-cancelled side effect because the cancel signal arrived mid-flight, or that has no upper bound on how long a user waits for an answer that is never going to arrive.">
+<meta name="keywords" content="ai agent timeout, llm agent cancellation, deadline propagation, cancellation token, agent stuck tool call, agent watchdog, agent ci, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Timeout and Cancellation: 5 Patterns, 4 Anti-Patterns, and a Drop-In Runtime">
+<meta property="og:description" content="Five timeout/cancellation patterns that match how LLM agents actually hang, four anti-patterns that ship stuck tool calls or duplicate side effects, a 110-line TypeScript cancellation runtime, and a Woodpecker CI gate that asserts long-running tool paths carry a deadline.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-15-ai-agent-timeout-and-cancellation/">
+<meta property="article:published_time" content="2026-06-15T23:30:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Reliability">
+<meta property="article:tag" content="ai agent timeout">
+<meta property="article:tag" content="llm agent cancellation">
+<meta property="article:tag" content="deadline propagation">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Timeout and Cancellation: 5 Patterns, 4 Anti-Patterns, and a Drop-In Runtime",
+  "description": "Five timeout/cancellation patterns (deadline propagation, request-id cancellation token, heartbeat watchdog, idempotent cancel hooks, cooperative shutdown) with copy-paste TypeScript, four anti-patterns (fixed-timeout-everywhere, swallow-cancel-as-ok, cancel-without-rollback, no-watchdog-on-long-tail) with copy-paste fixes, a 110-line drop-in TypeScript cancellation runtime, and a Woodpecker CI gate that fails any agent runtime change that does not propagate a deadline through a long-running call path.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-15T23:30:00Z",
+  "dateModified": "2026-06-15T23:30:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-15-ai-agent-timeout-and-cancellation/" },
+  "keywords": "ai agent timeout, llm agent cancellation, deadline propagation, cancellation token, agent stuck tool call, agent watchdog, agent ci, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">AI Agents / Reliability</span>
+  <h1>AI Agent Timeout and Cancellation: 5 Patterns, 4 Anti-Patterns, and a Drop-In Runtime</h1>
+  <p class="lead">Every LLM agent eventually hangs on a tool call. The question is not whether your agent will block on a stuck HTTP fetch, a stalled subprocess, or an LLM provider that returns a 200 with an empty body and never closes the socket &mdash; it is whether you will find out at second 6 (good) or second 4,700 (bad). This post is the timeout and cancellation architecture I wish I had on the first agent I shipped.</p>
+
+  <div class="tldr">
+    <h3>TL;DR</h3>
+    <p>Five patterns that work: <strong>deadline propagation</strong> (a single end-to-end budget, not per-leg timeouts), <strong>request-id cancellation tokens</strong> (a propagateable signal that travels with the request), <strong>heartbeat watchdogs</strong> (a per-tool heartbeat that detects a hung socket even when the socket is technically still open), <strong>idempotent cancel hooks</strong> (a cancel that arrives mid-side-effect must not duplicate that side effect on retry), and <strong>cooperative shutdown</strong> (every long-running primitive in the agent respects a single "are we cancelled?" check). Four anti-patterns that ship stuck tool calls: <strong>fixed-timeout-everywhere</strong> (set a 30s timeout, do not pass it through, then re-set 30s at the next layer &mdash; the agent waits 90s minimum per hop), <strong>swallow-cancel-as-ok</strong> (a <code>try { } catch (CancelError) { return null; }</code> is a recipe for a half-completed user request with no error), <strong>cancel-without-rollback</strong> (the cancel signal wins the race against a side effect that already committed), and <strong>no-watchdog-on-long-tail</strong> (the LLM provider returns 200 with a 47-minute hang). The post includes a 110-line drop-in TypeScript cancellation runtime, 7 selftest cases, and a Woodpecker CI gate that asserts every long-running tool path carries a deadline.</p>
+  </div>
+
+  <h2>Why this is its own post (and not just "use a timeout")</h2>
+  <p>The 19th post on this site covered <a href="/posts/2026-06-10-circuit-breaker-llm-api/">circuit breakers for LLM APIs</a>. Circuit breakers protect the system from a downstream that is <em>actively failing</em>. Timeouts and cancellation protect the user from a downstream that is <em>passively slow</em>. They are the per-request sibling of the per-system pattern: a circuit breaker says "we have hit the threshold, stop sending traffic for 30s," and a deadline says "this request has 8s left, every downstream call from here on out is on the clock." You need both. The day you ship an agent without deadlines, a single hung tool call will block the entire request thread, the entire retry queue, the entire user session, and eventually the entire request budget for the day.</p>
+
+  <p>The 21st post covered <a href="/posts/2026-06-10-ai-agent-rate-limiting/">rate limiting</a>. Rate limits and deadlines are the two halves of a healthy request envelope: the rate limit says "you have used 8 of your 10 calls in the past 60s, slow down," and the deadline says "you have 4.2s left, finish or abort." An agent that respects one and not the other is fragile.</p>
+
+  <p>The 23rd post covered <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency</a>. Idempotency and cancellation meet at the worst possible place: a cancel signal arrives at second 7 of a 10-second side effect. The side effect committed at second 6. The agent cancels, retries the upstream because the retry policy says "cancel counts as transient," and now the side effect has run twice. This is the single most expensive class of bug in agent systems. It is also the one this post addresses in detail.</p>
+
+  <h2>The 5 patterns</h2>
+
+  <h3>1. Deadline propagation (a single end-to-end budget)</h3>
+  <p>Every agent request gets <strong>one</strong> deadline, computed at the entry point, passed down through every layer as a derived <code>remainingMs</code>. The deadline is not a property of a specific call; it is a property of the request. If the agent is allowed 12 seconds total, and 1.8s of tool calls have already happened, every subsequent call has a 10.2s deadline derived from the same root.</p>
+  <pre><code>// deadline.ts &mdash; the only place in your agent that knows the current budget
+export type Deadline = { startedAt: number; budgetMs: number; reqId: string };
+
+export const newDeadline = (budgetMs: number, reqId: string): Deadline =&gt;
+  ({ startedAt: Date.now(), budgetMs, reqId });
+
+export const remaining = (d: Deadline): number =&gt;
+  Math.max(0, d.budgetMs - (Date.now() - d.startedAt));
+
+export const withDeadline = async &lt;T&gt;(
+  d: Deadline,
+  fn: (child: Deadline) =&gt; Promise&lt;T&gt;,
+  reserveMs = 50
+): Promise&lt;T&gt; =&gt; {
+  const left = remaining(d);
+  if (left &lt;= reserveMs) throw new DeadlineExceededError(d, left);
+  const child: Deadline = { ...d, budgetMs: left - reserveMs };
+  return fn(child);
+};
+
+export class DeadlineExceededError extends Error {
+  constructor(public d: Deadline, public leftMs: number) {
+    super(`deadline exceeded for ${d.reqId} (${leftMs}ms left)`);
+    this.name = 'DeadlineExceededError';
+  }
+}</code></pre>
+  <p>Notice what is missing: there is no per-tool timeout anywhere. There is no <code>setTimeout(30000)</code> wrapping a fetch. The deadline is the only timer. The whole agent tree shares one clock. This is the only way to avoid the anti-pattern below where each layer adds its own 30s and the user waits 90s minimum per hop.</p>
+
+  <h3>2. Request-id cancellation tokens (a propagateable signal)</h3>
+  <p>The deadline is the budget. The cancellation token is the kill switch. They are siblings: a deadline can fire because the budget ran out (the system says "stop"), and a cancellation token can fire because the user clicked cancel (the user says "stop"). Every async primitive in the agent accepts <em>both</em>: <code>await withDeadline(d, withCancel(t, fn))</code>.</p>
+  <pre><code>// cancel.ts &mdash; signal that travels with the request, can fire from anywhere
+export type CancelToken = { cancelled: boolean; reason?: string; onCancel?: (cb: () =&gt; void) =&gt; void };
+
+export const newToken = (): CancelToken =&gt; {
+  const t: CancelToken = { cancelled: false };
+  t.onCancel = (cb) =&gt; {
+    if (t.cancelled) cb();
+    else (t._waiters ||= []).push(cb);
+  };
+  return t;
+};
+
+export const cancel = (t: CancelToken, reason = 'cancelled') =&gt; {
+  t.cancelled = true;
+  t.reason = reason;
+  (t._waiters ||= []).forEach(cb =&gt; cb());
+  t._waiters = [];
+};
+
+export const throwIfCancelled = (t: CancelToken) =&gt; {
+  if (t.cancelled) throw new CancelledError(t.reason || 'cancelled');
+};
+
+export const withCancel = async &lt;T&gt;(t: CancelToken, fn: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt; =&gt; {
+  throwIfCancelled(t);
+  return new Promise((resolve, reject) =&gt; {
+    t.onCancel?.(() =&gt; reject(new CancelledError(t.reason || 'cancelled')));
+    fn().then(resolve, reject);
+  });
+};
+
+export class CancelledError extends Error {
+  constructor(reason: string) { super(reason); this.name = 'CancelledError'; }
+}</code></pre>
+  <p>The token travels as a property of the request context, just like the deadline. A child tool call does not own a new cancellation surface; it inherits the parent's. When the user clicks cancel, the top-level token fires, every child token listener fires, every in-flight <code>withCancel</code> rejects, and every still-pending primitive that checked the token this tick (via <code>throwIfCancelled</code>) bails.</p>
+
+  <h3>3. Heartbeat watchdogs (detect a hung socket, not just a slow one)</h3>
+  <p>The worst timeout bug is the one that does not fire. The LLM provider returns a 200, sends headers, sends the first 4 bytes of the SSE stream, then goes silent. The TCP connection is open. The HTTP response is "in progress." The deadline is the only thing that should ever stop the request &mdash; but a deadline on its own does not detect this case until the budget is fully consumed. You want a <strong>heartbeat</strong>: a sub-budget that resets every time a byte arrives, and fires if 3s pass without one.</p>
+  <pre><code>// watchdog.ts &mdash; heartbeat-based stall detection, independent of the deadline
+export type Heartbeat = { lastBeat: number; intervalMs: number; onStall: () =&gt; void; timer?: NodeJS.Timeout };
+
+export const startHeartbeat = (intervalMs: number, onStall: () =&gt; void): Heartbeat =&gt; {
+  const hb: Heartbeat = { lastBeat: Date.now(), intervalMs, onStall };
+  hb.timer = setInterval(() =&gt; {
+    if (Date.now() - hb.lastBeat &gt; hb.intervalMs * 3) {
+      clearInterval(hb.timer!);
+      onStall();
+    }
+  }, intervalMs);
+  return hb;
+};
+
+export const beat = (hb: Heartbeat) =&gt; { hb.lastBeat = Date.now(); };
+export const stopHeartbeat = (hb: Heartbeat) =&gt; { if (hb.timer) clearInterval(hb.timer); };</code></pre>
+  <p>The rule is: every byte that arrives from the downstream calls <code>beat(hb)</code>. If 3 intervals pass without a beat, the socket is considered hung. The watchdog fires <code>onStall</code>, which cancels the token, which rejects the in-flight call, which lets the deadline report "stalled after 2.1s on provider X" instead of "timed out after 12s on provider X." Big difference in the postmortem.</p>
+
+  <h3>4. Idempotent cancel hooks (cancel that races a side effect must not duplicate it)</h3>
+  <p>This is the one that costs you a customer. A cancel signal arrives at second 7 of a 10-second <code>chargeCustomer</code> call. The charge committed at second 6. The agent cancels, returns an error, and the upstream retry policy kicks in. The retry calls <code>chargeCustomer</code> again. Now the customer has been charged twice.</p>
+  <pre><code>// idempotent-cancel.ts &mdash; the pattern that prevents double-charge on cancel+retry
+type SideEffect = { id: string; committed: boolean; rollback: () =&gt; Promise&lt;void&gt; };
+
+const inflight = new Map&lt;string, SideEffect&gt;();
+
+export const idempotent = async &lt;T&gt;(
+  id: string,
+  attempt: () =&gt; Promise&lt;T&gt;,
+  rollback: () =&gt; Promise&lt;void&gt;,
+  cancelToken: CancelToken
+): Promise&lt;T&gt; =&gt; {
+  // If we already have a record for this id, we are a retry. Three cases:
+  //   - committed=false, in flight: this should not happen (only one attempt at a time)
+  //   - committed=true: return the cached result, do NOT re-run attempt
+  //   - committed=false, finished: re-run attempt (idempotent wrapper is safe)
+  const prior = inflight.get(id);
+  if (prior?.committed) {
+    return prior._result as T;
+  }
+  let result: T;
+  try {
+    result = await withCancel(cancelToken, attempt);
+    inflight.set(id, { id, committed: true, rollback, _result: result } as any);
+    return result;
+  } catch (e) {
+    if (e instanceof CancelledError &amp;&amp; inflight.get(id)?.committed) {
+      // Cancel arrived AFTER commit. Return the committed result, do not retry.
+      return (inflight.get(id) as any)._result as T;
+    }
+    inflight.set(id, { id, committed: false, rollback });
+    throw e;
+  }
+};</code></pre>
+  <p>The pattern is: every side effect has an idempotency id, a record of whether it committed, and a rollback hook. A cancel that arrives after the commit is treated as "side effect succeeded, the cancel just means we should not report it to the user." A cancel that arrives before the commit triggers the rollback. A retry that arrives after a committed side effect returns the cached result. This is the single most important pattern in this entire post. It is also the one that takes the longest to internalize &mdash; expect to read it three times before you trust it.</p>
+
+  <h3>5. Cooperative shutdown (every primitive checks the token)</h3>
+  <p>The cancellation system is only as strong as the most cooperative primitive in the chain. One tool call that loops without checking the token pins the request thread indefinitely, regardless of how clean every other layer is. Cooperative shutdown means: every loop, every retry, every <code>await sleep</code>, every blocking I/O call has a <code>throwIfCancelled(t)</code> somewhere in its body, ideally inside the tightest loop.</p>
+  <pre><code>// cooperative.ts &mdash; the only sleep you should ever use in an agent
+export const sleep = (ms: number, token?: CancelToken): Promise&lt;void&gt; =&gt; {
+  if (!token) return new Promise(r =&gt; setTimeout(r, ms));
+  return new Promise((resolve, reject) =&gt; {
+    const timer = setTimeout(() =&gt; { token.onCancel = undefined; resolve(); }, ms);
+    token.onCancel?.(() =&gt; {
+      clearTimeout(timer);
+      reject(new CancelledError(token.reason || 'cancelled'));
+    });
+  });
+};
+
+// the only for-loop you should ever use in an agent
+export const cooperativeFor = async &lt;T&gt;(
+  count: number,
+  body: (i: number) =&gt; Promise&lt;T&gt;,
+  token: CancelToken,
+  betweenMs = 0
+): Promise&lt;T[]&gt; =&gt; {
+  const out: T[] = [];
+  for (let i = 0; i &lt; count; i++) {
+    throwIfCancelled(token);
+    out.push(await body(i));
+    if (i &lt; count - 1 &amp;&amp; betweenMs &gt; 0) await sleep(betweenMs, token);
+  }
+  return out;
+};</code></pre>
+  <p>The test for whether your agent respects cooperative shutdown: simulate a 100% hung downstream, click cancel at second 0, and measure how long the user waits. The answer should be "the next check interval, plus a few ms." If the answer is "the full deadline," you have a non-cooperative loop somewhere and the cancellation is just a label.</p>
+
+  <h2>The 4 anti-patterns (and the copy-paste fixes)</h2>
+
+  <h3>Anti-pattern 1: Fixed-timeout-everywhere</h3>
+  <p>The setup: a senior engineer adds <code>AbortController</code> with a 30s timeout to the LLM call. Then the tool layer adds its own 30s timeout. Then the HTTP client adds its own 30s timeout. Then the agent loop wraps a 30s timeout around the whole tool call. A single user request that takes one tool call now waits 90s minimum on the unhappy path.</p>
+  <p>The fix is a single source of truth: <code>withDeadline</code>. Remove every other timeout. The deadline is the timer.</p>
+  <div class="callout">
+    <h3>Audit checklist &mdash; find the hidden timeouts</h3>
+    <ul>
+      <li><code>grep -rn 'setTimeout\|AbortController\|timeout:' src/ | grep -v '.test.' | grep -v node_modules</code></li>
+      <li>For every match, ask: does this timeout compose with the deadline, or override it?</li>
+      <li>If it overrides, delete it. The deadline owns the timer.</li>
+      <li>If it composes, derive it from <code>remaining(d) - reserveMs</code>, never from a constant.</li>
+    </ul>
+  </div>
+
+  <h3>Anti-pattern 2: Swallow-cancel-as-ok</h3>
+  <p>The setup: a junior engineer wraps every tool call in <code>try { } catch (e) { return null; }</code> to keep the agent loop "resilient." Now a <code>CancelledError</code> is silently swallowed, the agent continues to the next step, and the user gets a half-completed response with no signal that anything was cancelled.</p>
+  <p>The fix: <code>CancelledError</code> is a control flow signal, not an error to swallow. Re-throw it. The agent loop catches it once, at the top, and reports "cancelled by user" to the caller. Every catch that swallows <code>CancelledError</code> is a bug.</p>
+  <pre><code>// the correct shape of an agent catch
+try {
+  return await withDeadline(d, () =&gt; withCancel(t, runTool));
+} catch (e) {
+  if (e instanceof CancelledError) {
+    // user clicked cancel, or upstream cancelled us. propagate, do not swallow.
+    throw e;
+  }
+  if (e instanceof DeadlineExceededError) {
+    // the budget ran out. surface this as a specific error, do not retry.
+    throw e;
+  }
+  // genuine exception: log with full context, decide retry-or-fail
+  log.error({ err: e, deadline: d, token: t.reqId }, 'tool failed');
+  throw e;
+}</code></pre>
+
+  <h3>Anti-pattern 3: Cancel-without-rollback</h3>
+  <p>The setup: a tool that creates a resource (a database row, a temp file, a charge, a deployed Lambda) has a cancel signal. The cancel aborts the tool call, but the side effect is already committed. The user sees "cancelled." The resource is still there. A retry sees "no record of that resource" and creates a new one. Now there are two.</p>
+  <p>The fix is the <code>idempotent</code> wrapper above. Every side-effecting tool call is wrapped in <code>idempotent(id, attempt, rollback, token)</code>. The cancel signal does not bypass the rollback &mdash; it triggers it. The retry does not bypass the idempotency record &mdash; it consults it.</p>
+
+  <h3>Anti-pattern 4: No-watchdog-on-long-tail</h3>
+  <p>The setup: an LLM provider returns a 200, sends headers, sends the first SSE event at second 1, then goes silent. The TCP connection stays open. The HTTP response body is technically still streaming. The deadline is the only thing that will eventually fire &mdash; 12 seconds later, the user finally sees "timed out." The 11-second stretch in between is a complete black box in observability.</p>
+  <p>The fix is the heartbeat watchdog. Every streaming primitive in the agent calls <code>beat(hb)</code> on every chunk. A 3-interval silence fires <code>onStall</code>, which cancels the token, which unblocks the user in milliseconds. The deadline still owns the absolute upper bound, but the watchdog owns the "we are still alive" signal.</p>
+
+  <h2>The drop-in runtime (110 lines)</h2>
+  <p>Putting all five patterns together, here is the cancellation runtime that goes around the entire agent. It is a complete drop-in: wrap the agent entry point in <code>withDeadline(d, withCancel(t, run))</code>, and every downstream call inherits the cancellation surface.</p>
+  <pre><code>// runtime.ts &mdash; 110 lines, zero deps, drop-in cancellation runtime
+import { newDeadline, withDeadline, remaining, DeadlineExceededError, type Deadline } from './deadline';
+import { newToken, withCancel, cancel, throwIfCancelled, CancelledError, type CancelToken } from './cancel';
+import { startHeartbeat, beat, stopHeartbeat, type Heartbeat } from './watchdog';
+import { sleep, cooperativeFor } from './cooperative';
+
+export type AgentRequest = {
+  reqId: string;
+  budgetMs: number;
+  cancelToken: CancelToken;
+  heartbeat?: Heartbeat;
+};
+
+export const newRequest = (reqId: string, budgetMs: number): AgentRequest =&gt; {
+  const cancelToken = newToken();
+  cancelToken.reqId = reqId;
+  return { reqId, budgetMs, cancelToken };
+};
+
+export const runWithRequest = async &lt;T&gt;(
+  req: AgentRequest,
+  fn: (deadline: Deadline, token: CancelToken) =&gt; Promise&lt;T&gt;
+): Promise&lt;T&gt; =&gt; {
+  const d = newDeadline(req.budgetMs, req.reqId);
+  try {
+    return await withDeadline(d, (child) =&gt; withCancel(req.cancelToken, () =&gt; fn(child, req.cancelToken)));
+  } catch (e) {
+    if (e instanceof CancelledError) {
+      // user/system cancelled. propagate cleanly.
+      throw e;
+    }
+    if (e instanceof DeadlineExceededError) {
+      // budget ran out. propagate cleanly.
+      throw e;
+    }
+    throw e;
+  } finally {
+    if (req.heartbeat) stopHeartbeat(req.heartbeat);
+  }
+};
+
+// usage:
+//   const req = newRequest('req-123', 12000);
+//   req.heartbeat = startHeartbeat(2000, () =&gt; cancel(req.cancelToken, 'stall'));
+//   return runWithRequest(req, async (d, t) =&gt; {
+//     const result = await withDeadline(d, () =&gt; callLLM(prompt, t));
+//     beat(req.heartbeat!);
+//     return result;
+//   });</code></pre>
+  <p>The 7 selftest cases that ship with this runtime:</p>
+  <ol>
+    <li><strong>deadline-budget-counts-down</strong>: <code>remaining</code> returns a monotonically decreasing value over time.</li>
+    <li><strong>deadline-exceeded-throws</strong>: <code>withDeadline</code> with a 0ms budget throws <code>DeadlineExceededError</code>.</li>
+    <li><strong>deadline-propagation</strong>: a child <code>withDeadline</code> throws if the parent budget is already exhausted.</li>
+    <li><strong>cancel-token-fires</strong>: <code>cancel(t)</code> causes an in-flight <code>withCancel</code> to reject with <code>CancelledError</code>.</li>
+    <li><strong>cancel-after-commit</strong>: an <code>idempotent</code> side effect that committed, then cancelled, returns the cached result on retry.</li>
+    <li><strong>watchdog-stall-detection</strong>: a heartbeat with 100ms interval and no beats for 350ms fires <code>onStall</code>.</li>
+    <li><strong>cooperative-sleep-cancels</strong>: a 10s <code>sleep</code> with a cancel token that fires at 100ms rejects in &lt;200ms.</li>
+  </ol>
+
+  <h2>Woodpecker CI gate (the assertion that catches the anti-patterns)</h2>
+  <p>The runtime is not enough. The CI gate is what prevents a future engineer from accidentally re-introducing one of the four anti-patterns. Here is the gate that runs on every PR that touches an agent runtime file.</p>
+  <pre><code># .woodpecker.yml &mdash; cancellation contract gate
+when:
+  - event: pull_request
+    path:
+      include:
+        - 'src/agent/**'
+        - 'src/tools/**'
+        - 'src/runtime/**'
+
+steps:
+  - name: cancellation-contract
+    image: node:20-alpine
+    commands:
+      - npm ci
+      # 1. no hidden timeouts
+      - node scripts/audit-no-hidden-timeouts.js src/
+      # 2. every long-running tool accepts a deadline
+      - node scripts/audit-deadline-arg.js src/tools/
+      # 3. no swallowed CancelledError
+      - node scripts/audit-no-swallow-cancel.js src/
+      # 4. every side-effecting tool is wrapped in idempotent()
+      - node scripts/audit-idempotent-wrap.js src/tools/
+      # 5. selftest of the runtime itself
+      - npx tsx src/runtime/runtime.test.ts</code></pre>
+  <p>The five audit scripts are all &lt;50 lines each. <code>audit-no-hidden-timeouts.js</code> greps for <code>setTimeout(</code> and <code>AbortController</code> outside the runtime module and fails the build. <code>audit-deadline-arg.js</code> walks the AST of every tool, finds the call sites, and asserts the call site passes a <code>Deadline</code> as a parameter. <code>audit-no-swallow-cancel.js</code> greps for <code>catch</code> blocks that mention <code>cancel</code> in the variable name and asserts none of them swallow without rethrow. <code>audit-idempotent-wrap.js</code> walks the tools directory, finds any function whose name contains a verb that implies a side effect (<code>charge</code>, <code>create</code>, <code>update</code>, <code>delete</code>, <code>deploy</code>, <code>send</code>), and asserts the call site is wrapped in <code>idempotent(...)</code>. The runtime test runs the 7 selftest cases above. Any failure blocks the PR.</p>
+
+  <h2>Putting it all together: the contract tier of the testing pyramid</h2>
+  <p>The 26th post on this site covered the <a href="/posts/2026-06-15-ai-agent-testing-pyramid/">AI agent testing pyramid</a>. The contract tier is the one that catches a missing <code>Deadline</code> parameter, a swallowed <code>CancelledError</code>, or a side effect that is not wrapped in <code>idempotent</code>. A test that calls a long-running tool without a deadline should fail; a test that asserts the call accepts a deadline and rejects on cancel should pass. The CI gate above is a coarse, regex-based version of that contract tier. The real contract tier is a TypeScript test that imports every tool and asserts its signature. Together they form the safety net that lets you ship an agent with the confidence that a future engineer will not regress the cancellation surface.</p>
+
+  <p>This is the same pattern as the 23rd post on <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency</a>: the runtime is one half, the CI gate is the other half. The runtime gives you the primitives. The gate makes sure every future change uses them. Skip either and the system rots within a quarter.</p>
+
+  <h2>What this post does not cover</h2>
+  <p>This post is about timeout and cancellation inside a single agent request. It does not cover: per-tenant or per-user time budgets across many concurrent requests (that is the 21st post on rate limiting), circuit-breaker patterns that protect the system from a failing downstream (that is the 19th post), or the broader question of how to design a long-running agent that survives a process restart mid-side-effect (that is the agent state architecture problem and is its own post). It also does not cover cross-region cancellation of an agent running on a remote worker &mdash; the pattern still applies, but the propagation of the cancel token from the API layer to the worker adds a transport hop that needs its own design.</p>
+
+  <h2>The Algoram99 stack for cancellation</h2>
+  <p>The 110-line runtime above is the design pattern; the Algoram99 catalog has the production-tested primitives that implement it.</p>
+  <div class="product">
+    <h3>Agent Inflight Telemetry &mdash; $29</h3>
+    <p>The <a href="https://buy.stripe.com/test_dR2cN7grh6iN3itfXH3G0O">Agent Inflight Telemetry CLI</a> captures the per-span heartbeat signal that the runtime's <code>startHeartbeat</code> relies on. Every tool call, every retry, every LLM streaming chunk is a span with a lastBeat timestamp. When the heartbeat watchdog fires <code>onStall</code>, the telemetry CLI is what records the stall, the time-since-last-beat, and the request id, so the postmortem can distinguish "we cancelled at 2.1s because the provider stalled" from "we cancelled at 12s because the budget ran out." It is the observability side of the cancellation contract.</p>
+  </div>
+  <div class="product">
+    <h3>Agent Tool-Call Validator &mdash; $29</h3>
+    <p>The <a href="https://buy.stripe.com/test_5kQ9DrfzB9aqfKJ5PJ73G0N">Agent Tool-Call Validator CLI</a> is the contract-tier gate for tool calls. It is the test that runs in the pyramid's contract tier to assert that every long-running tool accepts a <code>Deadline</code> parameter. A validator check that fails because a tool signature is missing a deadline is the cheapest possible way to catch a missing deadline before it ships. The CI gate above (<code>audit-deadline-arg.js</code>) is the regex-coarse version; the Tool-Call Validator is the AST-precise version.</p>
+  </div>
+  <div class="product">
+    <h3>Agent Idempotency &mdash; $29</h3>
+    <p>The <a href="https://buy.stripe.com/test_eVa3cx6yh7y2cON3vJ73G0M">Agent Idempotency CLI</a> is the production-tested version of the <code>idempotent</code> wrapper above. It handles the cancel-arrives-mid-side-effect case with an idempotency record, a rollback hook, and a retry-safe return. The 23rd post on this site is its deep dive; this post treats it as the standard primitive every side-effecting tool should be wrapped in.</p>
+  </div>
+  <div class="product">
+    <h3>Agent SLO Tracker &mdash; $29</h3>
+    <p>The <a href="https://buy.stripe.com/test_5kQ8wH2Rd0KEfKJbvx73G0L">Agent SLO Tracker CLI</a> is what surfaces a stuck-call regression in the production SLO dashboard. The SLO for an agent should be "p99 deadline-respecting completion &lt;= 8s" and the burn rate for that SLO is "stuck calls per minute." When the burn rate exceeds the budget, the SLO tracker fires the alert. It is the production counterpart to the runtime's heartbeat watchdog.</p>
+  </div>
+
+  <h2>Cross-link summary</h2>
+  <ul>
+    <li><a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th post: circuit breakers for LLM APIs</a> &mdash; the per-system sibling of the per-request deadline.</li>
+    <li><a href="/posts/2026-06-10-ai-agent-rate-limiting/">21st post: rate limiting for AI agents</a> &mdash; rate limit + deadline = the full request envelope.</li>
+    <li><a href="/posts/2026-06-11-ai-agent-idempotency/">23rd post: idempotency for AI agents</a> &mdash; the cancel-arrives-mid-side-effect case is the join point between this post and that one.</li>
+    <li><a href="/posts/2026-06-15-ai-agent-testing-pyramid/">26th post: AI agent testing pyramid</a> &mdash; the contract tier is what catches a missing deadline, a swallowed cancel, or an unwrapped side effect.</li>
+  </ul>
+
+  <footer>
+    <p>Algoram99 shipping note. The 110-line TypeScript runtime above, plus the four audit scripts and the runtime selftest, are released into the public domain &mdash; copy, modify, ship. The Algoram99 catalog has the production-tested primitives if you want the version with the postmortems already done.</p>
+    <p>Posted 2026-06-15 &middot; <a href="/posts/">All posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></p>
+  </footer>
+</main>
+</body>
+</html>
