@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-26T18:00:00Z (cycle-30 30th-post-add: ai-agent-retry-policy; 6 patterns (retryable-error-classification, exponential-backoff-with-full-jitter, token-bucket-retry-budget, idempotency-aware-retry-decisions, circuit-breaker-gated-retry, model-fallback-chain) + 5 anti-patterns (fixed-interval-retry, retry-everything, infinite-retry-with-no-budget, retry-non-idempotent-writes, retry-through-the-circuit-breaker) with copy-paste fixes + 120-line TypeScript retry-runtime with full-jitter backoff + token-bucket budget + circuit-breaker integration + fallback chain + Woodpecker CI gate; cross-links 19th post circuit-breaker + 27th post timeout-cancellation + 10th post rate-limiting + 22nd post memory-architecture + 23rd post idempotency + 9th post observability + 20th post graceful-degradation + Agent Retry Policy CLI $29; alg99_pages_30_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Retry Policy: 6 Patterns, 5 Anti-Patterns, and a Drop-In Retry Runtime — Algoram99</title>
+<meta name="description" content="A field-tested retry policy for LLM-powered AI agents that handles rate limits, timeouts, transient failures, and model fallback without retry storms. Six patterns (retryable-error classification that separates 429/503/timeout from 400/401/403, exponential backoff with full jitter to prevent thundering herds, a token-bucket retry budget that caps retries per time window, idempotency-aware retry decisions that check whether the operation is safe to repeat, circuit-breaker-gated retry that stops retrying when the downstream is down, and a model fallback chain that retries to a cheaper/faster model when the primary is overloaded) with copy-paste TypeScript. Five anti-patterns (fixed-interval retry that amplifies load, retry-everything that wastes tokens on permanent errors, infinite retry with no budget that burns your API spend, retrying non-idempotent writes that double-charges or double-sends, and retrying through a tripped circuit breaker that defeats the purpose of having one) with copy-paste fixes. A 120-line TypeScript retry runtime with full-jitter exponential backoff, token-bucket budget enforcement, circuit-breaker integration, model fallback chain, and 10 selftest cases. For engineering teams whose agent entered a retry loop at 3am and burned through a month of API credits before anyone noticed.">
+<meta name="keywords" content="ai agent retry policy, llm retry strategy, exponential backoff jitter, retry budget, idempotent retry, circuit breaker retry, model fallback chain, retry storm prevention, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Retry Policy: 6 Patterns, 5 Anti-Patterns, and a Drop-In Retry Runtime">
+<meta property="og:description" content="Six retry patterns that prevent retry storms in LLM agents: error classification, full-jitter backoff, token-bucket budgets, idempotency-aware decisions, circuit-breaker gating, and model fallback chains. Five anti-patterns that amplify load, waste spend, and double-execute writes. A 120-line TypeScript retry runtime and a Woodpecker CI gate.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-26-ai-agent-retry-policy/">
+<meta property="article:published_time" content="2026-06-26T18:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Reliability">
+<meta property="article:tag" content="ai agent retry policy">
+<meta property="article:tag" content="llm retry strategy">
+<meta property="article:tag" content="exponential backoff jitter">
+<meta property="article:tag" content="retry budget">
+<meta property="article:tag" content="circuit breaker retry">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Retry Policy: 6 Patterns, 5 Anti-Patterns, and a Drop-In Retry Runtime",
+  "description": "Six retry patterns (retryable-error classification, exponential backoff with full jitter, token-bucket retry budget, idempotency-aware retry decisions, circuit-breaker-gated retry, model fallback chain) with copy-paste TypeScript, five anti-patterns (fixed-interval retry, retry-everything, infinite retry, retrying non-idempotent writes, retrying through circuit breakers) with copy-paste fixes, a 120-line TypeScript retry runtime with full-jitter backoff + token-bucket budget + circuit-breaker integration + model fallback chain, and a Woodpecker CI gate that fails any agent runtime change that removes retry budget enforcement.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-26T18:00:00Z",
+  "dateModified": "2026-06-26T18:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-26-ai-agent-retry-policy/" },
+  "keywords": "ai agent retry policy, llm retry strategy, exponential backoff jitter, retry budget, idempotent retry, circuit breaker retry, model fallback chain, retry storm prevention, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">AI Agents &middot; Reliability &middot; Retry</span>
+  <h1>AI Agent Retry Policy: 6 Patterns, 5 Anti-Patterns, and a Drop-In Retry Runtime</h1>
+  <p class="lead">Your agent hit a 429. It retried. That retry also got 429'd. It retried again. Twenty minutes later, you had burned through a week of API credits retrying a call that was never going to succeed because the provider was down. Here are six patterns that prevent that, five anti-patterns that cause it, and a 120-line runtime you can drop in today.</p>
+
+  <div class="tldr">
+    <h3>TL;DR</h3>
+    <ol>
+      <li><strong>Classify before retrying.</strong> 429, 503, and timeouts are retryable. 400, 401, 403, and 422 are not. Retrying a malformed-request 400 wastes tokens.</li>
+      <li><strong>Full jitter, not equal jitter.</strong> <code>delay = random(0, min(cap, base * 2^attempt))</code>. Full jitter prevents thundering herds; equal jitter leaves a synchronized floor.</li>
+      <li><strong>Token-bucket budget.</strong> Cap retries per time window (e.g., 50 retries per 60 seconds). When the bucket is empty, the call fails fast instead of queuing behind 200 pending retries.</li>
+      <li><strong>Check idempotency before retrying.</strong> A <code>charge_customer</code> call is not safe to retry blindly. A <code>generate_text</code> call is. Use idempotency keys for write operations.</li>
+      <li><strong>Gate retry on circuit-breaker state.</strong> If the circuit breaker for this endpoint is open, do not retry &mdash; the call will fail immediately. Let the circuit breaker recover on its own schedule.</li>
+      <li><strong>Fallback to a cheaper model.</strong> When the primary model returns 429, retry on a smaller model. The response quality drops, but the agent stays alive instead of stalling.</li>
+    </ol>
+  </div>
+
+  <h2>Why LLM agents need a different retry policy than web services</h2>
+  <p>Traditional retry logic (e.g., <code>urllib3 Retry</code>, <code>axios-retry</code>) assumes that the remote endpoint is a stateless HTTP API where retrying a GET request is always safe and the cost of a retry is measured in milliseconds of latency. LLM agents break both assumptions:</p>
+  <ul>
+    <li><strong>Each retry costs real money.</strong> An LLM call to GPT-4-class or Claude-class models costs $0.01&ndash;$0.10+ per call. An unbounded retry loop at 3am can rack up hundreds of dollars before the on-call engineer wakes up.</li>
+    <li><strong>Retrying a tool call is not always safe.</strong> If the agent called <code>send_email</code> and got a timeout, the email may have been sent &mdash; retrying sends a duplicate. If the agent called <code>charge_customer</code> and got a 502, the charge may have gone through &mdash; retrying double-charges.</li>
+    <li><strong>Rate limits are account-level, not request-level.</strong> A 429 on one agent call means the entire account is rate-limited. Retrying immediately (even with backoff) competes with every other call the agent is making, creating a cascade where all calls slow down because they are all retrying simultaneously.</li>
+    <li><strong>Model availability is non-uniform.</strong> The primary model may be overloaded (429) while a fallback model is available. A retry policy that only retries the same model leaves the fallback capacity unused.</li>
+  </ul>
+
+  <h2>Pattern 1: Retryable-error classification</h2>
+  <p>The first line of defense is knowing which errors are worth retrying at all. The general principle: <strong>retry transient failures, not permanent ones</strong>.</p>
+
+  <table>
+    <thead>
+      <tr><th>HTTP Status</th><th>Retryable?</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>429 (Rate Limited)</td><td class="good">Yes</td><td>Transient &mdash; the quota will refill. Back off and retry.</td></tr>
+      <tr><td>500 (Internal Server Error)</td><td class="good">Yes</td><td>Transient &mdash; the provider had an internal issue. Usually safe to retry.</td></tr>
+      <tr><td>502 (Bad Gateway)</td><td class="good">Yes</td><td>Transient &mdash; upstream proxy failed. Retry with backoff.</td></tr>
+      <tr><td>503 (Service Unavailable)</td><td class="good">Yes</td><td>Transient &mdash; service is overloaded. Back off and retry.</td></tr>
+      <tr><td>504 (Gateway Timeout)</td><td class="good">Yes</td><td>Transient &mdash; upstream timed out. Retry, but check if the operation was already executed.</td></tr>
+      <tr><td>408 (Request Timeout)</td><td class="good">Yes</td><td>Transient &mdash; network issue. Retry (check idempotency for writes).</td></tr>
+      <tr><td>400 (Bad Request)</td><td class="bad">No</td><td>Permanent &mdash; your request is malformed. Retrying the same payload will get the same error.</td></tr>
+      <tr><td>401 (Unauthorized)</td><td class="bad">No</td><td>Permanent &mdash; your API key is invalid or expired. Fix the key, not the retry.</td></tr>
+      <tr><td>403 (Forbidden)</td><td class="bad">No</td><td>Permanent &mdash; your key lacks permissions. No retry will fix this.</td></tr>
+      <tr><td>404 (Not Found)</td><td class="bad">No</td><td>Permanent &mdash; model or endpoint doesn't exist. Fix the model name.</td></tr>
+      <tr><td>422 (Unprocessable)</td><td class="bad">No</td><td>Permanent &mdash; the request violates schema constraints. Fix the payload.</td></tr>
+    </tbody>
+  </table>
+
+  <p>In TypeScript, the classification is a pure function:</p>
+  <pre><code>function isRetryable(status: number, errorType?: string): boolean {
+  // Explicit non-retryable: 4xx client errors (except 408, 429)
+  if (status === 400 || status === 401 || status === 403 ||
+      status === 404 || status === 422 || status === 413) {
+    return false;
+  }
+  // Explicit retryable: rate limits, server errors, timeouts
+  if (status === 429 || status === 500 || status === 502 ||
+      status === 503 || status === 504 || status === 408) {
+    return true;
+  }
+  // Network-level errors (ECONNRESET, ETIMEDOUT, ENOTFOUND)
+  if (errorType && (errorType.includes('ECONNRESET') ||
+                    errorType.includes('ETIMEDOUT') ||
+                    errorType.includes('EAI_AGAIN'))) {
+    return true;
+  }
+  return false;
+}</code></pre>
+
+  <div class="callout">
+    <h3>Common mistake: treating 500 as always-retryable</h3>
+    <p>Some LLM providers return HTTP 500 for invalid input that their validation missed (e.g., a prompt that exceeds the context window but wasn't caught by the pre-flight check). If you see the same 500 error on the same payload twice, stop retrying &mdash; it's a permanent error wearing a transient error's status code. Track the retry count per request hash and bail after 2 identical 500s.</p>
+  </div>
+
+  <h2>Pattern 2: Exponential backoff with full jitter</h2>
+  <p>Exponential backoff increases the delay between retries: 1s, 2s, 4s, 8s, 16s. This gives the overloaded service time to recover. But naive exponential backoff has a problem: if 100 agents all hit a 429 at the same time, they all back off to the same schedule and all retry simultaneously &mdash; a <strong>thundering herd</strong>.</p>
+  <p>The solution is <strong>jitter</strong> &mdash; randomizing the delay. There are two common jitter strategies:</p>
+  <ul>
+    <li><strong class="bad">Equal jitter:</strong> <code>delay = cap/2 + random(0, cap/2)</code>. This keeps half the exponential growth and randomizes the other half. Problem: the fixed half still creates a synchronized burst at each retry level.</li>
+    <li><strong class="good">Full jitter:</strong> <code>delay = random(0, min(cap, base * 2^attempt))</code>. This completely randomizes the delay within the exponential envelope. No two agents retry at the same millisecond.</li>
+  </ul>
+  <p>Full jitter is the AWS-recommended strategy (see <em>Exponential Backoff and Jitter</em> by Marc Brooker). For LLM agents, always use full jitter:</p>
+  <pre><code>function fullJitterDelay(
+  attempt: number,
+  baseMs: number = 1000,
+  capMs: number = 30000
+): number {
+  const exponential = Math.min(capMs, baseMs * Math.pow(2, attempt));
+  return Math.random() * exponential;
+}
+
+// Example delays (will vary due to randomness):
+// attempt 0: random(0, 1000)     -> ~500ms average
+// attempt 1: random(0, 2000)     -> ~1000ms average
+// attempt 2: random(0, 4000)     -> ~2000ms average
+// attempt 3: random(0, 8000)     -> ~4000ms average
+// attempt 4: random(0, 16000)    -> ~8000ms average
+// attempt 5+: random(0, 30000)   -> ~15000ms average (capped)</code></pre>
+
+  <p>The cap is critical: without it, attempt 10 would produce a delay of <code>1000 * 2^10 = 1,024,000ms</code> (17 minutes), and your agent would appear frozen. A 30-second cap means the worst-case delay is 30s, which is long enough for most rate limits to reset but short enough that the agent stays responsive.</p>
+
+  <h2>Pattern 3: Token-bucket retry budget</h2>
+  <p>Exponential backoff limits the rate of retries for a single call. But what about the aggregate? If your agent makes 100 concurrent LLM calls and each one retries 5 times, that's 500 retry calls in a few minutes &mdash; enough to trigger another rate limit and restart the cycle.</p>
+  <p>A <strong>token-bucket budget</strong> caps the total number of retries per time window. Think of it as a bucket that holds tokens. Each retry consumes one token. Tokens refill at a fixed rate (e.g., 1 token per second, bucket capacity 50). When the bucket is empty, the retry is rejected &mdash; the call fails fast instead of queuing.</p>
+  <pre><code>class RetryBudget {
+  private tokens: number;
+  private lastRefill: number;
+
+  constructor(
+    private capacity: number = 50,
+    private refillRatePerSec: number = 1
+  ) {
+    this.tokens = capacity;
+    this.lastRefill = Date.now();
+  }
+
+  tryConsume(): boolean {
+    this.refill();
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return true;
+    }
+    return false; // Budget exhausted -- fail fast
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsedSec = (now - this.lastRefill) / 1000;
+    this.tokens = Math.min(
+      this.capacity,
+      this.tokens + elapsedSec * this.refillRatePerSec
+    );
+    this.lastRefill = now;
+  }
+
+  get available(): number {
+    this.refill();
+    return Math.floor(this.tokens);
+  }
+}</code></pre>
+  <p>With a capacity of 50 and a refill rate of 1/second, the agent can burst 50 retries immediately (for a brief outage), then sustain 1 retry per second for the duration of the outage. This prevents the retry cascade where every call's backoff timer expires at the same time.</p>
+
+  <h2>Pattern 4: Idempotency-aware retry decisions</h2>
+  <p>This is the pattern most agent frameworks get wrong. When an LLM agent calls a tool (e.g., <code>send_email</code>, <code>create_charge</code>, <code>write_file</code>) and gets a timeout or 5xx, the tool may have already executed &mdash; the failure was in the response, not the execution. Retrying blindly means executing the side effect twice.</p>
+  <p>The solution: classify each tool call as <strong>safe-to-retry</strong> or <strong>unsafe-to-retry</strong>, and for unsafe operations, require an <strong>idempotency key</strong> before retrying.</p>
+
+  <table>
+    <thead>
+      <tr><th>Operation Type</th><th>Safe to Retry?</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Read-only (GET)</td><td class="good">Yes</td><td><code>get_balance</code>, <code>search_web</code>, <code>read_file</code></td></tr>
+      <tr><td>LLM text generation</td><td class="good">Yes</td><td><code>generate_text</code>, <code>chat_completion</code></td></tr>
+      <tr><td>Create with idempotency key</td><td class="good">Yes (with key)</td><td><code>create_charge(idempotency_key=uuid)</code></td></tr>
+      <tr><td>Create without idempotency key</td><td class="bad">No</td><td><code>send_email</code> (may double-send)</td></tr>
+      <tr><td>Update (PUT)</td><td class="good">Yes</td><td><code>update_record(id, data)</code> (same data = same result)</td></tr>
+      <tr><td>Increment/update (PATCH)</td><td class="bad">No</td><td><code>increment_counter</code> (may double-count)</td></tr>
+      <tr><td>Delete</td><td class="warn">Maybe</td><td><code>delete_record(id)</code> (second call usually 404, not harmful)</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code>type RetrySafety = 'safe' | 'unsafe' | 'requires_key';
+
+function classifyRetrySafety(
+  toolName: string,
+  hasIdempotencyKey: boolean
+): RetrySafety {
+  const safeTools = [
+    'generate_text', 'chat_completion', 'get_balance',
+    'search_web', 'read_file', 'list_records'
+  ];
+  const unsafeTools = [
+    'send_email', 'send_sms', 'post_tweet',
+    'increment_counter', 'transfer_funds'
+  ];
+  const keyRequiredTools = [
+    'create_charge', 'create_order', 'create_subscription'
+  ];
+
+  if (safeTools.includes(toolName)) return 'safe';
+  if (keyRequiredTools.includes(toolName)) {
+    return hasIdempotencyKey ? 'safe' : 'requires_key';
+  }
+  if (unsafeTools.includes(toolName)) return 'unsafe';
+  return 'unsafe'; // Default: treat unknown tools as unsafe
+}</code></pre>
+
+  <p>For more on the idempotency patterns that make tool calls safe to retry, see our <a href="/posts/2026-06-11-ai-agent-idempotency/">deep dive on AI agent idempotency</a> &mdash; the idempotency key is the mechanism that turns "unsafe to retry" into "safe to retry."</p>
+
+  <h2>Pattern 5: Circuit-breaker-gated retry</h2>
+  <p>A circuit breaker tracks the failure rate of a downstream service. When failures exceed a threshold, the circuit <strong>opens</strong> &mdash; all calls to that service fail immediately, without waiting for a timeout. The circuit stays open for a cooldown period, then enters a <strong>half-open</strong> state where a limited number of calls are allowed through to test if the service has recovered.</p>
+  <p>If your agent retries through an open circuit breaker, the retry fails immediately (because the circuit is open), and you waste a retry budget token on a call that was never going to succeed. The retry policy must check the circuit breaker state <em>before</em> consuming a retry token:</p>
+  <pre><code>async function retryWithCircuitBreaker<T>(
+  fn: () => Promise<T>,
+  circuitBreaker: CircuitBreaker,
+  budget: RetryBudget,
+  maxAttempts: number = 5
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Gate: if the circuit is open, don't retry -- fail fast
+    if (circuitBreaker.isOpen()) {
+      throw new Error(
+        `Circuit breaker open for ${circuitBreaker.service}. ` +
+        `Not retrying. Last error: ${lastError?.message ?? 'unknown'}`
+      );
+    }
+
+    // Gate: check the retry budget before consuming a token
+    if (attempt > 0 && !budget.tryConsume()) {
+      throw new Error(
+        `Retry budget exhausted (${budget.available} tokens). ` +
+        `Failing fast to prevent retry storm.`
+      );
+    }
+
+    try {
+      const result = await fn();
+      circuitBreaker.recordSuccess();
+      return result;
+    } catch (err) {
+      lastError = err as Error;
+      const status = (err as any).status ?? (err as any).statusCode;
+      if (!isRetryable(status, (err as any).code)) {
+        throw err; // Non-retryable -- don't waste budget
+      }
+      circuitBreaker.recordFailure();
+
+      if (attempt < maxAttempts - 1) {
+        const delay = fullJitterDelay(attempt);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Retry exhausted');
+}</code></pre>
+
+  <p>This pattern pairs naturally with our <a href="/posts/2026-06-10-circuit-breaker-llm-api/">LLM API circuit breaker</a> post &mdash; the circuit breaker decides <em>when</em> to stop calling, and the retry policy decides <em>how</em> to call within the window where the circuit is closed.</p>
+
+  <h2>Pattern 6: Model fallback chain</h2>
+  <p>When the primary model returns 429 (rate limited), retrying the same model is often futile &mdash; the rate limit is per-account, and retrying the same model just re-triggers the limit. A more resilient approach: fall back to a <strong>different, cheaper model</strong> that isn't rate-limited.</p>
+  <p>The trade-off is response quality: a GPT-4-class model produces better output than a GPT-3.5-class model. But a degraded response is better than no response. The fallback chain should go from most-capable to least-capable:</p>
+  <pre><code>const MODEL_FALLBACK_CHAIN = [
+  { model: 'gpt-4-turbo',  maxRetries: 2, reason: 'primary' },
+  { model: 'gpt-4o-mini',   maxRetries: 2, reason: 'primary_429' },
+  { model: 'gpt-3.5-turbo', maxRetries: 1, reason: 'mini_429' },
+];
+
+async function callWithFallback(
+  prompt: string,
+  budget: RetryBudget
+): Promise<{ text: string; model: string; degraded: boolean }> {
+  for (const entry of MODEL_FALLBACK_CHAIN) {
+    try {
+      const result = await retryWithBudget(
+        () => llmCall(entry.model, prompt),
+        budget,
+        entry.maxRetries
+      );
+      return {
+        text: result,
+        model: entry.model,
+        degraded: entry.model !== MODEL_FALLBACK_CHAIN[0].model,
+      };
+    } catch (err) {
+      const status = (err as any).status;
+      // Only fall through to next model on 429/503
+      if (status !== 429 && status !== 503) throw err;
+      // Otherwise try the next model in the chain
+    }
+  }
+  throw new Error('All models in fallback chain exhausted');
+}</code></pre>
+  <p>The <code>degraded</code> flag lets the agent (and the observability layer) know that the response came from a fallback model, so it can be treated with appropriate caution &mdash; for example, a degraded response might skip autonomous tool execution and surface to the user for confirmation.</p>
+
+  <p>For more on what happens when an agent must continue operating in degraded mode, see our post on <a href="/posts/2026-06-10-ai-agent-graceful-degradation/">graceful degradation for AI agents</a>.</p>
+
+  <h2>Anti-patterns (and how to fix each one)</h2>
+
+  <h3>Anti-pattern 1: Fixed-interval retry <span class="bad">(amplifies load)</span></h3>
+  <p><strong>The problem:</strong> <code>setTimeout(retry, 1000)</code> on every failure. If the service is overloaded, retrying every 1 second adds steady load to an already-overloaded service. With multiple agents, they all retry on the same 1-second clock.</p>
+  <p><strong class="good">Fix:</strong> Use full-jitter exponential backoff (Pattern 2). Replace <code>setTimeout(retry, 1000)</code> with <code>setTimeout(retry, fullJitterDelay(attempt))</code>.</p>
+
+  <h3>Anti-pattern 2: Retry-everything <span class="bad">(wastes tokens on permanent errors)</span></h3>
+  <p><strong>The problem:</strong> Wrapping the LLM call in a blanket <code>try/catch</code> that retries on any error. A 401 (bad API key) gets retried 5 times, wasting 5 calls that all fail for the same reason.</p>
+  <p><strong class="good">Fix:</strong> Classify the error before retrying (Pattern 1). Check <code>isRetryable(status)</code> and short-circuit for permanent errors.</p>
+
+  <h3>Anti-pattern 3: Infinite retry with no budget <span class="bad">(burns API spend)</span></h3>
+  <p><strong>The problem:</strong> <code>while (true) { try { return await call(); } catch { await sleep(1000); } }</code>. If the provider is down for 4 hours, this loop runs 14,400 times. At $0.03 per call, that's $432 burned overnight.</p>
+  <p><strong class="good">Fix:</strong> Enforce a token-bucket budget (Pattern 3). When <code>budget.tryConsume()</code> returns false, fail fast. Set the capacity and refill rate based on what you can afford: <code>capacity = maxMonthlyRetries / (30 * 24 * 60)</code>.</p>
+
+  <h3>Anti-pattern 4: Retrying non-idempotent writes <span class="bad">(double-executes side effects)</span></h3>
+  <p><strong>The problem:</strong> The agent calls <code>send_email(to, subject, body)</code>, gets a 504 timeout, and the retry policy retries. The first call's email was sent &mdash; the timeout was on the response. The retry sends a duplicate email.</p>
+  <p><strong class="good">Fix:</strong> Classify tool-call safety (Pattern 4). For unsafe operations, either (a) require an idempotency key from the tool implementation, or (b) skip retry and surface the ambiguity to the agent for a decision. Never retry a write operation blindly.</p>
+
+  <h3>Anti-pattern 5: Retrying through a tripped circuit breaker <span class="bad">(defeats the circuit breaker)</span></h3>
+  <p><strong>The problem:</strong> The circuit breaker for the LLM API has opened after 10 consecutive failures. The retry policy doesn't check circuit state and retries anyway. Each retry hits the open circuit and fails immediately &mdash; but it still consumes a retry budget token and adds latency.</p>
+  <p><strong class="good">Fix:</strong> Gate retry on circuit-breaker state (Pattern 5). Check <code>circuitBreaker.isOpen()</code> before consuming a retry token. If open, fail fast with a clear error message.</p>
+
+  <h2>The complete retry runtime (120 lines)</h2>
+  <p>Here is a drop-in retry runtime that combines all six patterns. It handles error classification, full-jitter backoff, token-bucket budget enforcement, idempotency-aware decisions, circuit-breaker gating, and model fallback. Zero dependencies, Node 18+ stdlib only.</p>
+  <pre><code>// retry-runtime.ts -- zero-dependency retry policy for LLM agents
+// Patterns: classification + full-jitter + token-bucket + idempotency + circuit-breaker + fallback
+
+export type RetrySafety = 'safe' | 'unsafe' | 'requires_key';
+
+export interface RetryConfig {
+  maxAttempts: number;       // per-call max retries (default: 5)
+  baseDelayMs: number;       // base for exponential (default: 1000)
+  capDelayMs: number;        // max delay cap (default: 30000)
+  budgetCapacity: number;    // token-bucket size (default: 50)
+  budgetRefillPerSec: number;// token refill rate (default: 1)
+}
+
+export const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxAttempts: 5, baseDelayMs: 1000, capDelayMs: 30000,
+  budgetCapacity: 50, budgetRefillPerSec: 1,
+};
+
+// --- Pattern 1: Error classification ---
+export function isRetryable(status: number, errCode?: string): boolean {
+  if ([400, 401, 403, 404, 422, 413].includes(status)) return false;
+  if ([429, 500, 502, 503, 504, 408].includes(status)) return true;
+  if (errCode && ['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN'].some(c => errCode.includes(c))) return true;
+  return false;
+}
+
+// --- Pattern 2: Full-jitter backoff ---
+export function fullJitterDelay(attempt: number, baseMs = 1000, capMs = 30000): number {
+  const exp = Math.min(capMs, baseMs * 2 ** attempt);
+  return Math.floor(Math.random() * exp);
+}
+
+// --- Pattern 3: Token-bucket budget ---
+export class RetryBudget {
+  private tokens: number;
+  private lastRefill = Date.now();
+  constructor(private cap = 50, private perSec = 1) { this.tokens = cap; }
+  tryConsume(): boolean {
+    this.refill();
+    if (this.tokens >= 1) { this.tokens -= 1; return true; }
+    return false;
+  }
+  get available(): number { this.refill(); return Math.floor(this.tokens); }
+  private refill(): void {
+    const elapsed = (Date.now() - this.lastRefill) / 1000;
+    this.tokens = Math.min(this.cap, this.tokens + elapsed * this.perSec);
+    this.lastRefill = Date.now();
+  }
+}
+
+// --- Pattern 4: Idempotency-aware classification ---
+export function classifyTool(tool: string, hasKey: boolean): RetrySafety {
+  const safe = ['generate_text', 'chat_completion', 'get_balance', 'search_web', 'read_file'];
+  const keyed = ['create_charge', 'create_order', 'create_subscription'];
+  if (safe.includes(tool)) return 'safe';
+  if (keyed.includes(tool)) return hasKey ? 'safe' : 'requires_key';
+  return 'unsafe';
+}
+
+// --- Pattern 5: Circuit breaker interface ---
+export interface CircuitBreaker {
+  isOpen(): boolean;
+  recordSuccess(): void;
+  recordFailure(): void;
+  readonly service: string;
+}
+
+// --- Combined retry executor ---
+export async function withRetry&lt;T&gt;(
+  fn: () => Promise&lt;T&gt;,
+  opts: {
+    config?: Partial&lt;RetryConfig&gt;;
+    budget?: RetryBudget;
+    breaker?: CircuitBreaker;
+    toolName?: string;
+    hasIdempotencyKey?: boolean;
+    onRetry?: (attempt: number, delay: number, error: Error) => void;
+  } = {}
+): Promise&lt;T&gt; {
+  const cfg = { ...DEFAULT_RETRY_CONFIG, ...opts.config };
+  const budget = opts.budget ?? new RetryBudget(cfg.budgetCapacity, cfg.budgetRefillPerSec);
+
+  // Pattern 4: Check idempotency safety before retrying
+  if (opts.toolName) {
+    const safety = classifyTool(opts.toolName, opts.hasIdempotencyKey ?? false);
+    if (safety === 'unsafe') {
+      return fn(); // Single attempt only -- no retry for unsafe tools
+    }
+  }
+
+  let lastErr: Error | undefined;
+  for (let attempt = 0; attempt &lt; cfg.maxAttempts; attempt++) {
+    // Pattern 5: Circuit-breaker gate
+    if (opts.breaker?.isOpen()) {
+      throw new Error(`Circuit open for ${opts.breaker.service}; failing fast`);
+    }
+    // Pattern 3: Budget gate (skip on first attempt)
+    if (attempt > 0 && !budget.tryConsume()) {
+      throw new Error(`Retry budget exhausted (${budget.available} tokens); failing fast`);
+    }
+    try {
+      const result = await fn();
+      opts.breaker?.recordSuccess();
+      return result;
+    } catch (err) {
+      lastErr = err as Error;
+      const status = (err as any).status ?? (err as any).statusCode;
+      // Pattern 1: Classify before retrying
+      if (!isRetryable(status, (err as any).code)) throw err;
+      opts.breaker?.recordFailure();
+      if (attempt &lt; cfg.maxAttempts - 1) {
+        // Pattern 2: Full-jitter delay
+        const delay = fullJitterDelay(attempt, cfg.baseDelayMs, cfg.capDelayMs);
+        opts.onRetry?.(attempt + 1, delay, lastErr);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastErr ?? new Error('Retry exhausted');
+}
+
+// --- Pattern 6: Model fallback chain ---
+export async function withFallback&lt;T&gt;(
+  models: string[],
+  callFn: (model: string) => Promise&lt;T&gt;,
+  budget: RetryBudget,
+  config?: Partial&lt;RetryConfig&gt;
+): Promise&lt;T & { model: string; degraded: boolean }&gt; {
+  for (let i = 0; i &lt; models.length; i++) {
+    try {
+      const result = await withRetry(() => callFn(models[i]), { budget, config });
+      return { ...result, model: models[i], degraded: i > 0 } as any;
+    } catch (err) {
+      const status = (err as any).status;
+      if (status !== 429 && status !== 503) throw err;
+      if (i === models.length - 1) throw err;
+    }
+  }
+  throw new Error('All fallback models exhausted');
+}</code></pre>
+
+  <h2>Selftest cases (10 assertions)</h2>
+  <pre><code>// selftest.ts
+import { strict as assert } from 'assert';
+import { isRetryable, fullJitterDelay, RetryBudget, classifyTool, withRetry } from './retry-runtime';
+
+// 1. Non-retryable errors are classified correctly
+assert.strictEqual(isRetryable(400), false, '400 should not be retryable');
+assert.strictEqual(isRetryable(401), false, '401 should not be retryable');
+assert.strictEqual(isRetryable(403), false, '403 should not be retryable');
+assert.strictEqual(isRetryable(422), false, '422 should not be retryable');
+
+// 2. Retryable errors are classified correctly
+assert.strictEqual(isRetryable(429), true, '429 should be retryable');
+assert.strictEqual(isRetryable(503), true, '503 should be retryable');
+assert.strictEqual(isRetryable(504), true, '504 should be retryable');
+
+// 3. Full-jitter delay stays within bounds
+for (let i = 0; i &lt; 100; i++) {
+  const d = fullJitterDelay(3); // attempt 3 -> max 8000ms
+  assert(d >= 0, `delay should be >= 0, got ${d}`);
+  assert(d &lt;= 8000, `delay should be &lt;= 8000, got ${d}`);
+}
+
+// 4. Token-bucket budget enforces capacity
+const bucket = new RetryBudget(3, 0); // 3 tokens, no refill
+assert.strictEqual(bucket.tryConsume(), true);
+assert.strictEqual(bucket.tryConsume(), true);
+assert.strictEqual(bucket.tryConsume(), true);
+assert.strictEqual(bucket.tryConsume(), false, '4th consume should fail');
+
+// 5. Unsafe tool calls are not retried
+let callCount = 0;
+try {
+  await withRetry(
+    async () => { callCount++; throw Object.assign(new Error('fail'), { status: 503 }); },
+    { toolName: 'send_email', config: { maxAttempts: 5 } }
+  );
+} catch {}
+assert.strictEqual(callCount, 1, 'Unsafe tool should only be called once');
+
+// 6. Safe tool calls ARE retried
+callCount = 0;
+try {
+  await withRetry(
+    async () => { callCount++; throw Object.assign(new Error('fail'), { status: 503 }); },
+    { toolName: 'generate_text', config: { maxAttempts: 3, baseDelayMs: 1, capDelayMs: 10 }, budget: new RetryBudget(50, 1) }
+  );
+} catch {}
+assert.strictEqual(callCount, 3, 'Safe tool should be retried up to maxAttempts');
+
+// 7. Non-retryable errors are not retried even for safe tools
+callCount = 0;
+try {
+  await withRetry(
+    async () => { callCount++; throw Object.assign(new Error('bad key'), { status: 401 }); },
+    { toolName: 'generate_text', config: { maxAttempts: 5 } }
+  );
+} catch {}
+assert.strictEqual(callCount, 1, 'Non-retryable 401 should not be retried');
+
+// 8. Budget exhaustion causes fast-fail
+callCount = 0;
+const emptyBudget = new RetryBudget(0, 0);
+try {
+  await withRetry(
+    async () => { callCount++; throw Object.assign(new Error('rate limit'), { status: 429 }); },
+    { toolName: 'generate_text', config: { maxAttempts: 10, baseDelayMs: 1 }, budget: emptyBudget }
+  );
+} catch {}
+// attempt 0 succeeds (no budget check on first), attempts 1+ fail on budget
+assert.strictEqual(callCount, 1, 'Exhausted budget should prevent retries');
+
+// 9. Circuit breaker open causes fast-fail
+callCount = 0;
+const openBreaker = { isOpen: () => true, recordSuccess() {}, recordFailure() {}, service: 'test' };
+try {
+  await withRetry(
+    async () => { callCount++; return 'ok'; },
+    { breaker: openBreaker as any, config: { maxAttempts: 5 } }
+  );
+} catch {}
+assert.strictEqual(callCount, 0, 'Open circuit should prevent all calls');
+
+// 10. Successful call resets correctly
+const result = await withRetry(async () => 'success', { config: { maxAttempts: 5 } });
+assert.strictEqual(result, 'success', 'Successful call should return result');
+
+console.log('All 10 selftest cases passed.');</code></pre>
+
+  <h2>Woodpecker CI gate</h2>
+  <p>Add this to your <code>.woodpecker.yml</code> to fail any agent runtime change that removes retry budget enforcement:</p>
+  <pre><code># .woodpecker.yml -- retry-budget enforcement gate
+steps:
+  retry-budget-check:
+    image: node:18-slim
+    commands:
+      - |
+        # Verify the retry runtime exports a RetryBudget class
+        node -e "
+          const m = require('./src/retry-runtime');
+          if (typeof m.RetryBudget !== 'function') {
+            console.error('FAIL: RetryBudget class not exported');
+            process.exit(1);
+          }
+          const b = new m.RetryBudget(5, 1);
+          for (let i = 0; i &lt; 5; i++) {
+            if (!b.tryConsume()) {
+              console.error('FAIL: budget should allow 5 consumes');
+              process.exit(1);
+            }
+          }
+          if (b.tryConsume()) {
+            console.error('FAIL: budget should reject 6th consume');
+            process.exit(1);
+          }
+          console.log('PASS: retry budget enforcement verified');
+        "
+      - |
+        # Verify the selftest runs clean
+        node src/retry-runtime-selftest.ts
+        if [ $? -ne 0 ]; then
+          echo 'FAIL: retry-runtime selftest failed';
+          exit 1;
+        fi</code></pre>
+
+  <div class="product">
+    <h3>Agent Retry Policy CLI &mdash; $29</h3>
+    <p>A zero-dependency CLI that audits your agent's retry configuration against these six patterns. Checks for: (1) missing error classification, (2) non-jitter backoff, (3) no retry budget, (4) unsafe tool retry, (5) missing circuit-breaker integration, (6) no fallback chain. Outputs a JSON report with pass/fail per pattern and copy-paste fix snippets. 4 commands: <code>audit</code>, <code>scan</code>, <code>explain</code>, <code>selftest</code>. 30 external integration tests + in-process selftest. Available on the <a href="https://nepo6.gumroad.com/">Algoram99 storefront</a>.</p>
+  </div>
+
+  <h2>Related posts on this site</h2>
+  <ul>
+    <li><a href="/posts/2026-06-10-circuit-breaker-llm-api/">19th post &mdash; LLM API circuit breaker</a>: the circuit breaker decides <em>when</em> to stop calling. This post decides <em>how</em> to call within the closed-circuit window.</li>
+    <li><a href="/posts/2026-06-11-ai-agent-idempotency/">23rd post &mdash; AI agent idempotency</a>: the idempotency key is what makes Pattern 4 possible &mdash; it turns "unsafe to retry" into "safe to retry."</li>
+    <li><a href="/posts/2026-06-10-ai-agent-rate-limiting/">20th post &mdash; AI agent rate limiting</a>: rate limiting is the inbound side; retry policy is the outbound response to being rate-limited.</li>
+    <li><a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">27th post &mdash; timeout and cancellation</a>: a timeout that fires mid-retry must cancel the retry, not just the current attempt.</li>
+    <li><a href="/posts/2026-06-10-ai-agent-graceful-degradation/">20th post &mdash; graceful degradation</a>: when the fallback chain is exhausted, the agent must degrade gracefully rather than crash.</li>
+    <li><a href="/posts/2026-06-09-add-observability-to-ai-agents/">9th post &mdash; agent observability</a>: every retry decision should be a structured event with attempt number, delay, error status, and budget tokens remaining.</li>
+    <li><a href="/posts/2026-06-10-ai-agent-memory-architecture/">22nd post &mdash; memory architecture</a>: a failed-and-retried call should not pollute working memory with the failed attempt's partial output.</li>
+  </ul>
+
+  <footer>
+    <p>&copy; 2026 Algoram99 / Qualigen. Built with verification-first infrastructure.</p>
+    <p>30th live post on <a href="/posts/">alg99 shipping notes</a>. Products in the <a href="https://nepo6.gumroad.com/">storefront</a>. Source on <a href="https://github.com/Algoram99">GitHub</a>.</p>
+  </footer>
+</main>
+</body>
+</html>
