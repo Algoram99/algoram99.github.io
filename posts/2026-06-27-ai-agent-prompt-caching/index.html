@@ -786,8 +786,8 @@ steps:
   <li><strong><a href="/posts/2026-06-09-add-observability-to-ai-agents/">Agent Observability</a></strong> — track cache hit rate alongside latency and cost in your dashboards.</li>
   <li><strong><a href="/posts/2026-06-06-prompt-injection-defense-patterns/">Prompt Injection Defense</a></strong> — cached prefixes are more predictable, which simplifies injection detection.</li>
 </ul>
-<p><strong><a href="https://nepo6.gumroad.com/l/agent-cost-optimizer">Agent Cost Optimizer CLI</a></strong> ($39) — a CLI that audits your agent's API spend, identifies caching opportunities, and generates a cost-reduction report. Runs in your CI pipeline.</p>
-<p><strong><a href="https://nepo6.gumroad.com/l/llm-context-budget-cli">LLM Context Budget CLI</a></strong> ($19) — a CLI that analyzes your prompt payloads, counts tokens per section, and flags content that should be cached vs truncated.</p>
+<p><strong><a href="https://nepo6.gumroad.com/" rel="noopener">Agent Cost Optimizer CLI</a></strong> ($39) — a CLI that audits your agent's API spend, identifies caching opportunities, and generates a cost-reduction report. Runs in your CI pipeline.</p>
+<p><strong><a href="https://nepo6.gumroad.com/" rel="noopener">LLM Context Budget CLI</a></strong> ($19) — a CLI that analyzes your prompt payloads, counts tokens per section, and flags content that should be cached vs truncated.</p>
 
 <h2 id="conclusion">Conclusion</h2>
 <p>Prompt caching is the <strong>single highest-ROI optimization</strong> for any agent system that sends repeated requests with a stable system prompt. The implementation is simple — restructure your messages, derive cache keys, track hit rates — but the payoff is immediate. A system prompt that costs $2,000/day at full price costs $200/day with caching. That's $54,750/year in savings from ~100 lines of code.</p>
