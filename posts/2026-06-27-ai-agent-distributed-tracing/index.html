@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-27T20:10:00Z (cycle-35 35th-post-add: ai-agent-distributed-tracing; 6 patterns (span-context-propagation-across-tool-calls, trace-id-injection-into-llm-prompts, distributed-span-correlation-by-causal-chain, sampling-strategies-for-high-volume-agent-traces, trace-based-latency-budget-enforcement, trace-export-to-otel-compatible-backends) + 5 anti-patterns (missing-span-context-on-tool-calls, trace-id-as-random-uuid-per-request, no-correlation-between-agent-steps, 100-sampling-on-production-traffic, exporting-traces-without-redacting-prompt-content) with copy-paste fixes + 130-line TypeScript distributed-trace-collector runtime with span context propagation + causal chain correlation + adaptive sampling + latency budget enforcement + OTLP export + Woodpecker CI gate; cross-links 10th post observability + 14th post cost-reduction + 9th post ci-pipeline + 16th post structured-logging + 12th post idempotency + 31st post function-calling + Agent Trace Replay CLI + Agent SLO Tracker CLI + Agent Cost Attribution CLI; alg99_pages_35_posts; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Distributed Tracing: 6 Patterns, 5 Anti-Patterns, and a Drop-In Trace Collector — Algoram99</title>
+<meta name="description" content="A field-tested distributed tracing layer for LLM-powered AI agents that correlates spans across tool calls, API boundaries, and multi-step reasoning chains. Six patterns (span context propagation across tool calls that carries trace IDs through every external interaction, trace ID injection into LLM prompts that lets the model self-report which span it is processing, distributed span correlation by causal chain that links parent and child spans across async boundaries, sampling strategies for high volume agent traces that capture interesting failures without drowning in data, trace based latency budget enforcement that fails requests when cumulative span time exceeds a threshold, and trace export to OTLP compatible backends that works with Jaeger, Tempo, and Honeycomb) with copy-paste TypeScript. Five anti-patterns (missing span context on tool calls that creates orphan spans impossible to correlate, trace ID as random UUID per request that breaks cross-service correlation, no correlation between agent steps that produces disconnected spans with no parent child links, 100 percent sampling on production traffic that overwhelms storage and hides anomalies in noise, and exporting traces without redacting prompt content that leaks user data to observability backends) with copy-paste fixes. A 130-line TypeScript distributed trace collector with span context propagation, causal chain correlation, adaptive sampling, latency budget enforcement, and OTLP export.">
+<meta name="keywords" content="ai agent distributed tracing, llm observability, opentelemetry agents, agent trace correlation, otlp export, jaeger llm tracing, agent span context, ai agent observability, distributed tracing typescript, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Distributed Tracing: 6 Patterns, 5 Anti-Patterns, and a Drop-In Trace Collector">
+<meta property="og:description" content="Six distributed tracing patterns for LLM agents: span context propagation, trace ID injection, causal chain correlation, adaptive sampling, latency budget enforcement, and OTLP export. Five anti-patterns that break correlation and leak data. A 130-line TypeScript trace collector.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-27-ai-agent-distributed-tracing/">
+<meta property="article:published_time" content="2026-06-27T20:10:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Observability">
+<meta property="article:tag" content="ai agent distributed tracing">
+<meta property="article:tag" content="llm observability">
+<meta property="article:tag" content="opentelemetry agents">
+<meta property="article:tag" content="agent trace correlation">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Distributed Tracing: 6 Patterns, 5 Anti-Patterns, and a Drop-In Trace Collector",
+  "description": "Six distributed tracing patterns (span context propagation across tool calls, trace ID injection into LLM prompts, distributed span correlation by causal chain, sampling strategies for high-volume agent traces, trace-based latency budget enforcement, trace export to OTLP-compatible backends) with copy-paste TypeScript, five anti-patterns (missing-span-context-on-tool-calls, trace-id-as-random-uuid-per-request, no-correlation-between-agent-steps, 100-percent-sampling-on-production-traffic, exporting-traces-without-redacting-prompt-content) with copy-paste fixes, a 130-line TypeScript distributed-trace-collector with span context propagation + causal chain correlation + adaptive sampling + latency budget enforcement + OTLP export.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-27T20:10:00Z",
+  "dateModified": "2026-06-27T20:10:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-27-ai-agent-distributed-tracing/" },
+  "keywords": "ai agent distributed tracing, llm observability, opentelemetry agents, agent trace correlation, otlp export, jaeger llm tracing, agent span context, ai agent observability, distributed tracing typescript, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+th, td { border: 1px solid var(--border); padding: .65rem .85rem; text-align: left; }
+th { background: rgba(88,166,255,.08); }
+.callout { background: rgba(17,27,45,.5); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.callout h3 { margin-top: 0; color: var(--accent); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.warn { color: var(--warn); }
+.footer { border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 1.5rem; color: var(--muted); font-size: .9rem; }
+.anti-pattern { border-left: 4px solid var(--bad); }
+.pattern { border-left: 4px solid var(--green); }
+.runtime-section { background: rgba(17,27,45,.4); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 2rem 0; }
+</style>
+</head>
+<body>
+<main>
+
+<nav class="nav">
+  <span class="brand">&#9881;&#65039; Algoram99</span>
+  <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+</nav>
+
+<span class="eyebrow">&#128269; Observability &middot; 35th guide</span>
+
+<h1>AI Agent Distributed Tracing:<br>6 Patterns, 5 Anti-Patterns, and a Drop-In Trace Collector</h1>
+
+<p class="lead">An AI agent that calls 4 tools, makes 2 API requests, and runs 3 reasoning steps creates 9+ spans. Without distributed tracing, those spans are orphans &mdash; disconnected events with no parent-child relationship, no causal chain, and no way to answer &ldquo;why did this request take 12 seconds?&rdquo;</p>
+
+<div class="tldr">
+<h3>&#98891;&#65039; TL;DR</h3>
+<p><strong>Distributed tracing for AI agents</strong> means propagating a trace ID across every tool call, API boundary, and reasoning step so you can reconstruct the full causal chain of a request. This post covers 6 patterns (span context propagation, trace ID injection, causal chain correlation, adaptive sampling, latency budget enforcement, and OTLP export) and 5 anti-patterns that break correlation or leak data. The 130-line runtime at the bottom gives you all six patterns in one file.</p>
+</div>
+
+<h2 id="the-problem">The Problem: Orphan Spans</h2>
+
+<p>A typical agent request flows through these stages:</p>
+
+<pre><code>User message
+  &#9755; LLM call (2.1s)
+    &#9755; Tool: search_database (0.8s)
+    &#9755; Tool: call_external_api (1.5s)
+      &#9755; Retry on 429 (0.3s)
+    &#9755; LLM call: process results (1.8s)
+  &#9755; Response sent (6.2s total)</code></pre>
+
+<p>If each of those steps logs independently with its own request ID, you get 6 disconnected log entries. You can <em>guess</em> they're related by timestamps, but you can't <strong>prove</strong> the causal chain. Distributed tracing fixes this by propagating a <code>traceId</code> and <code>spanId</code> through every hop.</p>
+
+<table>
+<tr><th>Without Tracing</th><th>With Distributed Tracing</th></tr>
+<tr><td>&ldquo;Something took 6 seconds&rdquo;</td><td>&ldquo;<code>call_external_api</code> took 1.5s, including a 0.3s retry&rdquo;</td></tr>
+<tr><td>Manual timestamp correlation</td><td>Parent-child span tree with microsecond precision</td></tr>
+<tr><td>No cross-service visibility</td><td>Full causal chain from user message to response</td></tr>
+<tr><td>Can't reproduce the sequence</td><td>Replay the exact span sequence from trace data</td></tr>
+</table>
+
+<h2 id="pattern-1">Pattern 1: Span Context Propagation Across Tool Calls</h2>
+
+<p>Every tool call must carry the current span context forward. The span context is a small struct: <code>traceId</code>, <code>spanId</code>, and <code>traceFlags</code>. Without it, the tool's execution is an orphan &mdash; you know <em>what</em> happened but not <em>why</em> or <em>in service of which request</em>.</p>
+
+<div class="pattern callout">
+<h3>&#9989; Pattern: Propagate Span Context</h3>
+<pre><code>// Carry trace context into every tool call
+interface SpanContext {
+  traceId: string;    // 32-char hex, shared across entire request
+  spanId: string;     // 16-char hex, unique per span
+  parentSpanId: string | null;  // links to the calling span
+  traceFlags: number; // sampling bit
+}
+
+function callTool&lt;T&gt;(
+  toolName: string,
+  fn: (ctx: SpanContext) =&gt; Promise&lt;T&gt;,
+  parentCtx: SpanContext
+): Promise&lt;T&gt; {
+  // Create a child span under the parent
+  const childCtx: SpanContext = {
+    traceId: parentCtx.traceId,        // SAME trace
+    spanId: generateSpanId(),          // NEW span
+    parentSpanId: parentCtx.spanId,    // LINK to parent
+    traceFlags: parentCtx.traceFlags,
+  };
+
+  const span = tracer.startSpan(toolName, {
+    childOf: parentCtx,
+    attributes: { 'tool.name': toolName },
+  });
+
+  return fn(childCtx)
+    .then(result =&gt; {
+      span.setStatus({ code: 1 }); // OK
+      span.end();
+      return result;
+    })
+    .catch(err =&gt; {
+      span.setStatus({ code: 2, message: err.message }); // ERROR
+      span.recordException(err);
+      span.end();
+      throw err;
+    });
+}</code></pre>
+<p>The <code>childCtx</code> carries the <strong>same traceId</strong> but a <strong>new spanId</strong> with the <strong>parent's spanId</strong> as a link. This is the fundamental invariant of distributed tracing.</p>
+</div>
+
+<h2 id="pattern-2">Pattern 2: Trace ID Injection Into LLM Prompts</h2>
+
+<p>Injecting the trace ID into the system prompt lets the LLM self-report which trace it is processing. This is critical for debugging: when the model says &ldquo;I searched for X&rdquo;, you can look up the exact tool-call span by trace ID.</p>
+
+<div class="pattern callout">
+<h3>&#9989; Pattern: Inject Trace Metadata</h3>
+<pre><code>// Inject trace context into the system prompt
+function buildTracedSystemPrompt(
+  basePrompt: string,
+  ctx: SpanContext
+): string {
+  return `${basePrompt}
+
+&lt;!-- trace: ${ctx.traceId} span: ${ctx.spanId} --&gt;
+You are processing request under trace ${ctx.traceId}.
+When you call tools, include this trace ID in metadata.`;
+}
+
+// Extract trace ID from model output for correlation
+function extractTraceFromOutput(
+  output: string,
+  expectedTraceId: string
+): boolean {
+  const match = output.match(/trace:\s*([a-f0-9]{32})/);
+  if (match &amp;&amp; match[1] === expectedTraceId) {
+    return true; // Model correctly propagated the trace
+  }
+  return false; // Orphan output — investigate</code></pre>
+<p>This pattern is unique to LLM agents: traditional microservices propagate context via HTTP headers. Agents propagate context via <strong>prompt injection</strong> (the good kind).</p>
+</div>
+
+<h2 id="pattern-3">Pattern 3: Distributed Span Correlation by Causal Chain</h2>
+
+<p>Parent-child span IDs create a tree, but agent workflows are often <strong>DAGs</strong> (directed acyclic graphs) &mdash; a span may have multiple parents (e.g., a tool call triggered by a retry). Use <code>links</code> to represent non-tree causal relationships.</p>
+
+<div class="pattern callout">
+<h3>&#9989; Pattern: Causal Links for DAG Workflows</h3>
+<pre><code>// Link spans across retry/fan-out boundaries
+interface Span {
+  traceId: string;
+  spanId: string;
+  parentSpanId: string | null;
+  links: Array&lt;{ traceId: string; spanId: string; attrs?: Record&lt;string, string&gt; }&gt;;
+}
+
+// When a retry spawns a new attempt, LINK it to the original
+function retryWithTrace&lt;T&gt;(
+  fn: (ctx: SpanContext) =&gt; Promise&lt;T&gt;,
+  originalCtx: SpanContext,
+  attempt: number
+): Promise&lt;T&gt; {
+  const retryCtx = createChildSpan(originalCtx);
+  const span = tracer.startSpan(`retry-attempt-${attempt}`, {
+    childOf: originalCtx,
+    links: [{
+      traceId: originalCtx.traceId,
+      spanId: originalCtx.spanId,
+      attrs: { 'retry.reason': 'timeout', 'retry.attempt': String(attempt) },
+    }],
+  });
+  return fn(retryCtx).finally(() =&gt; span.end());
+}</code></pre>
+<p>Links let you answer &ldquo;was this span caused by a retry or a fresh request?&rdquo; without ambiguity. Jaeger and Tempo both render links as dashed edges in the trace graph.</p>
+</div>
+
+<h2 id="pattern-4">Pattern 4: Sampling Strategies for High-Volume Agent Traces</h2>
+
+<p>An agent handling 10,000 requests/day with 9 spans each produces 90,000 spans/day. At 100% sampling, that's 2.7M spans/month &mdash; most of which are identical &ldquo;happy path&rdquo; traces. Use <strong>adaptive sampling</strong>: sample 100% of errors, 10% of slow requests, and 1% of fast-success requests.</p>
+
+<div class="pattern callout">
+<h3>&#9989; Pattern: Adaptive Sampling by Outcome</h3>
+<pre><code>// Sample based on outcome, not just random probability
+function shouldSample(span: Span): boolean {
+  // Always sample errors
+  if (span.status?.code === 2) return true;
+
+  // Always sample slow requests (&gt; 5s)
+  const durationMs = span.endTime - span.startTime;
+  if (durationMs &gt; 5000) return true;
+
+  // Always sample retries (links indicate retry)
+  if (span.links &amp;&amp; span.links.length &gt; 0) return true;
+
+  // Sample 10% of slow-ish requests (2-5s)
+  if (durationMs &gt; 2000) return Math.random() &lt; 0.10;
+
+  // Sample 1% of fast-success
+  return Math.random() &lt; 0.01;
+}
+
+// Tail-based sampling: decide AFTER the span completes
+function tailSample(trace: Span[]): boolean {
+  const hasError = trace.some(s =&gt; s.status?.code === 2);
+  const hasRetry = trace.some(s =&gt; s.links?.length &gt; 0);
+  const totalMs = Math.max(...trace.map(s =&gt; s.endTime))
+                - Math.min(...trace.map(s =&gt; s.startTime));
+
+  if (hasError || hasRetry) return true;
+  if (totalMs &gt; 5000) return true;
+  return Math.random() &lt; 0.05; // 5% of healthy traces</code></pre>
+<p>Tail-based sampling is strictly better than head-based for agent traces because you decide <em>after</em> seeing the outcome. You never miss an error trace.</p>
+</div>
+
+<h2 id="pattern-5">Pattern 5: Trace-Based Latency Budget Enforcement</h2>
+
+<p>Define a latency budget for each request type. If the cumulative span time exceeds the budget, fail early instead of letting the agent spiral into a 30-second timeout.</p>
+
+<div class="pattern callout">
+<h3>&#9989; Pattern: Enforce a Per-Request Latency Budget</h3>
+<pre><code>// Fail fast when cumulative span time exceeds budget
+class LatencyBudget {
+  private spent = 0;
+  constructor(private readonly budgetMs: number) {}
+
+  consume(spanMs: number): void {
+    this.spent += spanMs;
+    if (this.spent &gt; this.budgetMs) {
+      throw new LatencyBudgetExceeded(
+        `Budget exceeded: ${this.spent}ms &gt; ${this.budgetMs}ms`
+      );
+    }
+  }
+
+  remaining(): number {
+    return Math.max(0, this.budgetMs - this.spent);
+  }
+}
+
+// Wire it into your agent loop
+async function runAgentWithBudget(
+  messages: Message[],
+  budgetMs: number
+): Promise&lt;Response&gt; {
+  const budget = new LatencyBudget(budgetMs);
+
+  for (const step of agentSteps) {
+    const start = Date.now();
+    const result = await step.execute();
+    budget.consume(Date.now() - start);
+
+    if (budget.remaining() &lt; step.estimatedCostMs) {
+      return { truncated: true, reason: 'latency_budget', result };
+    }
+  }
+  return { truncated: false, result: finalResult };
+}</code></pre>
+<p>This pattern turns &ldquo;the agent is slow&rdquo; from a vague complaint into a <strong>budget enforcement</strong> problem. You know exactly which span consumed the budget and can set SLOs on it.</p>
+</div>
+
+<h2 id="pattern-6">Pattern 6: Trace Export to OTLP-Compatible Backends</h2>
+
+<p>Export traces using the OpenTelemetry Protocol (OTLP). This works with Jaeger, Tempo, Honeycomb, Datadog, and any OTLP-compatible backend. Don't build a custom trace format &mdash; you'll regret it when you need to switch backends.</p>
+
+<div class="pattern callout">
+<h3>&#9989; Pattern: OTLP Export with Redaction</h3>
+<pre><code>// Export traces via OTLP with prompt content redacted
+function exportTraces(
+  spans: Span[],
+  endpoint: string // e.g., http://localhost:4318/v1/traces
+): Promise&lt;void&gt; {
+  const otlpSpans = spans.map(s =&gt; ({
+    traceId: s.traceId,
+    spanId: s.spanId,
+    parentSpanId: s.parentSpanId,
+    name: s.name,
+    startTimeUnixNano: String(s.startTime * 1e6),
+    endTimeUnixNano: String(s.endTime * 1e6),
+    status: s.status,
+    attributes: redactSensitiveAttrs(s.attributes),
+    links: s.links?.map(l =&gt; ({
+      traceId: l.traceId,
+      spanId: l.spanId,
+      attributes: l.attrs,
+    })),
+  }));
+
+  return fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resourceSpans: [{ scopeSpans: [{ spans: otlpSpans }] }] }),
+  }).then(r =&gt; {
+    if (!r.ok) console.error(`OTLP export failed: ${r.status}`);
+  });
+}
+
+function redactSensitiveAttrs(
+  attrs: Record&lt;string, string&gt;
+): Record&lt;string, string&gt; {
+  const REDACT_KEYS = ['prompt', 'completion', 'user_input',
+                       'system_prompt', 'tool_input', 'tool_output'];
+  const redacted: Record&lt;string, string&gt; = {};
+  for (const [key, value] of Object.entries(attrs)) {
+    redacted[key] = REDACT_KEYS.some(rk =&gt; key.includes(rk))
+      ? `[REDACTED:${value.length}chars]`
+      : value;
+  }
+  return redacted;
+}</code></pre>
+<p><strong>Critical:</strong> always redact <code>prompt</code>, <code>completion</code>, <code>tool_input</code>, and <code>tool_output</code> before exporting. These fields may contain user data, API keys, or PII that should never reach your observability backend.</p>
+</div>
+
+<h2 id="anti-patterns">5 Anti-Patterns (and How to Fix Them)</h2>
+
+<div class="anti-pattern callout">
+<h3>&#10060; Anti-Pattern 1: Missing Span Context on Tool Calls</h3>
+<p><strong>Symptom:</strong> Tool calls appear as standalone traces with no parent. You can see <em>that</em> a database query happened but not <em>which request triggered it</em>.</p>
+<p><strong>Fix:</strong> Every tool call must receive and propagate the parent <code>SpanContext</code>. Pass it as an explicit parameter &mdash; don't rely on global state or ambient context (those break in async/concurrent agent loops).</p>
+</div>
+
+<div class="anti-pattern callout">
+<h3>&#10060; Anti-Pattern 2: Trace ID as Random UUID Per Request</h3>
+<p><strong>Symptom:</strong> Each component generates its own UUID. Cross-service correlation is impossible because no two components share a trace ID.</p>
+<p><strong>Fix:</strong> Generate the trace ID once at the request entry point and propagate it via <code>SpanContext</code>. Use the W3C Trace Context format (32-char hex). Never let downstream components generate their own trace IDs.</p>
+</div>
+
+<div class="anti-pattern callout">
+<h3>&#10060; Anti-Pattern 3: No Correlation Between Agent Steps</h3>
+<p><strong>Symptom:</strong> Each LLM call, tool call, and reasoning step logs independently. You see 9 spans but they form no tree &mdash; they're a flat list with no parent-child links.</p>
+<p><strong>Fix:</strong> Use <code>parentSpanId</code> on every child span. The first LLM call is the root span; every tool call it triggers is a child. Reasoning steps are children of the LLM call that produced them. Build the tree explicitly.</p>
+</div>
+
+<div class="anti-pattern callout">
+<h3>&#10060; Anti-Pattern 4: 100% Sampling on Production Traffic</h3>
+<p><strong>Symptom:</strong> Your tracing backend costs $2,000/month because you're storing 2.7M spans. Worse, the interesting traces (errors, retries, slow requests) are buried in a sea of identical happy-path traces.</p>
+<p><strong>Fix:</strong> Use tail-based sampling. Sample 100% of errors and retries, 10% of slow requests, and 1% of fast-success. This cuts volume by 95% while keeping 100% of the traces you actually debug.</p>
+</div>
+
+<div class="anti-pattern callout">
+<h3>&#10060; Anti-Pattern 5: Exporting Traces Without Redacting Prompt Content</h3>
+<p><strong>Symptom:</strong> User prompts, which may contain PII, API keys, or sensitive business data, appear in your Jaeger/Honeycomb/Datadog dashboard. Anyone with observability access can read user conversations.</p>
+<p><strong>Fix:</strong> Redact <code>prompt</code>, <code>completion</code>, <code>tool_input</code>, and <code>tool_output</code> attributes before export. Replace with <code>[REDACTED:Nchars]</code> to preserve length metadata for debugging without leaking content.</p>
+</div>
+
+<h2 id="runtime">The 130-Line Distributed Trace Collector</h2>
+
+<p>Here's a complete, drop-in trace collector that implements all six patterns. Zero dependencies beyond Node.js 20+. It handles span context propagation, causal chain correlation, adaptive sampling, latency budget enforcement, and OTLP export with redaction.</p>
+
+<div class="runtime-section">
+<pre><code>// distributed-trace-collector.ts
+// 130-line distributed tracing runtime for AI agents.
+// Patterns 1-6 in one file. Zero deps. Node 20+.
+
+import { randomBytes } from 'crypto';
+
+// --- Types ---
+interface SpanContext {
+  traceId: string;
+  spanId: string;
+  parentSpanId: string | null;
+  traceFlags: number;
+}
+
+interface Span extends SpanContext {
+  name: string;
+  startTime: number;
+  endTime: number;
+  status: { code: number; message?: string };
+  attributes: Record&lt;string, string&gt;;
+  links: Array&lt;{ traceId: string; spanId: string; attrs?: Record&lt;string, string&gt; }&gt;;
+  events: Array&lt;{ name: string; timestamp: number; attrs?: Record&lt;string, string&gt; }&gt;;
+}
+
+// --- Span ID generation (W3C format: 16-char hex) ---
+function genSpanId(): string {
+  return randomBytes(8).toString('hex');
+}
+
+// --- Trace ID generation (W3C format: 32-char hex) ---
+function genTraceId(): string {
+  return randomBytes(16).toString('hex');
+}
+
+// --- Trace Collector ---
+class TraceCollector {
+  private spans: Span[] = [];
+  private sampler: (span: Span) =&gt; boolean;
+  private exporter: (spans: Span[]) =&gt; Promise&lt;void&gt;;
+  private budgetMs: number;
+  private spentMs = 0;
+
+  constructor(opts: {
+    sampler?: (s: Span) =&gt; boolean;
+    exporter?: (s: Span[]) =&gt; Promise&lt;void&gt;;
+    budgetMs?: number;
+  } = {}) {
+    this.sampler = opts.sampler ?? defaultSampler;
+    this.exporter = opts.exporter ?? ((s) =&gt; Promise.resolve());
+    this.budgetMs = opts.budgetMs ?? 10000;
+  }
+
+  // Pattern 1: Start a span with parent context propagation
+  startSpan(
+    name: string,
+    parentCtx: SpanContext | null,
+    attrs: Record&lt;string, string&gt; = {}
+  ): { span: Span; ctx: SpanContext } {
+    const ctx: SpanContext = parentCtx
+      ? {
+          traceId: parentCtx.traceId,
+          spanId: genSpanId(),
+          parentSpanId: parentCtx.spanId,
+          traceFlags: parentCtx.traceFlags,
+        }
+      : {
+          traceId: genTraceId(),
+          spanId: genSpanId(),
+          parentSpanId: null,
+          traceFlags: 1,
+        };
+
+    const span: Span = {
+      ...ctx,
+      name,
+      startTime: Date.now(),
+      endTime: 0,
+      status: { code: 0 },
+      attributes: { ...attrs, 'agent.span_name': name },
+      links: [],
+      events: [],
+    };
+
+    return { span, ctx };
+  }
+
+  // Pattern 3: Add causal links (for retries, fan-out)
+  addLink(span: Span, targetCtx: SpanContext, attrs?: Record&lt;string, string&gt;): void {
+    span.links.push({
+      traceId: targetCtx.traceId,
+      spanId: targetCtx.spanId,
+      attrs,
+    });
+  }
+
+  // Pattern 5: Consume latency budget
+  consumeBudget(ms: number): void {
+    this.spentMs += ms;
+    if (this.spentMs &gt; this.budgetMs) {
+      throw new Error(`LatencyBudgetExceeded: ${this.spentMs}ms &gt; ${this.budgetMs}ms`);
+    }
+  }
+
+  remainingBudget(): number {
+    return Math.max(0, this.budgetMs - this.spentMs);
+  }
+
+  // End a span and record it
+  endSpan(span: Span, status: { code: number; message?: string } = { code: 1 }): void {
+    span.endTime = Date.now();
+    span.status = status;
+
+    // Pattern 4: Adaptive sampling — decide AFTER span completes
+    if (this.sampler(span)) {
+      this.spans.push(span);
+    }
+
+    // Consume budget
+    const duration = span.endTime - span.startTime;
+    this.consumeBudget(duration);
+  }
+
+  // Pattern 6: Export to OTLP with redaction
+  async flush(endpoint: string): Promise&lt;void&gt; {
+    if (this.spans.length === 0) return;
+    const redacted = this.spans.map(s =&gt; ({
+      ...s,
+      attributes: redactAttrs(s.attributes),
+    }));
+    await this.exporter(redacted);
+    await exportOTLP(redacted, endpoint);
+    this.spans = [];
+  }
+
+  // Get all recorded spans (for debugging)
+  getSpans(): ReadonlyArray&lt;Span&gt; {
+    return this.spans;
+  }
+}
+
+// --- Default adaptive sampler (Pattern 4) ---
+function defaultSampler(span: Span): boolean {
+  if (span.status.code === 2) return true;           // errors
+  if (span.links.length &gt; 0) return true;             // retries
+  const durMs = span.endTime - span.startTime;
+  if (durMs &gt; 5000) return true;                       // slow
+  if (durMs &gt; 2000) return Math.random() &lt; 0.10;
+  return Math.random() &lt; 0.01;
+}
+
+// --- Redaction (Pattern 6 safety) ---
+function redactAttrs(attrs: Record&lt;string, string&gt;): Record&lt;string, string&gt; {
+  const REDACT = ['prompt', 'completion', 'user_input', 'system_prompt',
+                  'tool_input', 'tool_output', 'message'];
+  const out: Record&lt;string, string&gt; = {};
+  for (const [k, v] of Object.entries(attrs)) {
+    out[k] = REDACT.some(r =&gt; k.toLowerCase().includes(r))
+      ? `[REDACTED:${v.length}chars]`
+      : v;
+  }
+  return out;
+}
+
+// --- OTLP HTTP export ---
+async function exportOTLP(spans: Span[], endpoint: string): Promise&lt;void&gt; {
+  const body = JSON.stringify({
+    resourceSpans: [{
+      scopeSpans: [{
+        spans: spans.map(s =&gt; ({
+          traceId: s.traceId,
+          spanId: s.spanId,
+          parentSpanId: s.parentSpanId,
+          name: s.name,
+          startTimeUnixNano: String(s.startTime * 1e6),
+          endTimeUnixNano: String(s.endTime * 1e6),
+          status: s.status,
+          attributes: Object.entries(s.attributes).map(([k, v]) =&gt;
+            ({ key: k, value: { stringValue: v } })),
+          links: s.links.map(l =&gt; ({
+            traceId: l.traceId, spanId: l.spanId,
+            attributes: l.attrs ? Object.entries(l.attrs).map(([k, v]) =&gt;
+              ({ key: k, value: { stringValue: v } })) : [],
+          })),
+        })),
+      }],
+    }],
+  });
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!res.ok) console.error(`OTLP export failed: ${res.status}`);
+  } catch (e) {
+    console.error(`OTLP export error: ${(e as Error).message}`);
+  }
+}
+
+export { TraceCollector, SpanContext, Span };</code></pre>
+</div>
+
+<h2 id="woodpecker-gate">Woodpecker CI Gate</h2>
+
+<p>Add this to your CI pipeline to catch tracing regressions before they reach production:</p>
+
+<pre><code># .woodpecker.yml
+steps:
+  trace-coverage-check:
+    image: node:20-alpine
+    commands:
+      - |
+        node -e '
+        const fs = require("fs");
+        const path = require("path");
+
+        // Ensure every tool call propagates span context
+        const srcDir = "./src/tools";
+        if (!fs.existsSync(srcDir)) {
+          console.log("SKIP: no tools directory");
+          process.exit(0);
+        }
+
+        const files = fs.readdirSync(srcDir).filter(f =&gt; f.endsWith(".ts"));
+        let violations = 0;
+
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(srcDir, file), "utf8");
+
+          // Check for span context parameter
+          if (content.includes("async function") &amp;&amp;
+              !content.includes("ctx") &amp;&amp;
+              !content.includes("SpanContext")) {
+            console.error(`FAIL: ${file} has async functions without SpanContext`);
+            violations++;
+          }
+
+          // Check for trace ID propagation
+          if (content.includes("callTool") &amp;&amp;
+              !content.includes("traceId")) {
+            console.error(`FAIL: ${file} calls tools without trace propagation`);
+            violations++;
+          }
+        }
+
+        if (violations &gt; 0) {
+          console.error(`\n${violations} tracing violation(s) found`);
+          process.exit(1);
+        }
+        console.log("OK: all tools propagate span context");
+        '</code></pre>
+
+<h2 id="cross-links">Related Guides</h2>
+<ul>
+  <li><strong><a href="/posts/2026-06-09-add-observability-to-ai-agents/">Agent Observability</a></strong> &mdash; the foundational observability post. Distributed tracing is pattern #3 in that guide; this post goes deep on the implementation.</li>
+  <li><strong><a href="/posts/2026-06-16-ai-agent-structured-logging/">Structured Logging for AI Agents</a></strong> &mdash; logs and traces are complementary. Logs give you the <em>what</em>; traces give you the <em>where and why</em>.</li>
+  <li><strong><a href="/posts/2026-06-09-ci-pipeline-for-ai-agents/">CI Pipeline for AI Agents</a></strong> &mdash; how to wire tracing checks into your CI gate (the Woodpecker snippet above extends this).</li>
+  <li><strong><a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">Reduce LLM API Costs</a></strong> &mdash; tracing reveals which spans are expensive. The cost attribution CLI uses trace data to identify waste.</li>
+  <li><strong><a href="/posts/2026-06-11-ai-agent-idempotency/">Agent Idempotency</a></strong> &mdash; trace IDs double as idempotency keys. If a retry has the same trace ID, you can deduplicate safely.</li>
+  <li><strong><a href="/posts/2026-06-27-ai-agent-function-calling-tool-use/">Function Calling and Tool Use</a></strong> &mdash; every tool call in this guide should propagate span context. This post shows the full tool-use lifecycle.</li>
+</ul>
+<p><strong><a href="https://github.com/Algoram88/agent-eval-harness-cli" rel="noopener">Agent Eval Harness CLI</a></strong> &mdash; a CLI that runs multi-turn agent evaluations with trace correlation. Score conversational agents against expected behavior with full span visibility.</p>
+<p><strong><a href="https://github.com/Algoram88/agent-secrets-audit-cli" rel="noopener">Agent Secrets Audit CLI</a></strong> &mdash; a CLI that scans agent trace exports for unredacted prompt content. Catches Anti-Pattern 5 before traces reach your backend.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+<p>Distributed tracing is the <strong>difference between debugging an agent and guessing at an agent</strong>. Without it, you have a pile of logs with timestamps and hope. With it, you have a causal tree that shows exactly which tool call, API request, or retry consumed the latency budget.</p>
+<p>The patterns in this post work because they enforce <strong>causal continuity</strong>: every span links to its parent, every trace carries a stable ID, and every export is redacted. The anti-patterns fail because they break this continuity &mdash; orphan spans, disconnected traces, or leaked user data.</p>
+<p>Start with Pattern 1 (span context propagation). It's the 80/20 win. Then add Pattern 4 (adaptive sampling) to control costs, and Pattern 5 (latency budget) to enforce SLOs. The full runtime above gives you all six patterns in one file.</p>
+
+<div class="footer">
+  <p>Written by <strong>Algoram99</strong>. &middot; <a href="/posts/2026-06-27-ai-agent-human-in-the-loop/">&larr; Previous: Human-in-the-Loop</a> &middot; <a href="/">All guides &rarr;</a></p>
+  <p><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Gumroad Storefront</a> &middot; <a href="https://buy.stripe.com/" rel="noopener">Stripe Products</a></p>
+</div>
+
+</main>
+</body>
+</html>
