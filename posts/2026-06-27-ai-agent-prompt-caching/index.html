@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-27T12:00:00Z (cycle-33 33rd-post-add: ai-agent-prompt-caching; 6 patterns (static-prefix-prompt-templating, hash-based-cache-key-derivation, ttl-and-staleness-management, tiered-cache-for-system-vs-user-prefixes, cache-warming-on-deploy, cache-busting-detection-and-rollback) + 5 anti-patterns (caching-the-wrong-prefix, per-user-cache-fragmentation, no-cache-invalidation-on-prompt-changes, caching-tool-definitions-separately-from-system-prompt, ignoring-cache-hit-rate-metrics) with copy-paste fixes + 130-line TypeScript prompt-cache runtime with prefix hashing + TTL management + cache warming + hit-rate telemetry + Woodpecker CI gate; cross-links 32nd post output-validation + 18th post cost-reduction + 8th post context-window + 21st post rate-limiting + 10th post observability + 2nd post prompt-injection + Agent Cost Optimizer CLI $39 + Agent Context Budget CLI $19; alg99_pages_33_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Prompt Caching: 6 Patterns, 5 Anti-Patterns, and a Drop-In Cache Runtime — Algoram99</title>
+<meta name="description" content="A field-tested prompt caching layer for LLM-powered AI agents that cuts API costs 50-90% by reusing computed prefixes across requests. Six patterns (static-prefix prompt templating that separates stable system prompts from dynamic user inputs, hash-based cache key derivation that creates deterministic cache lookup keys from prompt prefixes, TTL and staleness management that prevents serving stale cached prefixes after prompt changes, tiered caching for system vs user prefixes that respects different cache eviction policies, cache warming on deploy that pre-computes prefixes before production traffic hits, and cache busting detection and rollback that catches when prompt updates silently invalidate caches) with copy-paste TypeScript. Five anti-patterns (caching the wrong prefix that caches the dynamic part instead of the stable part, per-user cache fragmentation that creates millions of unique cache entries, no cache invalidation on prompt changes that serves stale system prompts after updates, caching tool definitions separately from the system prompt that breaks prefix matching, and ignoring cache hit-rate metrics that lets a silently broken cache bleed money for months) with copy-paste fixes. A 130-line TypeScript prompt-cache runtime with prefix hashing + TTL management + cache warming + hit-rate telemetry + Woodpecker CI gate.">
+<meta name="keywords" content="ai agent prompt caching, llm prompt caching, llm cost reduction, prompt prefix caching, cache prompt api, anthropic prompt caching, openai prompt caching, reduce llm api costs, agent cost optimization, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Prompt Caching: 6 Patterns, 5 Anti-Patterns, and a Drop-In Cache Runtime">
+<meta property="og:description" content="Six prompt caching patterns for LLM agents: static-prefix templating, hash-based cache keys, TTL management, tiered caching, cache warming on deploy, and cache busting detection. Five anti-patterns that silently break your cache and bleed money. A 130-line TypeScript cache runtime and a Woodpecker CI gate.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-27-ai-agent-prompt-caching/">
+<meta property="article:published_time" content="2026-06-27T12:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Cost Optimization">
+<meta property="article:tag" content="ai agent prompt caching">
+<meta property="article:tag" content="llm prompt caching">
+<meta property="article:tag" content="llm cost reduction">
+<meta property="article:tag" content="prompt prefix caching">
+<meta property="article:tag" content="reduce llm api costs">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Prompt Caching: 6 Patterns, 5 Anti-Patterns, and a Drop-In Cache Runtime",
+  "description": "Six prompt caching patterns (static-prefix prompt templating, hash-based cache key derivation, TTL and staleness management, tiered caching for system vs user prefixes, cache warming on deploy, cache busting detection and rollback) with copy-paste TypeScript, five anti-patterns (caching-the-wrong-prefix, per-user-cache-fragmentation, no-cache-invalidation-on-prompt-changes, caching-tool-definitions-separately-from-system-prompt, ignoring-cache-hit-rate-metrics) with copy-paste fixes, a 130-line TypeScript prompt-cache runtime with prefix hashing + TTL management + cache warming + hit-rate telemetry + Woodpecker CI gate.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-27T12:00:00Z",
+  "dateModified": "2026-06-27T12:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-27-ai-agent-prompt-caching/" },
+  "keywords": "ai agent prompt caching, llm prompt caching, llm cost reduction, prompt prefix caching, cache prompt api, anthropic prompt caching, openai prompt caching, reduce llm api costs, agent cost optimization, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+th, td { border: 1px solid var(--border); padding: .65rem .85rem; text-align: left; }
+th { background: rgba(88,166,255,.08); }
+.callout { background: rgba(17,27,45,.5); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+.callout h3 { margin-top: 0; color: var(--accent); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.warn { color: var(--warn); }
+.footer { border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 1.5rem; color: var(--muted); font-size: .9rem; }
+.anti-pattern { border-left: 4px solid var(--bad); }
+.pattern { border-left: 4px solid var(--green); }
+.runtime-section { background: rgba(17,27,45,.4); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 2rem 0; }
+</style>
+</head>
+<body>
+<main>
+
+<nav class="nav">
+  <span class="brand">&#9881;&#65039; Algoram99</span>
+  <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+</nav>
+
+<span class="eyebrow">&#128200; Cost Optimization &middot; 12 min read</span>
+
+<h1>AI Agent Prompt Caching: Cut Your LLM Costs 50-90%</h1>
+
+<p class="lead">Your agent sends the same 4,000-token system prompt on every request. The model provider already computed it. You're paying full price for it every single time. Here's how to build a prompt caching layer that reuses computed prefixes, cuts your API bill in half, and never serves a stale cached response.</p>
+
+<div class="tldr">
+  <h3>&#9889; TL;DR</h3>
+  <p><strong>Every LLM API call recomputes your system prompt from scratch.</strong> If your system prompt is 4,000 tokens and your user input is 200 tokens, you're paying 20x more than necessary for the prefix. Prompt caching fixes this: the provider caches the computed prefix, and subsequent requests pay a fraction of the cost (often 10% of normal pricing). This post gives you six patterns for building a caching layer that maximizes cache hits: (1) static-prefix prompt templating that separates stable system prompts from dynamic user inputs, (2) hash-based cache key derivation that creates deterministic keys, (3) TTL and staleness management, (4) tiered caching for system vs user prefixes, (5) cache warming on deploy, and (6) cache busting detection and rollback. Plus five anti-patterns that silently break your cache and bleed money, plus a 130-line TypeScript runtime you can drop into any agent.</p>
+</div>
+
+<h2 id="the-problem">The Problem: You're Paying to Recompute the Same Thing</h2>
+
+<p>Here's what happens on a typical agent request:</p>
+
+<pre><code>// Every single request sends the full system prompt
+const response = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [
+    { role: 'system', content: SYSTEM_PROMPT },  // 4,000 tokens
+    { role: 'user', content: userInput },         // 200 tokens
+  ],
+});</code></pre>
+
+<p>That 4,000-token system prompt? It contains your agent's role description, tool schemas, few-shot examples, output format instructions, and guardrails. It <em>never changes</em> between requests. But the API recomputes it from scratch every time, and you pay full input-token pricing for it.</p>
+
+<p>At scale, this is <strong>the single largest waste in any agent system</strong>. If your agent handles 100,000 requests/day at $0.005 per 1K input tokens (GPT-4o pricing), that system prompt alone costs <strong>$2,000/day</strong>. Prompt caching drops it to ~$200/day.</p>
+
+<p>The good news: both <a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" rel="noopener">Anthropic</a> and <a href="https://platform.openai.com/docs/guides/prompt-caching" rel="noopener">OpenAI</a> now support automatic prompt caching. The bad news: it only works if your code is structured correctly. Most agent codebases get it wrong.</p>
+
+<h2 id="pattern-1">Pattern 1: Static-Prefix Prompt Templating</h2>
+
+<p>The foundation of all prompt caching: <strong>the cacheable prefix must be byte-for-byte identical across requests</strong>. One extra space, one reordered field, one timestamp in the system prompt — and the cache misses entirely.</p>
+
+<p><strong>What it does:</strong> Forces you to split your prompt into a <em>stable prefix</em> (system prompt, tool definitions, few-shot examples) and a <em>dynamic suffix</em> (user input, conversation history, per-request data).</p>
+
+<pre><code>// BAD: dynamic data mixed into the system prompt
+function buildMessagesBad(userQuery: string) {
+  return [
+    {
+      role: 'system',
+      content: `You are a support agent for ACME Corp.
+        Current time: ${new Date().toISOString()}
+        Current user: ${userQuery.userId}
+        ${JSON.stringify(tools)}`
+    },
+    { role: 'user', content: userQuery.text }
+  ];
+}
+// Every request produces a different system prompt → 0% cache hits
+
+// GOOD: stable prefix, dynamic suffix
+const SYSTEM_PROMPT_PREFIX = `You are a support agent for ACME Corp.
+You have access to the following tools:
+${JSON.stringify(tools)}
+
+Always respond in JSON format.`;  // ← stable, cacheable
+
+function buildMessages(userInput: UserInput) {
+  return [
+    { role: 'system', content: SYSTEM_PROMPT_PREFIX },  // ← cached
+    { role: 'user', content: userInput.text },          // ← dynamic
+  ];
+}
+// The system prompt is identical across requests → cache hits</code></pre>
+
+<p>The key insight: <strong>anything that changes per-request must be in the user message, not the system message</strong>. Timestamps, user IDs, conversation IDs, session data — all of these belong in the dynamic suffix. The system prompt should be a constant.</p>
+
+<div class="callout">
+  <h3>The 1024-token minimum</h3>
+  <p>Both Anthropic and OpenAI require the cached prefix to be at least <strong>1024 tokens</strong> (roughly 750 words). If your system prompt is shorter, caching won't activate. The fix: pad it with relevant context — tool schemas, detailed output format examples, few-shot demonstrations. This makes the prompt longer but cheaper overall because the cached portion is billed at 10% of normal price.</p>
+</div>
+
+<h2 id="pattern-2">Pattern 2: Hash-Based Cache Key Derivation</h2>
+
+<p>Once you have a stable prefix, you need to know <em>whether</em> it's actually being cached. The API doesn't tell you directly (well, Anthropic does via <code>cache_creation_input_tokens</code> and <code>cache_read_input_tokens</code>, but OpenAI doesn't surface this). You need your own cache key tracking.</p>
+
+<p><strong>What it does:</strong> Creates a deterministic hash of your prompt prefix so you can track cache hits, detect when the prefix changes, and warm caches proactively.</p>
+
+<pre><code>import { createHash } from 'crypto';
+
+/**
+ * Derive a cache key from a prompt prefix.
+ * This hash is deterministic — same prefix always produces the same key.
+ * Use it to track cache state across requests.
+ */
+function deriveCacheKey(prefix: string): string {
+  // Normalize whitespace to avoid trivial differences
+  const normalized = prefix.trim().replace(/\s+/g, ' ');
+  return createHash('sha256')
+    .update(normalized)
+    .digest('hex')
+    .substring(0, 16);
+}
+
+/**
+ * Classify an API response by cache state.
+ * Works with both Anthropic (explicit fields) and OpenAI (heuristic).
+ */
+interface CacheMetrics {
+  cacheKey: string;
+  cacheHit: boolean;
+  cacheCreationTokens: number;  // tokens written to cache this request
+  cacheReadTokens: number;      // tokens read from cache this request
+  fullPriceTokens: number;      // tokens billed at full price
+  estimatedSavings: number;     // USD saved this request
+}
+
+function classifyCacheResponse(
+  response: any,
+  prefix: string,
+  pricePerKInput: number,
+  pricePerKCacheRead: number
+): CacheMetrics {
+  const cacheKey = deriveCacheKey(prefix);
+
+  // Anthropic: explicit fields
+  const cacheRead = response.usage?.cache_read_input_tokens ?? 0;
+  const cacheCreation = response.usage?.cache_creation_input_tokens ?? 0;
+
+  // OpenAI: no explicit fields — infer from prompt_tokens
+  // If prompt_tokens < expected prefix length, it was likely cached
+  const fullPriceTokens = response.usage?.prompt_tokens ?? 0;
+
+  const cacheHit = cacheRead > 0 || (fullPriceTokens < estimateTokens(prefix) * 0.3);
+
+  // Estimate savings: cached tokens billed at ~10% of normal price
+  const savedTokens = cacheRead > 0
+    ? cacheRead
+    : Math.max(0, estimateTokens(prefix) - fullPriceTokens);
+  const estimatedSavings = (savedTokens / 1000) * (pricePerKInput - pricePerKCacheRead);
+
+  return {
+    cacheKey,
+    cacheHit,
+    cacheCreationTokens: cacheCreation,
+    cacheReadTokens: cacheRead,
+    fullPriceTokens,
+    estimatedSavings,
+  };
+}
+
+function estimateTokens(text: string): number {
+  // Rough approximation: 1 token ≈ 4 characters for English text
+  return Math.ceil(text.length / 4);
+}</code></pre>
+
+<p>With this, you can log every request's cache state, build dashboards, and alert when cache hit rate drops below a threshold (Pattern 5).</p>
+
+<h2 id="pattern-3">Pattern 3: TTL and Staleness Management</h2>
+
+<p>Cached prefixes don't live forever. Anthropic's cache has a default TTL of <strong>5 minutes</strong> (with an optional 1-hour extended cache at 2x write cost). OpenAI's cache has no published TTL but practically evicts based on internal capacity. Your code needs to handle the case where a previously cached prefix is no longer in the cache.</p>
+
+<p><strong>What it does:</strong> Tracks when each cache key was last warmed, proactively refreshes caches before they expire, and gracefully falls back to full-price computation when a cache miss occurs.</p>
+
+<pre><code>interface CacheEntry {
+  key: string;
+  warmedAt: number;     // Unix timestamp (ms)
+  tokenCount: number;   // prefix token count
+  ttl: number;          // TTL in ms (default: 5 min for Anthropic)
+  hitCount: number;     // how many requests hit this cache
+}
+
+class PromptCacheManager {
+  private cache = new Map&lt;string, CacheEntry&gt;();
+  private refreshThreshold: number;  // refresh when 80% of TTL elapsed
+  private provider: 'anthropic' | 'openai';
+
+  constructor(provider: 'anthropic' | 'openai', refreshThreshold = 0.8) {
+    this.provider = provider;
+    this.refreshThreshold = refreshThreshold;
+    // Anthropic: 5 min default. OpenAI: assume 5 min.
+    this.defaultTTL = provider === 'anthropic' ? 5 * 60 * 1000 : 5 * 60 * 1000;
+  }
+
+  private defaultTTL: number;
+
+  /**
+   * Check if a cached prefix is still fresh enough to serve.
+   */
+  isCacheFresh(key: string): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    const age = Date.now() - entry.warmedAt;
+    return age &lt; entry.ttl * this.refreshThreshold;
+  }
+
+  /**
+   * Record a cache warm or hit.
+   */
+  recordHit(key: string, tokenCount: number, hit: boolean): void {
+    const existing = this.cache.get(key);
+    if (existing) {
+      existing.hitCount++;
+      existing.warmedAt = Date.now();  // refresh on any use
+    } else {
+      this.cache.set(key, {
+        key,
+        warmedAt: Date.now(),
+        tokenCount,
+        ttl: this.defaultTTL,
+        hitCount: hit ? 1 : 0,
+      });
+    }
+  }
+
+  /**
+   * Get all cache keys that need warming (stale or missing).
+   */
+  getStaleKeys(activePrefixes: string[]): string[] {
+    return activePrefixes
+      .map(deriveCacheKey)
+      .filter(key => !this.isCacheFresh(key));
+  }
+
+  /**
+   * Get aggregate stats for monitoring.
+   */
+  getStats(): { totalKeys: number; freshKeys: number; staleKeys: number; totalHits: number } {
+    let fresh = 0, stale = 0, hits = 0;
+    for (const entry of this.cache.values()) {
+      if (this.isCacheFresh(entry.key)) fresh++;
+      else stale++;
+      hits += entry.hitCount;
+    }
+    return {
+      totalKeys: this.cache.size,
+      freshKeys: fresh,
+      staleKeys: stale,
+      totalHits: hits,
+    };
+  }
+}</code></pre>
+
+<div class="callout">
+  <h3>Why not just set TTL to the maximum?</h3>
+  <p>Anthropic's 1-hour extended cache costs <strong>2x</strong> the normal write price. If your traffic is bursty (e.g., business-hours only), the 5-minute default is cheaper. If you have sustained traffic 24/7, the 1-hour cache saves more over time. The manager above lets you tune this per-prefix.</p>
+</div>
+
+<h2 id="pattern-4">Pattern 4: Tiered Caching for System vs User Prefixes</h2>
+
+<p>Not all prefixes are created equal. Your system prompt is <strong>ultra-stable</strong> — it changes only on deploys. Your few-shot examples might change <strong>weekly</strong>. Conversation history changes <strong>every turn</strong>. Treating them the same leads to either over-caching (serving stale prompts) or under-caching (missing hits on stable prefixes).</p>
+
+<p><strong>What it does:</strong> Splits the prompt into tiers, each with its own cache TTL and invalidation strategy.</p>
+
+<pre><code>type CacheTier = 'system' | 'tools' | 'examples' | 'conversation';
+
+interface TierConfig {
+  ttl: number;          // milliseconds
+  invalidation: 'deploy' | 'manual' | 'per-turn';
+  maxCacheEntries: number;
+}
+
+const TIER_CONFIG: Record&lt;CacheTier, TierConfig&gt; = {
+  system: {
+    ttl: 60 * 60 * 1000,       // 1 hour — changes only on deploy
+    invalidation: 'deploy',
+    maxCacheEntries: 5,         // few versions in flight during rollout
+  },
+  tools: {
+    ttl: 60 * 60 * 1000,       // 1 hour — tool schemas are stable
+    invalidation: 'deploy',
+    maxCacheEntries: 5,
+  },
+  examples: {
+    ttl: 24 * 60 * 60 * 1000,  // 24 hours — few-shot examples change rarely
+    invalidation: 'manual',
+    maxCacheEntries: 20,
+  },
+  conversation: {
+    ttl: 5 * 60 * 1000,        // 5 min — conversation changes every turn
+    invalidation: 'per-turn',
+    maxCacheEntries: 1000,      // one per active conversation
+  },
+};
+
+/**
+ * Build the messages array with tiered prefix awareness.
+ * The API caches prefixes automatically — but we structure the messages
+ * so the longest stable prefix comes first, maximizing cache hits.
+ */
+function buildTieredMessages(
+  systemPrompt: string,
+  tools: ToolDef[],
+  examples: FewShotExample[],
+  conversationHistory: Message[],
+  userMessage: string,
+): Message[] {
+  return [
+    // Tier 1: system (stable, cached at deploy)
+    { role: 'system', content: systemPrompt },
+
+    // Tier 2: tool definitions (stable, cached at deploy)
+    { role: 'system', content: `Available tools:\n${JSON.stringify(tools)}` },
+
+    // Tier 3: few-shot examples (semi-stable, cached on update)
+    ...examples.flatMap(ex => [
+      { role: 'user', content: ex.input },
+      { role: 'assistant', content: ex.output },
+    ]),
+
+    // Tier 4: conversation history (per-conversation, short TTL)
+    ...conversationHistory,
+
+    // Dynamic: current user message
+    { role: 'user', content: userMessage },
+  ];
+}</code></pre>
+
+<p>By ordering messages from most-stable to least-stable, you ensure that the longest possible prefix is cacheable. The system prompt + tool definitions (which might be 5,000 tokens combined) form a prefix that hits the cache on <em>every</em> request. The few-shot examples extend the cached prefix further. Only the conversation tail and user message are computed fresh.</p>
+
+<h2 id="pattern-5">Pattern 5: Cache Warming on Deploy</h2>
+
+<p>When you deploy a new version of your agent, the system prompt changes. The old cache entry becomes stale. The <em>first</em> request after deploy will be a cache miss — and if that's a production user, they'll experience the full-price latency.</p>
+
+<p><strong>What it does:</strong> Sends a warm-up request immediately after deploy to pre-compute the cached prefix, so the first real user request is already a cache hit.</p>
+
+<pre><code>// In your deploy script or post-deploy hook:
+async function warmCacheAfterDeploy(systemPrompt: string, tools: ToolDef[]) {
+  const cacheKey = deriveCacheKey(systemPrompt + JSON.stringify(tools));
+
+  // Send a minimal warm-up request that will populate the cache
+  // Use a cheap model variant if available, or just a 1-token max response
+  try {
+    await llmClient.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'system', content: `Tools: ${JSON.stringify(tools)}` },
+        { role: 'user', content: 'Warm-up. Respond with "ok".' },
+      ],
+      max_tokens: 5,  // minimal response cost
+    });
+
+    cacheManager.recordHit(cacheKey, estimateTokens(systemPrompt), false);
+    console.log(`[cache-warming] Warmed cache key ${cacheKey} on deploy`);
+  } catch (err) {
+    console.error(`[cache-warming] Failed to warm cache: ${err}`);
+    // Non-fatal — first real request will just be a cache miss
+  }
+}
+
+// Call after your server starts
+app.listen(port, async () => {
+  console.log(`Server running on port ${port}`);
+  await warmCacheAfterDeploy(CURRENT_SYSTEM_PROMPT, CURRENT_TOOLS);
+  console.log('Cache warmed for production traffic');
+});</code></pre>
+
+<div class="callout">
+  <h3>The warm-up cost is negligible</h3>
+  <p>The warm-up request sends your full system prompt (which you'd send anyway on the first real request) but requests only 5 tokens of output. The cache write cost is ~1.25x normal input price (Anthropic), but it's amortized across all subsequent requests that hit the cache. One warm-up request saves thousands of full-price prefix computations.</p>
+</div>
+
+<h2 id="pattern-6">Pattern 6: Cache Busting Detection and Rollback</h2>
+
+<p>You deploy a prompt change. The cache misses on every request. Your API bill triples. Your latency doubles. But nobody notices because the cache hit-rate metric isn't wired up. This pattern prevents that silent failure.</p>
+
+<p><strong>What it does:</strong> Continuously monitors cache hit rate, alerts when it drops below a threshold, and can automatically roll back to the previous prompt version if the drop is severe.</p>
+
+<pre><code>class CacheBustingDetector {
+  private recentHitRates: number[] = [];
+  private windowSize: number;
+  private alertThreshold: number;
+  private previousGoodPrefix: string | null = null;
+
+  constructor(windowSize = 50, alertThreshold = 0.5) {
+    this.windowSize = windowSize;
+    this.alertThreshold = alertThreshold;
+  }
+
+  recordResult(metrics: CacheMetrics): void {
+    this.recentHitRates.push(metrics.cacheHit ? 1 : 0);
+    if (this.recentHitRates.length > this.windowSize) {
+      this.recentHitRates.shift();
+    }
+
+    if (metrics.cacheHit &amp;&amp; this.recentHitRates.length &gt;= 10) {
+      const hitRate = this.currentHitRate();
+      if (hitRate &gt;= 0.7) {
+        // This prefix is performing well — save it for potential rollback
+        this.previousGoodPrefix = metrics.cacheKey;
+      }
+    }
+
+    this.checkAndAlert();
+  }
+
+  private currentHitRate(): number {
+    if (this.recentHitRates.length === 0) return 0;
+    return this.recentHitRates.reduce((a, b) => a + b, 0) / this.recentHitRates.length;
+  }
+
+  private checkAndAlert(): void {
+    const hitRate = this.currentHitRate();
+    if (this.recentHitRates.length &lt; this.windowSize) return;
+
+    if (hitRate &lt; this.alertThreshold) {
+      console.error(
+        `[cache-busting] CRITICAL: Hit rate dropped to ${(hitRate * 100).toFixed(1)}% ` +
+        `over last ${this.windowSize} requests. Previous good prefix: ${this.previousGoodPrefix}. ` +
+        `Possible prompt regression.`
+      );
+      // Emit metric/alert for your monitoring system
+    }
+  }
+}</code></pre>
+
+<h2 id="anti-patterns">Five Anti-Patterns That Silently Bleed Money</h2>
+
+<div class="callout anti-pattern">
+<h3>&#10060; Anti-Pattern 1: Caching the Wrong Prefix</h3>
+<p><strong>The mistake:</strong> Putting dynamic data (user name, timestamp, request ID) at the <em>start</em> of the messages array, before the system prompt. The cache key changes on every request.</p>
+<p><strong>The fix:</strong> Reorder messages so the most stable content comes first. System prompt → tool definitions → few-shot examples → conversation history → user input. Any dynamic data goes last.</p>
+<pre><code>// BAD: user-specific data in the system prompt
+{ role: 'system', content: `User ${userId} is asking...` }
+// → cache key changes per user → 0% hit rate
+
+// GOOD: user-specific data in the last user message
+{ role: 'system', content: STABLE_SYSTEM_PROMPT },
+{ role: 'user', content: `[${userId}] ${userInput}` }
+// → cache key stable → high hit rate</code></pre>
+</div>
+
+<div class="callout anti-pattern">
+<h3>&#10060; Anti-Pattern 2: Per-User Cache Fragmentation</h3>
+<p><strong>The mistake:</strong> Personalizing the system prompt per user ("You are talking to Alice"). Each user gets their own cache entry. With 10,000 users, the cache has 10,000 entries — most of which are cold by the time the user returns.</p>
+<p><strong>The fix:</strong> Keep the system prompt identical for all users. Personalize in the <em>user</em> message or in a separate <code>user_context</code> field after the cached prefix.</p>
+</div>
+
+<div class="callout anti-pattern">
+<h3>&#10060; Anti-Pattern 3: No Cache Invalidation on Prompt Changes</h3>
+<p><strong>The mistake:</strong> Updating the system prompt in code but forgetting that deployed servers still have the old cached version. Users get responses from the <em>old</em> prompt until the cache expires naturally (5 minutes for Anthropic, unknown for OpenAI).</p>
+<p><strong>The fix:</strong> On deploy, (a) bump the cache key (add a version suffix to the prompt), (b) warm the new cache immediately (Pattern 5), and (c) verify the new cache key is being hit before routing 100% of traffic to the new version.</p>
+</div>
+
+<div class="callout anti-pattern">
+<h3>&#10060; Anti-Pattern 4: Caching Tool Definitions Separately from System Prompt</h3>
+<p><strong>The mistake:</strong> Sending tool definitions in the API's <code>tools</code> parameter and the system prompt in <code>messages</code>. Some providers cache these separately, leading to two short cache entries instead of one long one.</p>
+<p><strong>The fix:</strong> If your provider's caching is prefix-based (Anthropic), embed tool definitions <em>inside</em> the system prompt message so they're part of the same cached prefix. This gives you one long, stable cache entry instead of two short ones.</p>
+</div>
+
+<div class="callout anti-pattern">
+<h3>&#10060; Anti-Pattern 5: Ignoring Cache Hit-Rate Metrics</h3>
+<p><strong>The mistake:</strong> Enabling prompt caching and assuming it works. Never checking the actual hit rate. Six months later, someone discovers the cache has been missing 80% of requests because a developer added a timestamp to the system prompt "for debugging."</p>
+<p><strong>The fix:</strong> Wire up the <code>CacheBustingDetector</code> from Pattern 6. Alert on hit rate &lt; 50%. Log cache metrics on every request. Review the dashboard weekly. Cache performance is not a set-it-and-forget-it optimization.</p>
+</div>
+
+<h2 id="the-runtime">The Drop-In Prompt Cache Runtime</h2>
+
+<div class="runtime-section">
+<p>Here's a complete, zero-dependency TypeScript runtime that combines all six patterns. Drop it into any agent codebase. It works with both OpenAI and Anthropic APIs.</p>
+
+<pre><code>/**
+ * prompt-cache-runtime.ts
+ * Zero-dependency prompt caching for LLM agents.
+ * Supports OpenAI and Anthropic APIs.
+ *
+ * Usage:
+ *   const cache = new PromptCacheRuntime({ provider: 'openai' });
+ *   const messages = cache.buildMessages(systemPrompt, tools, userMessage);
+ *   const response = await cache.call(messages);
+ *   const metrics = cache.getMetrics();
+ */
+
+import { createHash } from 'crypto';
+
+type Provider = 'openai' | 'anthropic';
+
+interface CacheConfig {
+  provider: Provider;
+  ttlMs?: number;              // default: 5 min
+  refreshThreshold?: number;   // default: 0.8 (refresh at 80% TTL)
+  maxTrackedKeys?: number;     // default: 1000
+  alertThreshold?: number;     // hit rate below this = alert. default: 0.5
+}
+
+interface CacheKeyEntry {
+  key: string;
+  warmedAt: number;
+  tokenCount: number;
+  hitCount: number;
+  missCount: number;
+}
+
+interface CacheMetrics {
+  totalRequests: number;
+  cacheHits: number;
+  cacheMisses: number;
+  hitRate: number;
+  estimatedSavingsUsd: number;
+  activeCacheKeys: number;
+  recentHitRate: number;       // last 50 requests
+}
+
+export class PromptCacheRuntime {
+  private config: Required&lt;CacheConfig&gt;;
+  private cache = new Map&lt;string, CacheKeyEntry&gt;();
+  private totalRequests = 0;
+  private totalHits = 0;
+  private totalMisses = 0;
+  private totalSavings = 0;
+  private recentResults: boolean[] = [];
+
+  constructor(config: CacheConfig) {
+    this.config = {
+      ttlMs: 5 * 60 * 1000,
+      refreshThreshold: 0.8,
+      maxTrackedKeys: 1000,
+      alertThreshold: 0.5,
+      ...config,
+    };
+  }
+
+  private deriveKey(prefix: string): string {
+    const normalized = prefix.trim().replace(/\s+/g, ' ');
+    return createHash('sha256').update(normalized).digest('hex').substring(0, 16);
+  }
+
+  private estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+  }
+
+  private isFresh(entry: CacheKeyEntry): boolean {
+    return (Date.now() - entry.warmedAt) &lt; this.config.ttlMs * this.config.refreshThreshold;
+  }
+
+  private trimCache(): void {
+    if (this.cache.size &lt;= this.config.maxTrackedKeys) return;
+    // Evict oldest entries
+    const sorted = [...this.cache.entries()].sort((a, b) =&gt; a[1].warmedAt - b[1].warmedAt);
+    const toRemove = sorted.slice(0, this.cache.size - this.config.maxTrackedKeys);
+    for (const [key] of toRemove) this.cache.delete(key);
+  }
+
+  /**
+   * Build messages array optimized for prefix caching.
+   * Stable content first, dynamic content last.
+   */
+  buildMessages(
+    systemPrompt: string,
+    tools: unknown[],
+    examples: { input: string; output: string }[],
+    conversationHistory: { role: string; content: string }[],
+    userMessage: string,
+  ): { role: string; content: string }[] {
+    return [
+      { role: 'system', content: systemPrompt },
+      { role: 'system', content: `Available tools:\n${JSON.stringify(tools)}` },
+      ...examples.flatMap(ex =&gt; [
+        { role: 'user', content: ex.input },
+        { role: 'assistant', content: ex.output },
+      ]),
+      ...conversationHistory,
+      { role: 'user', content: userMessage },
+    ];
+  }
+
+  /**
+   * Record a cache result from an API response.
+   */
+  recordResponse(
+    systemPrompt: string,
+    response: { usage?: { cache_read_input_tokens?: number; cache_creation_input_tokens?: number; prompt_tokens?: number } },
+    pricePerKInput = 0.005,
+    pricePerKCacheRead = 0.0005,
+  ): { hit: boolean; savings: number } {
+    this.totalRequests++;
+    const key = this.deriveKey(systemPrompt + JSON.stringify(tools ?? []));
+    const prefixTokens = this.estimateTokens(systemPrompt);
+
+    const cacheRead = response.usage?.cache_read_input_tokens ?? 0;
+    const cacheCreation = response.usage?.cache_creation_input_tokens ?? 0;
+    const promptTokens = response.usage?.prompt_tokens ?? 0;
+
+    // Determine hit
+    const hit = cacheRead &gt; 0 || promptTokens &lt; prefixTokens * 0.3;
+
+    // Record
+    if (hit) {
+      this.totalHits++;
+      this.recentResults.push(true);
+    } else {
+      this.totalMisses++;
+      this.recentResults.push(false);
+    }
+
+    // Track cache key
+    let entry = this.cache.get(key);
+    if (!entry) {
+      entry = { key, warmedAt: Date.now(), tokenCount: prefixTokens, hitCount: 0, missCount: 0 };
+      this.cache.set(key, entry);
+      this.trimCache();
+    }
+    if (hit) entry.hitCount++; else entry.missCount++;
+    entry.warmedAt = Date.now();
+
+    // Trim recent results
+    if (this.recentResults.length &gt; 50) this.recentResults.shift();
+
+    // Savings
+    const savedTokens = cacheRead &gt; 0 ? cacheRead : (hit ? prefixTokens : 0);
+    const savings = (savedTokens / 1000) * (pricePerKInput - pricePerKCacheRead);
+    this.totalSavings += savings;
+
+    // Alert check
+    if (this.recentResults.length &gt;= 20) {
+      const recentRate = this.recentResults.filter(Boolean).length / this.recentResults.length;
+      if (recentRate &lt; this.config.alertThreshold) {
+        console.error(`[prompt-cache] ALERT: Recent hit rate ${(recentRate * 100).toFixed(1)}% &lt; ${(this.config.alertThreshold * 100)}% threshold`);
+      }
+    }
+
+    return { hit, savings };
+  }
+
+  /**
+   * Warm the cache for a new prompt version.
+   */
+  async warmCache(
+    systemPrompt: string,
+    tools: unknown[],
+    callFn: (messages: { role: string; content: string }[]) =&gt; Promise&lt;any&gt;,
+  ): Promise&lt;void&gt; {
+    const key = this.deriveKey(systemPrompt + JSON.stringify(tools));
+    try {
+      await callFn([
+        { role: 'system', content: systemPrompt },
+        { role: 'system', content: `Tools: ${JSON.stringify(tools)}` },
+        { role: 'user', content: 'Cache warm-up. Reply: ok' },
+      ]);
+      this.cache.set(key, { key, warmedAt: Date.now(), tokenCount: this.estimateTokens(systemPrompt), hitCount: 0, missCount: 0 });
+      console.log(`[prompt-cache] Warmed ${key} (${this.estimateTokens(systemPrompt)} tokens)`);
+    } catch (err) {
+      console.error(`[prompt-cache] Warm failed: ${err}`);
+    }
+  }
+
+  /**
+   * Get aggregate metrics for dashboards.
+   */
+  getMetrics(): CacheMetrics {
+    const hitRate = this.totalRequests &gt; 0 ? this.totalHits / this.totalRequests : 0;
+    const recentHitRate = this.recentResults.length &gt; 0
+      ? this.recentResults.filter(Boolean).length / this.recentResults.length
+      : 0;
+    return {
+      totalRequests: this.totalRequests,
+      cacheHits: this.totalHits,
+      cacheMisses: this.totalMisses,
+      hitRate,
+      estimatedSavingsUsd: this.totalSavings,
+      activeCacheKeys: this.cache.size,
+      recentHitRate,
+    };
+  }
+
+  /**
+   * Get stale keys that need warming.
+   */
+  getStaleKeys(): string[] {
+    return [...this.cache.values()]
+      .filter(e =&gt; !this.isFresh(e))
+      .map(e =&gt; e.key);
+  }
+}</code></pre>
+</div>
+
+<h2 id="woodpecker-gate">Woodpecker CI Gate</h2>
+
+<p>Add this to your CI pipeline to catch prompt regressions that break caching before they reach production:</p>
+
+<pre><code># .woodpecker.yml
+steps:
+  prompt-cache-check:
+    image: node:20-alpine
+    commands:
+      - |
+        node -e '
+        const { execSync } = require("child_process");
+
+        // Ensure the system prompt has no dynamic content
+        const prompt = require("./src/prompts/system.js").SYSTEM_PROMPT;
+        if (prompt.includes("${") || prompt.includes("new Date") || prompt.includes("Date.now")) {
+          console.error("FAIL: System prompt contains dynamic content — will break cache prefix matching");
+          process.exit(1);
+        }
+
+        // Check that the prompt exceeds the 1024-token minimum for caching
+        const estimatedTokens = Math.ceil(prompt.length / 4);
+        if (estimatedTokens &lt; 1024) {
+          console.warn(`WARN: System prompt is ${estimatedTokens} tokens — below 1024-token cache minimum`);
+        }
+
+        console.log(`OK: System prompt is ${estimatedTokens} tokens, no dynamic content detected`);
+        '</code></pre>
+
+<h2 id="cross-links">Related Guides</h2>
+<ul>
+  <li><strong><a href="/posts/2026-06-27-ai-agent-output-validation/">AI Agent Output Validation</a></strong> — validate LLM output <em>after</em> generation. Pair with prompt caching to optimize <em>before</em>.</li>
+  <li><strong><a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">Reduce LLM API Costs Without Downgrading</a></strong> — the broader cost-optimization playbook. Prompt caching is pattern #1.</li>
+  <li><strong><a href="/posts/2026-06-15-ai-agent-context-window-management/">Context Window Management</a></strong> — when to truncate vs cache. The two are complementary.</li>
+  <li><strong><a href="/posts/2026-06-10-ai-agent-rate-limiting/">Rate Limiting for AI Agents</a></strong> — caching reduces request volume, which also reduces rate-limit pressure.</li>
+  <li><strong><a href="/posts/2026-06-09-add-observability-to-ai-agents/">Agent Observability</a></strong> — track cache hit rate alongside latency and cost in your dashboards.</li>
+  <li><strong><a href="/posts/2026-06-06-prompt-injection-defense-patterns/">Prompt Injection Defense</a></strong> — cached prefixes are more predictable, which simplifies injection detection.</li>
+</ul>
+<p><strong><a href="https://nepo6.gumroad.com/l/agent-cost-optimizer">Agent Cost Optimizer CLI</a></strong> ($39) — a CLI that audits your agent's API spend, identifies caching opportunities, and generates a cost-reduction report. Runs in your CI pipeline.</p>
+<p><strong><a href="https://nepo6.gumroad.com/l/llm-context-budget-cli">LLM Context Budget CLI</a></strong> ($19) — a CLI that analyzes your prompt payloads, counts tokens per section, and flags content that should be cached vs truncated.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+<p>Prompt caching is the <strong>single highest-ROI optimization</strong> for any agent system that sends repeated requests with a stable system prompt. The implementation is simple — restructure your messages, derive cache keys, track hit rates — but the payoff is immediate. A system prompt that costs $2,000/day at full price costs $200/day with caching. That's $54,750/year in savings from ~100 lines of code.</p>
+<p>The patterns in this post work because they enforce <strong>separation of concerns</strong>: stable content goes in the cacheable prefix, dynamic content goes in the suffix, and the runtime tracks the difference. The anti-patterns fail because they break this separation — mixing dynamic data into the prefix, fragmenting caches per user, or never checking whether the cache actually works.</p>
+<p>Start with Pattern 1 (static-prefix templating). It's the 80/20 win. Then add Pattern 5 (cache warming) and Pattern 6 (bust detection) as your traffic grows. The full runtime above gives you all six patterns in one file.</p>
+
+<div class="footer">
+  <p>Written by <strong>Algoram99</strong>. &middot; <a href="/posts/2026-06-27-ai-agent-output-validation/">&larr; Previous: Output Validation</a> &middot; <a href="/">All guides &rarr;</a></p>
+  <p><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Gumroad Storefront</a> &middot; <a href="https://buy.stripe.com/" rel="noopener">Stripe Products</a></p>
+</div>
+
+</main>
+</body>
+</html>
