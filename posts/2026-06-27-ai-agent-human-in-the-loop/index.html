@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-27T18:00:00Z (33rd-post-add: ai-agent-human-in-the-loop; 6 patterns (approval-gate-before-irreversible-actions, confidence-score-thresholding, async-human-review-queue, escalation-with-context-packets, time-bounded-auto-approve, audit-trail-with-replay) + 5 anti-patterns (approve-everything-default, synchronous-blocking-on-every-call, no-context-in-approval-request, rubber-stamp-approvals, no-rollback-after-approval) with copy-paste fixes + 130-line TypeScript HITL runtime with approval gates + confidence scoring + async review queue + escalation context + audit trail + Woodpecker CI gate; cross-links 32nd post output-validation + 30th post retry-policy + 29th post structured-logging + 9th post observability + 22nd post memory-architecture + 2nd post mcp-testing + 6th post prompt-injection-defense + Agent Tool-Call Validator CLI $29 + Agent Inflight Telemetry CLI $29; alg99_pages_33_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Human-in-the-Loop AI Agents: 6 Patterns, 5 Anti-Patterns, and a Drop-In Approval Runtime — Algoram99</title>
+<meta name="description" content="A field-tested human-in-the-loop (HITL) layer for LLM-powered AI agents that gates irreversible actions, routes low-confidence decisions to human reviewers, and provides full audit trails with replay. Six patterns (approval gate before irreversible actions that blocks writes, deletes, sends, and purchases until a human approves, confidence score thresholding that auto-approves high-certainty output and routes the rest to review, async human review queue that batches low-priority decisions for batch approval, escalation with context packets that gives reviewers everything they need in one screen, time-bounded auto-approve that prevents indefinite blocking when reviewers are unavailable, and audit trail with replay that records every decision for compliance and debugging) with copy-paste TypeScript. Five anti-patterns (approve-everything default that makes the gate meaningless, synchronous blocking on every call that destroys latency, no-context in approval requests that forces reviewers to hunt for information, rubber-stamp approvals where humans click approve without reading, and no-rollback after approval that makes mistakes permanent) with copy-paste fixes. A 130-line TypeScript HITL runtime with approval gates, confidence scoring, async review queue, escalation context builder, audit trail, and Woodpecker CI gate. For engineering teams whose agent sent a production email without approval, deleted a database row it should not have, or spent real money on the wrong thing.">
+<meta name="keywords" content="human in the loop AI, HITL AI agent, AI agent approval gate, LLM confidence threshold, AI agent human review queue, agent escalation patterns, AI agent audit trail, human override AI, approval workflow LLM, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="Human-in-the-Loop AI Agents: 6 Patterns, 5 Anti-Patterns, and a Drop-In Approval Runtime">
+<meta property="og:description" content="Six human-in-the-loop patterns for LLM agents: approval gates before irreversible actions, confidence score thresholding, async human review queues, escalation with context packets, time-bounded auto-approve, and audit trail with replay. Five anti-patterns that let agents execute irreversible actions without human oversight. A 130-line TypeScript HITL runtime and a Woodpecker CI gate.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-27-ai-agent-human-in-the-loop/">
+<meta property="article:published_time" content="2026-06-27T18:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Safety">
+<meta property="article:tag" content="human in the loop AI">
+<meta property="article:tag" content="HITL AI agent">
+<meta property="article:tag" content="AI agent approval gate">
+<meta property="article:tag" content="LLM confidence threshold">
+<meta property="article:tag" content="AI agent human review queue">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Human-in-the-Loop AI Agents: 6 Patterns, 5 Anti-Patterns, and a Drop-In Approval Runtime",
+  "description": "Six human-in-the-loop patterns (approval gate before irreversible actions, confidence score thresholding, async human review queue, escalation with context packets, time-bounded auto-approve, audit trail with replay) with copy-paste TypeScript, five anti-patterns (approve-everything default, synchronous blocking on every call, no-context in approval requests, rubber-stamp approvals, no-rollback after approval) with copy-paste fixes, a 130-line TypeScript HITL runtime with approval gates, confidence scoring, async review queue, escalation context builder, audit trail, and a Woodpecker CI gate.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-27T18:00:00Z",
+  "dateModified": "2026-06-27T18:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-27-ai-agent-human-in-the-loop/" },
+  "keywords": "human in the loop AI, HITL AI agent, AI agent approval gate, LLM confidence threshold, AI agent human review queue, agent escalation patterns, AI agent audit trail, human override AI, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">&#128640; AI Agents &middot; Human-in-the-Loop &middot; 14 min read</span>
+  <h1>Human-in-the-Loop AI Agents: 6 Patterns, 5 Anti-Patterns, and a Drop-In Approval Runtime</h1>
+  <p class="lead">Your agent can read databases, call APIs, send emails, and write files. The question is not whether it <em>can</em> — it's whether it <em>should</em>. Here's how to build a human-in-the-loop layer that gates irreversible actions, routes uncertain decisions to human reviewers, and keeps a full audit trail for every action the agent takes.</p>
+
+  <div class="tldr">
+    <h3>&#9888;&#65039; TL;DR</h3>
+    <p><strong>Full autonomy is a liability, not a feature.</strong> Production agents need a human-in-the-loop layer that sits between the LLM's decision and the actual execution of side-effectful actions. Six patterns make this work: (1) an approval gate that blocks writes, deletes, sends, and purchases until a human approves, (2) confidence score thresholding that auto-approves high-certainty output and routes everything else to review, (3) an async human review queue that batches low-priority decisions so reviewers aren't interrupted for every trivial call, (4) escalation with context packets that gives reviewers the full reasoning trace and proposed action in one screen, (5) time-bounded auto-approve that prevents the system from blocking forever when no reviewer is online, and (6) an audit trail with replay that records every decision — approved, rejected, auto-approved, or timed out — for compliance and debugging. This post gives you all six as copy-paste TypeScript, plus five anti-patterns that make your HITL layer worse than useless, plus a 130-line runtime you can drop into any agent.</p>
+  </div>
+
+  <h2 id="the-problem">The Problem: Agents That Act Without Asking</h2>
+  <p>Here's a real production failure mode. Your customer support agent reads a user's complaint, determines that a refund is appropriate, and calls <code>processRefund(orderId, amount)</code>. The refund goes through. No human ever saw it.</p>
+  <p>Was the refund correct? Maybe. The LLM had the order history, the complaint text, and the refund policy. It made a reasonable decision. But what if the order was already partially refunded last week? What if the customer is a known fraud risk? What if the amount was wrong because the agent misread the currency? You'll find out when the customer complains again — or when the finance team flags the discrepancy at month-end close.</p>
+  <p>The fix is not to remove the agent's ability to act. The fix is to insert a human checkpoint at the boundary between <em>deciding</em> and <em>doing</em>. That checkpoint is the human-in-the-loop layer.</p>
+  <p>But building a HITL layer that actually works — one that doesn't destroy latency, doesn't drown reviewers in trivial approvals, and doesn't become a rubber-stamp formality — requires careful design. This post covers the six patterns that work in production and the five anti-patterns that will get you paged at 3 AM.</p>
+
+  <h2 id="pattern-1">Pattern 1: Approval Gate Before Irreversible Actions</h2>
+  <p>The most fundamental HITL pattern: classify every action as <strong>read-only</strong> or <strong>side-effectful</strong>, and require human approval before executing any side-effectful action. Read-only actions (queries, searches, computations) flow through immediately. Side-effectful actions (writes, deletes, sends, purchases, API calls that change external state) block until a human approves.</p>
+  <p>The key insight is that the gate must be at the <em>execution boundary</em>, not at the LLM call boundary. The LLM can propose actions freely; the gate intercepts the proposal before it reaches the actual tool call.</p>
+  <pre><code>// Classify tools by risk level
+type RiskLevel = 'read-only' | 'side-effect';
+
+const TOOL_RISK: Record&lt;string, RiskLevel&gt; = {
+  'searchDocs': 'read-only',
+  'getOrderHistory': 'read-only',
+  'calculateRefund': 'read-only',
+  'processRefund': 'side-effect',
+  'sendEmail': 'side-effect',
+  'deleteRecord': 'side-effect',
+  'createDeployment': 'side-effect',
+  'purchaseCredits': 'side-effect',
+};
+
+async function gatedExecute(
+  toolName: string,
+  args: Record&lt;string, unknown&gt;,
+  context: ActionContext
+): Promise&lt;ToolResult&gt; {
+  const risk = TOOL_RISK[toolName] ?? 'side-effect';
+
+  // Read-only tools execute immediately — no gate
+  if (risk === 'read-only') {
+    return executeTool(toolName, args);
+  }
+
+  // Side-effect tools require approval
+  const approval = await requestApproval({
+    tool: toolName,
+    args,
+    context,
+    reason: `Executing side-effectful action: ${toolName}`,
+  });
+
+  if (approval.decision === 'approved') {
+    return executeTool(toolName, args);
+  }
+
+  // Rejected — return the rejection reason to the LLM
+  return {
+    ok: false,
+    error: `Action rejected by reviewer: ${approval.reason}`,
+  };
+}</code></pre>
+  <p>The <code>requestApproval()</code> function pushes the action to a review queue (async) or blocks on a synchronous approval channel (for high-urgency contexts). The LLM receives the rejection reason and can adjust its plan accordingly — try a different approach, ask the user for clarification, or escalate to a more senior reviewer.</p>
+
+  <h2 id="pattern-2">Pattern 2: Confidence Score Thresholding</h2>
+  <p>Not every action needs human review. If your agent is 99% confident it should call <code>searchDocs()</code> (a read-only query), blocking on approval is pure latency overhead. Confidence thresholding routes high-certainty decisions through automatically and sends low-certainty ones to the review queue.</p>
+  <p>The threshold should be configurable per tool and per risk level. A read-only search might auto-approve at 80% confidence. A refund might require 95% confidence to auto-approve and route everything below that to a human. A database deletion might <em>never</em> auto-approve regardless of confidence.</p>
+  <pre><code>interface ConfidenceConfig {
+  tool: string;
+  autoApproveThreshold: number;  // 0-1, above this = auto-approve
+  hardBlock: boolean;             // true = always require human approval
+}
+
+const CONFIDENCE_CONFIG: Record&lt;string, ConfidenceConfig&gt; = {
+  'searchDocs':            { tool: 'searchDocs',            autoApproveThreshold: 0.70, hardBlock: false },
+  'getOrderHistory':       { tool: 'getOrderHistory',       autoApproveThreshold: 0.80, hardBlock: false },
+  'processRefund':         { tool: 'processRefund',         autoApproveThreshold: 0.95, hardBlock: false },
+  'sendEmail':             { tool: 'sendEmail',             autoApproveThreshold: 0.90, hardBlock: false },
+  'deleteRecord':          { tool: 'deleteRecord',          autoApproveThreshold: 1.01, hardBlock: true  },
+  'purchaseCredits':       { tool: 'purchaseCredits',       autoApproveThreshold: 1.01, hardBlock: true  },
+};
+
+function routeByConfidence(
+  toolName: string,
+  confidence: number,
+  args: Record&lt;string, unknown&gt;
+): 'auto-approve' | 'review' {
+  const cfg = CONFIDENCE_CONFIG[toolName];
+  if (!cfg) return 'review'; // unknown tools always go to review
+
+  if (cfg.hardBlock) return 'review'; // never auto-approve hard-blocked tools
+
+  if (confidence >= cfg.autoApproveThreshold) return 'auto-approve';
+
+  return 'review';
+}</code></pre>
+  <p>Where does the confidence score come from? Three common approaches: (1) the LLM's own logprob-based confidence if the provider exposes it, (2) a separate <em>evaluator</em> LLM call that scores the proposed action, or (3) a heuristic based on whether the action matches historical patterns. Option 2 is the most reliable — a second model evaluating the first model's proposal catches errors that the first model would never flag on its own. For more on building evaluator pipelines, see our <a href="/posts/2026-06-09-build-agent-eval-harness/">AI Agent Eval Harness guide</a>.</p>
+
+  <h2 id="pattern-3">Pattern 3: Async Human Review Queue</h2>
+  <p>When confidence thresholding routes an action to review, the agent should not block synchronously. Instead, the action goes into an async review queue, and the agent either falls back to a safe default, informs the user that a review is pending, or picks an alternative path that doesn't require the gated action.</p>
+  <p>The review queue batches low-priority decisions so reviewers can process them in batches rather than being interrupted for every trivial call. Each queued item carries: the proposed action, the reasoning trace that led to it, the confidence score, and a deadline after which the system takes a safe fallback.</p>
+  <pre><code>interface ReviewItem {
+  id: string;
+  tool: string;
+  args: Record&lt;string, unknown&gt;;
+  reasoningTrace: string;       // LLM's chain-of-thought leading to this action
+  confidence: number;
+  submittedAt: number;          // epoch ms
+  deadline: number;             // epoch ms — after this, fallback fires
+  fallbackAction: 'skip' | 'safe-default' | 'escalate';
+  safeDefaultArgs?: Record&lt;string, unknown&gt;;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  reviewer?: string;
+  reviewedAt?: number;
+  reviewNote?: string;
+}
+
+const reviewQueue: ReviewItem[] = [];
+
+async function enqueueForReview(
+  tool: string,
+  args: Record&lt;string, unknown&gt;,
+  reasoningTrace: string,
+  confidence: number,
+  options: { deadlineMs: number; fallback: ReviewItem['fallbackAction']; safeDefaultArgs?: Record&lt;string, unknown&gt; }
+): Promise&lt;string&gt; {
+  const id = `rvw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const item: ReviewItem = {
+    id,
+    tool,
+    args,
+    reasoningTrace,
+    confidence,
+    submittedAt: Date.now(),
+    deadline: Date.now() + options.deadlineMs,
+    fallbackAction: options.fallback,
+    safeDefaultArgs: options.safeDefaultArgs,
+    status: 'pending',
+  };
+  reviewQueue.push(item);
+  // Notify reviewers via Slack/email/dashboard
+  await notifyReviewers(item);
+  return id;
+}
+
+// Background sweeper: check for expired items and apply fallbacks
+async function processExpirations(): Promise&lt;void&gt; {
+  const now = Date.now();
+  for (const item of reviewQueue) {
+    if (item.status === 'pending' && now > item.deadline) {
+      item.status = 'expired';
+      await applyFallback(item);
+    }
+  }
+}
+
+async function applyFallback(item: ReviewItem): Promise&lt;void&gt; {
+  switch (item.fallbackAction) {
+    case 'skip':
+      // Do nothing — the agent already moved on
+      break;
+    case 'safe-default':
+      if (item.safeDefaultArgs) {
+        await executeTool(item.tool, item.safeDefaultArgs);
+      }
+      break;
+    case 'escalate':
+      // Escalate to a senior reviewer or paging system
+      await pageSeniorReviewer(item);
+      break;
+  }
+}</code></pre>
+  <p>The fallback strategy is critical. Without it, items pile up in the queue indefinitely. <code>skip</code> is the safest default for non-urgent actions. <code>safe-default</code> works when you have a conservative alternative (e.g., for a refund that wasn't reviewed in time, the safe default might be to issue a store credit instead of a cash refund). <code>escalate</code> should be reserved for actions where doing nothing is worse than doing the wrong thing.</p>
+
+  <h2 id="pattern-4">Pattern 4: Escalation with Context Packets</h2>
+  <p>When an action lands in the review queue, the reviewer should not have to dig through logs to understand what the agent is trying to do and why. The escalation context packet is a structured bundle that gives the reviewer everything they need on a single screen: the user's original request, the agent's reasoning trace, the proposed action and arguments, the confidence score, the risk classification, and any relevant historical context.</p>
+  <pre><code>interface EscalationPacket {
+  // What triggered this
+  userRequest: string;
+  conversationId: string;
+
+  // What the agent wants to do
+  proposedTool: string;
+  proposedArgs: Record&lt;string, unknown&gt;;
+  riskLevel: RiskLevel;
+
+  // Why the agent chose this
+  reasoningTrace: string;
+  confidence: number;
+  confidenceReason: string;       // "matched 3/4 historical patterns"
+
+  // What the reviewer needs to decide
+  decisionOptions: ('approve' | 'reject' | 'modify')[];
+  modifyHints: string[];          // e.g., "amount can be adjusted", "recipient can be changed"
+
+  // What happens if they don't decide
+  deadline: string;               // ISO timestamp
+  fallbackAction: string;         // human-readable description
+
+  // Historical context (last 3 similar actions)
+  history: Array&lt;{
+    timestamp: string;
+    tool: string;
+    args: Record&lt;string, unknown&gt;;
+    outcome: 'success' | 'failure' | 'rolled-back';
+    note: string;
+  }&gt;;
+}
+
+function buildEscalationPacket(
+  item: ReviewItem,
+  userRequest: string,
+  conversationId: string,
+  history: EscalationPacket['history']
+): EscalationPacket {
+  return {
+    userRequest,
+    conversationId,
+    proposedTool: item.tool,
+    proposedArgs: item.args,
+    riskLevel: TOOL_RISK[item.tool] ?? 'side-effect',
+    reasoningTrace: item.reasoningTrace,
+    confidence: item.confidence,
+    confidenceReason: classifyConfidenceSource(item.confidence),
+    decisionOptions: getDecisionOptions(item.tool),
+    modifyHints: getModifyHints(item.tool),
+    deadline: new Date(item.deadline).toISOString(),
+    fallbackAction: describeFallback(item.fallbackAction),
+    history,
+  };
+}</code></pre>
+  <p>The goal of the context packet is <strong>decision latency</strong>: the time between a reviewer seeing the packet and making a decision. A well-structured packet lets a reviewer decide in under 30 seconds. A poorly structured one — where the reviewer has to open three dashboards and read a 200-line log — turns a 30-second decision into a 10-minute investigation, and the queue backs up.</p>
+  <p>This is also where <a href="/posts/2026-06-16-ai-agent-structured-logging/">structured logging</a> pays off. If your agent's reasoning trace is structured (not freeform prose), the escalation packet can render it as a readable summary instead of a wall of text.</p>
+
+  <h2 id="pattern-5">Pattern 5: Time-Bounded Auto-Approve</h2>
+  <p>What happens when no reviewer is available? The agent submitted a refund request at 2 AM on a Sunday. The review queue has 12 items. The deadline on the oldest one expires in 30 minutes. Without time-bounded auto-approve, the item either expires (and the fallback fires) or blocks indefinitely (and the user gives up).</p>
+  <p>Time-bounded auto-approve is a configurable policy that lets certain classes of action auto-approve after a defined waiting period, as long as no explicit rejection has been received. It's not a replacement for human review — it's a safety valve for when human review is unavailable and the cost of inaction exceeds the risk of action.</p>
+  <pre><code>interface AutoApprovePolicy {
+  tool: string;
+  enabled: boolean;
+  waitMs: number;               // minimum time in queue before auto-approve fires
+  maxDailyAutoApproves: number;  // circuit breaker: stop auto-approving after N/day
+  requireMinConfidence: number;  // only auto-approve if confidence &gt;= this
+}
+
+const AUTO_APPROVE_POLICIES: Record&lt;string, AutoApprovePolicy&gt; = {
+  'processRefund': {
+    tool: 'processRefund',
+    enabled: true,
+    waitMs: 2 * 60 * 60 * 1000,  // 2 hours
+    maxDailyAutoApproves: 10,
+    requireMinConfidence: 0.85,
+  },
+  'sendEmail': {
+    tool: 'sendEmail',
+    enabled: false,  // never auto-approve emails — always require human review
+    waitMs: Infinity,
+    maxDailyAutoApproves: 0,
+    requireMinConfidence: 1.01,
+  },
+  // deleteRecord and purchaseCredits have no policy — they never auto-approve
+};
+
+const dailyAutoApproveCounts: Record&lt;string, number&gt; = {};
+
+function shouldAutoApprove(item: ReviewItem): boolean {
+  const policy = AUTO_APPROVE_POLICIES[item.tool];
+  if (!policy || !policy.enabled) return false;
+
+  // Check minimum confidence
+  if (item.confidence &lt; policy.requireMinConfidence) return false;
+
+  // Check minimum wait time
+  const elapsed = Date.now() - item.submittedAt;
+  if (elapsed &lt; policy.waitMs) return false;
+
+  // Check daily circuit breaker
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `${item.tool}_${today}`;
+  if ((dailyAutoApproveCounts[key] ?? 0) >= policy.maxDailyAutoApproves) return false;
+
+  return true;
+}</code></pre>
+  <p>The <code>maxDailyAutoApproves</code> circuit breaker is essential. Without it, a bug that generates 500 refund requests at 2 AM could auto-approve all of them before a human arrives in the morning. The circuit breaker caps the blast radius: even if auto-approve is enabled, it stops after a configurable number of approvals per tool per day.</p>
+
+  <h2 id="pattern-6">Pattern 6: Audit Trail with Replay</h2>
+  <p>Every decision — approved, rejected, auto-approved, expired, or modified — must be recorded in an immutable audit trail. This is not optional. If a customer asks "why was my refund rejected?" or a compliance auditor asks "who approved this deployment?", you need to produce the full decision history.</p>
+  <p>The audit trail should support <strong>replay</strong>: given a decision record, you should be able to reconstruct the exact state of the agent, the user request, the reasoning trace, the proposed action, and the reviewer's decision. This is the same principle as <a href="/posts/2026-06-26-ai-agent-retry-policy/">retry-policy idempotency</a> — the decision must be reproducible from its recorded inputs.</p>
+  <pre><code>interface AuditEntry {
+  id: string;
+  timestamp: string;             // ISO 8601
+  conversationId: string;
+  userId?: string;
+
+  // The decision
+  tool: string;
+  proposedArgs: Record&lt;string, unknown&gt;;
+  finalArgs?: Record&lt;string, unknown&gt;;  // if modified during review
+  confidence: number;
+
+  // The outcome
+  decision: 'approved' | 'rejected' | 'auto-approved' | 'expired' | 'modified';
+  decisionSource: 'human' | 'auto-approve' | 'expiry' | 'system';
+  reviewerId?: string;
+  reviewNote?: string;
+
+  // The context (for replay)
+  userRequest: string;
+  reasoningTrace: string;
+  escalationPacketId?: string;
+
+  // The result
+  executedAt?: string;
+  executionResult?: 'success' | 'failure' | 'rolled-back';
+  executionError?: string;
+}
+
+const auditLog: AuditEntry[] = [];
+
+function recordDecision(entry: Omit&lt;AuditEntry, 'id' | 'timestamp'&gt;): AuditEntry {
+  const full: AuditEntry = {
+    ...entry,
+    id: `aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: new Date().toISOString(),
+  };
+  auditLog.push(full);
+  // Also write to durable storage (database, append-only log, S3)
+  persistAuditEntry(full);
+  return full;
+}
+
+function replayDecision(auditId: string): ReplayResult {
+  const entry = auditLog.find(a => a.id === auditId);
+  if (!entry) throw new Error(`Audit entry ${auditId} not found`);
+
+  return {
+    userRequest: entry.userRequest,
+    reasoningTrace: entry.reasoningTrace,
+    proposedAction: { tool: entry.tool, args: entry.proposedArgs },
+    finalAction: entry.finalArgs
+      ? { tool: entry.tool, args: entry.finalArgs }
+      : { tool: entry.tool, args: entry.proposedArgs },
+    decision: entry.decision,
+    decisionSource: entry.decisionSource,
+    reviewer: entry.reviewerId,
+    reviewNote: entry.reviewNote,
+    executed: entry.executionResult === 'success',
+    rolledBack: entry.executionResult === 'rolled-back',
+  };
+}</code></pre>
+  <p>The audit trail is also your debugging tool. When an agent makes a bad decision, the audit entry tells you exactly what went wrong: was the confidence score too high? Did the reviewer rubber-stamp it? Did the auto-approve policy fire when it shouldn't have? Without the trail, you're guessing. With it, you're reading a timeline.</p>
+  <p>This connects directly to <a href="/posts/2026-06-09-add-observability-to-ai-agents/">agent observability</a> — the audit trail is the structured, queryable layer that makes agent behavior debuggable.</p>
+
+  <h2 id="anti-patterns">Five Anti-Patterns That Will Get You Paged</h2>
+
+  <h3 class="bad">&#10060; Anti-Pattern 1: Approve-Everything Default</h3>
+  <p><strong>The mistake:</strong> The HITL layer exists, but the default confidence threshold is set so low (or the auto-approve policy so permissive) that 99% of actions pass through without human review.</p>
+  <p><strong>Why it happens:</strong> Initial deployment generates too many review requests. Reviewers complain. The team lowers thresholds to reduce noise. Gradually, the gate becomes meaningless.</p>
+  <p><strong>The fix:</strong> Set thresholds based on <em>action risk</em>, not reviewer workload. If reviewers are overwhelmed, the answer is better confidence scoring and smarter routing — not lowering the bar. Track the <strong>approval rate</strong> per tool: if it's above 95%, your gate is not actually gating anything. Investigate whether the actions are genuinely low-risk or whether the threshold needs raising.</p>
+
+  <h3 class="bad">&#10060; Anti-Pattern 2: Synchronous Blocking on Every Call</h3>
+  <p><strong>The mistake:</strong> Every tool call — including read-only queries — blocks on a synchronous human approval. The agent's latency goes from 200ms to 30 seconds. Users abandon.</p>
+  <p><strong>Why it happens:</strong> The team treats all tool calls as equally risky. "Better safe than sorry" becomes "every search needs a stamp."</p>
+  <p><strong>The fix:</strong> Classify tools into risk tiers. Read-only tools (<code>search</code>, <code>get</code>, <code>list</code>, <code>calculate</code>) execute immediately. Side-effect tools (<code>write</code>, <code>delete</code>, <code>send</code>, <code>purchase</code>) go through the gate. This is Pattern 1 — and it exists precisely because blocking everything is worse than not having a gate at all.</p>
+
+  <h3 class="bad">&#10060; Anti-Pattern 3: No Context in Approval Requests</h3>
+  <p><strong>The mistake:</strong> The approval request shows "Agent wants to call <code>processRefund</code>" with no further context. The reviewer has to open the conversation log, read the agent's reasoning, check the order details, and then decide. This turns a 30-second decision into a 5-minute investigation.</p>
+  <p><strong>Why it happens:</strong> The approval notification was built as an afterthought. The team focused on the gate mechanism and forgot about the reviewer experience.</p>
+  <p><strong>The fix:</strong> Build the escalation context packet (Pattern 4) as a first-class deliverable, not a nice-to-have. The packet must include: the user's request, the agent's reasoning trace, the proposed action and arguments, the confidence score, the risk level, the deadline, the fallback action, and recent history. A reviewer should be able to decide from the packet alone without opening any other tool.</p>
+
+  <h3 class="bad">&#10060; Anti-Pattern 4: Rubber-Stamp Approvals</h3>
+  <p><strong>The mistake:</strong> Reviewers click "Approve" on every item without reading it. The gate exists but provides no actual human judgment.</p>
+  <p><strong>Why it happens:</strong> Cognitive fatigue. When the queue has 50 items and each one takes 30 seconds to review properly, the reviewer's brain switches to auto-pilot. The approval rate approaches 100%, and the gate becomes theater.</p>
+  <p><strong>The fix:</strong> Track reviewer behavior. If a reviewer's approval rate is above 98% over a week, either (a) the routing is sending them too many trivial items — improve confidence thresholds, or (b) the reviewer needs more context per item — improve the escalation packet. Also consider <strong>calibration sessions</strong>: periodically inject known-bad actions into the queue to test whether reviewers catch them. If reviewers approve planted bad actions, the review process needs restructuring.</p>
+
+  <h3 class="bad">&#10060; Anti-Pattern 5: No Rollback After Approval</h3>
+  <p><strong>The mistake:</strong> A reviewer approves an action that turns out to be wrong. But the system has no mechanism to reverse it. The refund went through. The email was sent. The deployment is live. The mistake is permanent.</p>
+  <p><strong>Why it happens:</strong> The team built the approval gate but not the reversal mechanism. They assumed approvals would always be correct.</p>
+  <p><strong>The fix:</strong> Every side-effectful action should have a compensating action. <code>processRefund</code> → <code>reverseRefund</code>. <code>sendEmail</code> → <code>sendRetractionEmail</code>. <code>createDeployment</code> → <code>rollbackDeployment</code>. Not all compensating actions are perfect (you can't un-send an email), but they limit the damage. The audit trail (Pattern 6) should track whether a decision was rolled back and why. When a rollback fires, it should trigger an alert so the team can investigate the root cause — why was a wrong action approved in the first place?</p>
+
+  <h2 id="runtime">The Full Runtime: 130 Lines of Copy-Paste HITL</h2>
+  <p>Here is the complete HITL runtime combining all six patterns. It includes: risk classification, confidence thresholding, async review queue, escalation packet builder, time-bounded auto-approve with circuit breaker, and audit trail with replay.</p>
+  <pre><code>// human-in-the-loop.ts — drop-in HITL runtime for AI agents
+// Requirements: none (uses native Promise, no external deps)
+
+type RiskLevel = 'read-only' | 'side-effect';
+type Decision = 'approved' | 'rejected' | 'auto-approved' | 'expired';
+
+interface ActionContext {
+  userRequest: string;
+  conversationId: string;
+  reasoningTrace: string;
+}
+
+interface ReviewItem {
+  id: string;
+  tool: string;
+  args: Record&lt;string, unknown&gt;;
+  confidence: number;
+  context: ActionContext;
+  submittedAt: number;
+  deadline: number;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  reviewer?: string;
+}
+
+interface AuditEntry {
+  id: string;
+  timestamp: string;
+  tool: string;
+  args: Record&lt;string, unknown&gt;;
+  confidence: number;
+  decision: Decision;
+  reviewer?: string;
+  context: ActionContext;
+  result?: string;
+}
+
+const TOOL_RISK: Record&lt;string, RiskLevel&gt; = {};
+const CONFIDENCE_THRESHOLD: Record&lt;string, number&gt; = {};
+const AUTO_APPROVE: Record&lt;string, { waitMs: number; maxDaily: number; minConf: number }&gt; = {};
+const reviewQueue: ReviewItem[] = [];
+const auditLog: AuditEntry[] = [];
+const dailyCounts: Record&lt;string, number&gt; = {};
+
+export function registerTool(
+  name: string,
+  risk: RiskLevel,
+  threshold: number,
+  autoApprove?: { waitMs: number; maxDaily: number; minConf: number }
+): void {
+  TOOL_RISK[name] = risk;
+  CONFIDENCE_THRESHOLD[name] = threshold;
+  if (autoApprove) AUTO_APPROVE[name] = autoApprove;
+}
+
+export async function hitlExecute(
+  tool: string,
+  args: Record&lt;string, unknown&gt;,
+  confidence: number,
+  context: ActionContext,
+  onApprove: (args: Record&lt;string, unknown&gt;) => Promise&lt;string&gt;
+): Promise&lt;{ ok: boolean; result?: string; error?: string; decision: Decision }&gt; {
+  const risk = TOOL_RISK[tool] ?? 'side-effect';
+
+  // Pattern 1: read-only bypass
+  if (risk === 'read-only') {
+    const result = await onApprove(args);
+    audit(tool, args, confidence, 'auto-approved', context, result);
+    return { ok: true, result, decision: 'auto-approved' };
+  }
+
+  // Pattern 2: confidence threshold
+  if (confidence &gt;= (CONFIDENCE_THRESHOLD[tool] ?? 1.01)) {
+    const result = await onApprove(args);
+    audit(tool, args, confidence, 'auto-approved', context, result);
+    return { ok: true, result, decision: 'auto-approved' };
+  }
+
+  // Pattern 3: enqueue for async review
+  const id = enqueue(tool, args, confidence, context);
+
+  // Pattern 5: check time-bounded auto-approve
+  await sleep(100); // yield to event loop
+  const item = reviewQueue.find(r => r.id === id);
+  if (!item) return { ok: false, error: 'Review item lost', decision: 'rejected' };
+
+  // Check auto-approve policy
+  if (canAutoApprove(tool, confidence)) {
+    item.status = 'approved';
+    const result = await onApprove(args);
+    audit(tool, args, confidence, 'auto-approved', context, result);
+    return { ok: true, result, decision: 'auto-approved' };
+  }
+
+  // Route to async review — caller handles the wait/fallback
+  return {
+    ok: false,
+    error: `Action ${tool} queued for human review (id: ${id}). Confidence ${confidence.toFixed(2)} below threshold.`,
+    decision: 'expired', // caller should handle the pending state
+  };
+}
+
+export function buildPacket(item: ReviewItem, history: AuditEntry[]): Record&lt;string, unknown&gt; {
+  return {
+    tool: item.tool,
+    args: item.args,
+    confidence: item.confidence,
+    reasoning: item.context.reasoningTrace,
+    userRequest: item.context.userRequest,
+    deadline: new Date(item.deadline).toISOString(),
+    recentHistory: history.slice(-3).map(h => ({
+      decision: h.decision, result: h.result, timestamp: h.timestamp,
+    })),
+  };
+}
+
+export function replayDecision(auditId: string): AuditEntry | undefined {
+  return auditLog.find(a => a.id === auditId);
+}
+
+// --- Internal helpers ---
+
+function enqueue(
+  tool: string,
+  args: Record&lt;string, unknown&gt;,
+  confidence: number,
+  context: ActionContext
+): string {
+  const id = `rvw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  reviewQueue.push({
+    id, tool, args, confidence, context,
+    submittedAt: Date.now(),
+    deadline: Date.now() + 3600_000, // 1 hour default
+    status: 'pending',
+  });
+  return id;
+}
+
+function canAutoApprove(tool: string, confidence: number): boolean {
+  const policy = AUTO_APPROVE[tool];
+  if (!policy) return false;
+  if (confidence &lt; policy.minConf) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `${tool}_${today}`;
+  if ((dailyCounts[key] ?? 0) &gt;= policy.maxDaily) return false;
+  dailyCounts[key] = (dailyCounts[key] ?? 0) + 1;
+  return true;
+}
+
+function audit(
+  tool: string,
+  args: Record&lt;string, unknown&gt;,
+  confidence: number,
+  decision: Decision,
+  context: ActionContext,
+  result?: string
+): void {
+  auditLog.push({
+    id: `aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: new Date().toISOString(),
+    tool, args, confidence, decision, context, result,
+  });
+}
+
+function sleep(ms: number): Promise&lt;void&gt; {
+  return new Promise(resolve =&gt; setTimeout(resolve, ms));
+}
+
+// --- Woodpecker CI gate (optional): assert HITL coverage ---
+// Add this to your test suite to enforce that every side-effect tool has a threshold
+export function assertHitlCoverage(tools: string[]): string[] {
+  const violations: string[] = [];
+  for (const t of tools) {
+    if (TOOL_RISK[t] === 'side-effect' &amp;&amp; !(t in CONFIDENCE_THRESHOLD)) {
+      violations.push(`${t}: side-effect tool without confidence threshold`);
+    }
+  }
+  return violations;
+}</code></pre>
+
+  <h2 id="ci-gate">CI Gate: Enforce HITL Coverage in Your Pipeline</h2>
+  <p>Add this to your <code>.woodpecker.yml</code> to fail the build if any side-effect tool is missing a confidence threshold or HITL registration:</p>
+  <pre><code># .woodpecker.yml — HITL coverage gate
+steps:
+  hitl-coverage:
+    image: node:22-slim
+    commands:
+      - node -e "
+        const { registerTool, assertHitlCoverage } = require('./src/human-in-the-loop');
+        // Register tools that are known safe
+        registerTool('searchDocs', 'read-only', 0);
+        registerTool('getOrderHistory', 'read-only', 0);
+        registerTool('processRefund', 'side-effect', 0.95);
+        registerTool('sendEmail', 'side-effect', 0.90);
+        registerTool('deleteRecord', 'side-effect', 1.01);
+        registerTool('purchaseCredits', 'side-effect', 1.01);
+        const violations = assertHitlCoverage([
+          'searchDocs', 'getOrderHistory', 'processRefund',
+          'sendEmail', 'deleteRecord', 'purchaseCredits',
+        ]);
+        if (violations.length &gt; 0) {
+          console.error('HITL coverage violations:');
+          violations.forEach(v =&gt; console.error('  - ' + v));
+          process.exit(1);
+        }
+        console.log('HITL coverage: all tools registered.');
+      "</code></pre>
+  <p>This gate ensures that when a new tool is added to the codebase, the developer must explicitly register it with a risk level and confidence threshold. If they forget, the build fails. This is the same philosophy as the <a href="/posts/2026-06-05-github-actions-to-woodpecker-migration/">Woodpecker CI migration gate</a> — enforce policy at the pipeline level, not at code review.</p>
+
+  <div class="product">
+    <h3>&#128722; Related Tools</h3>
+    <p><strong>Agent Tool-Call Validator CLI</strong> — validates that every tool call your agent makes passes risk classification, argument validation, and HITL gating before execution. Pairs directly with the patterns in this post. Available on the <a href="https://nepo6.gumroad.com/" rel="noopener">Qualigen storefront</a>.</p>
+    <p><strong>Agent Inflight Telemetry CLI</strong> — real-time structured logging and audit trail for agent decisions, tool calls, and approval flows. Gives you the replay capability described in Pattern 6. Also on the <a href="https://nepo6.gumroad.com/" rel="noopener">storefront</a>.</p>
+  </div>
+
+  <h2 id="summary-table">Pattern Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Pattern</th>
+        <th>What It Does</th>
+        <th>Without It</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1. Approval Gate</strong></td>
+        <td>Blocks side-effectful actions until approved</td>
+        <td>Agent executes writes/deletes/sends with no oversight</td>
+      </tr>
+      <tr>
+        <td><strong>2. Confidence Threshold</strong></td>
+        <td>Auto-approves high-certainty, routes rest to review</td>
+        <td>Every action blocks (latency) or nothing blocks (no safety)</td>
+      </tr>
+      <tr>
+        <td><strong>3. Async Review Queue</strong></td>
+        <td>Batches low-priority decisions for batch review</td>
+        <td>Synchronous blocking destroys latency; reviewers overwhelmed</td>
+      </tr>
+      <tr>
+        <td><strong>4. Escalation Packets</strong></td>
+        <td>Gives reviewers full context on one screen</td>
+        <td>Reviewers dig through logs; 30s decision becomes 5min investigation</td>
+      </tr>
+      <tr>
+        <td><strong>5. Time-Bounded Auto-Approve</strong></td>
+        <td>Prevents indefinite blocking when reviewers unavailable</td>
+        <td>Queue backs up overnight; users abandon</td>
+      </tr>
+      <tr>
+        <td><strong>6. Audit Trail</strong></td>
+        <td>Records every decision for compliance and debugging</td>
+        <td>No way to answer "who approved this?" or "why was this rejected?"</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="putting-it-together">Putting It All Together</h2>
+  <p>Start with Pattern 1 (approval gate) — it's the minimum viable HITL layer. Once that's in place, add Pattern 2 (confidence thresholding) to reduce noise. Then Pattern 6 (audit trail) for compliance. Then Patterns 3-5 to optimize reviewer experience and handle edge cases.</p>
+  <p>The most common deployment mistake is implementing all six patterns simultaneously. Start with the gate, measure the approval rate, then layer in the optimizations. Each pattern solves a specific failure mode — deploy them in response to observed problems, not as a speculative architecture.</p>
+  <p>For agents that interact with external systems via MCP, pair this HITL layer with the <a href="/posts/2026-06-06-prompt-injection-defense-patterns/">prompt injection defense patterns</a> — injection attacks bypass HITL by tricking the agent into classifying malicious actions as safe. And for agents that store state across sessions, the <a href="/posts/2026-06-10-ai-agent-memory-architecture/">memory architecture patterns</a> ensure that HITL decisions persist and inform future routing.</p>
+
+  <footer>
+    <p>Published 2026-06-27 by Algoram99. Part of the <a href="/posts/">Algoram99 shipping notes</a>. Questions? <a href="https://github.com/Algoram99" rel="noopener">Open an issue</a>.</p>
+  </footer>
+</main>
+</body>
+</html>
