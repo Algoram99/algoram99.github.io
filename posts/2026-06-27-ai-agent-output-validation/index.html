@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-27T06:00:00Z (cycle-31 32nd-post-add: ai-agent-output-validation; 6 patterns (json-schema-validation-at-the-boundary, enum-and-vocabulary-constraint-checking, semantic-grounding-verification, hallucination-refusal-detection, output-sanitization-and-redaction, retry-with-structured-feedback) + 5 anti-patterns (parse-equals-validate, accept-any-valid-json, trust-the-llm-self-check, no-output-redaction, silent-swallow-on-validation-failure) with copy-paste fixes + 125-line TypeScript output-validation runtime with Zod schemas + semantic grounding + hallucination detection + sanitization + retry-with-feedback + Woodpecker CI gate; cross-links 31st post function-calling + 30th post retry-policy + 29th post structured-logging + 9th post observability + 17th post eval-harness + 20th post rate-limiting + 25th post prompt-regression + Agent Tool-Call Validator CLI $29 + Agent Eval Harness CLI $29; alg99_pages_32_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Output Validation: 6 Patterns, 5 Anti-Patterns, and a Drop-In Validation Runtime — Algoram99</title>
+<meta name="description" content="A field-tested output validation layer for LLM-powered AI agents that catches hallucinated fields, invented enum values, ungrounded citations, and semantically wrong answers before they reach downstream systems or users. Six patterns (JSON schema validation at the boundary that rejects structurally invalid output before any business logic runs, enum and vocabulary constraint checking that catches when the LLM invents values outside your allowed set, semantic grounding verification that confirms factual claims against your knowledge base before presenting them, hallucination refusal detection that identifies when the model says I don't know but wraps it in confident-sounding prose, output sanitization and redaction that strips PII credentials and prompt-leakage from agent responses, and retry-with-structured-feedback that sends validation errors back to the LLM with specific corrections rather than blind retries) with copy-paste TypeScript. Five anti-patterns (parse-equals-validate that assumes JSON.parse success means the output is correct, accept-any-valid-json that passes through fields the LLM hallucinated, trust-the-llm-self-check that asks the model to verify its own work and believes the answer, no-output-redaction that leaks API keys and emails into user-facing responses, and silent-swallow-on-validation-failure that returns an empty 200 instead of surfacing the error) with copy-paste fixes. A 125-line TypeScript output-validation runtime with Zod schemas + semantic grounding + hallucination detection + sanitization + retry-with-feedback + Woodpecker CI gate. For engineering teams whose agent confidently returned a database column that doesn't exist, or a function name from a different framework, or a citation to a paper that was never written.">
+<meta name="keywords" content="ai agent output validation, llm output validation, llm hallucination detection, structured output validation, json schema validation llm, agent guardrails, output sanitization ai, semantic grounding verification, hallucination refusal detection, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Output Validation: 6 Patterns, 5 Anti-Patterns, and a Drop-In Validation Runtime">
+<meta property="og:description" content="Six output validation patterns for LLM agents: schema validation at the boundary, enum constraint checking, semantic grounding verification, hallucination refusal detection, output sanitization, and retry-with-structured-feedback. Five anti-patterns that let hallucinated fields, invented enums, and leaked PII reach production. A 125-line TypeScript validation runtime and a Woodpecker CI gate.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-27-ai-agent-output-validation/">
+<meta property="article:published_time" content="2026-06-27T06:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Reliability">
+<meta property="article:tag" content="ai agent output validation">
+<meta property="article:tag" content="llm output validation">
+<meta property="article:tag" content="llm hallucination detection">
+<meta property="article:tag" content="agent guardrails">
+<meta property="article:tag" content="structured output validation">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "AI Agent Output Validation: 6 Patterns, 5 Anti-Patterns, and a Drop-In Validation Runtime",
+  "description": "Six output validation patterns (JSON schema validation at the boundary, enum and vocabulary constraint checking, semantic grounding verification, hallucination refusal detection, output sanitization and redaction, retry-with-structured-feedback) with copy-paste TypeScript, five anti-patterns (parse-equals-validate, accept-any-valid-json, trust-the-llm-self-check, no-output-redaction, silent-swallow-on-validation-failure) with copy-paste fixes, a 125-line TypeScript output-validation runtime with Zod schemas + semantic grounding + hallucination detection + sanitization + retry-with-feedback, and a Woodpecker CI gate.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-27T06:00:00Z",
+  "dateModified": "2026-06-27T06:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-27-ai-agent-output-validation/" },
+  "keywords": "ai agent output validation, llm output validation, llm hallucination detection, structured output validation, json schema validation llm, agent guardrails, output sanitization ai, semantic grounding verification, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">&#128640; AI Agents &middot; Output Validation &middot; 12 min read</span>
+  <h1>AI Agent Output Validation: 6 Patterns, 5 Anti-Patterns, and a Drop-In Runtime</h1>
+  <p class="lead">Your LLM returned valid JSON. The fields are present. The types are correct. And the function name it called doesn't exist in your codebase. Here's how to build an output validation layer that catches hallucinated fields, invented enum values, ungrounded citations, and semantically wrong answers — before they reach your users.</p>
+
+  <div class="tldr">
+    <h3>&#9888;&#65039; TL;DR</h3>
+    <p><strong>Parsing is not validating.</strong> <code>JSON.parse()</code> succeeding tells you the string is syntactically valid JSON. It tells you nothing about whether the <em>content</em> is correct. Production agents need six validation layers stacked between the LLM and your downstream systems: (1) JSON schema validation that rejects structurally invalid output, (2) enum/vocabulary constraint checking that catches invented values, (3) semantic grounding verification that confirms factual claims, (4) hallucination refusal detection that catches confident-sounding non-answers, (5) output sanitization that strips PII and leaked credentials, and (6) retry-with-structured-feedback that corrects errors instead of blind-retrying. This post gives you all six as copy-paste TypeScript, plus five anti-patterns that let hallucinated output reach production, plus a 125-line runtime you can drop into any agent.</p>
+  </div>
+
+  <h2 id="the-problem">The Problem: Valid JSON, Wrong Everything Else</h2>
+  <p>Here's a real production failure mode. Your agent is asked to recommend a database migration strategy. It returns:</p>
+  <pre><code>{
+  "strategy": "blue-green",
+  "tool": "pgMigrator",
+  "estimatedDowntime": "4 minutes",
+  "rollbackTool": "flyway-lambda"
+}</code></pre>
+  <p>Every field is valid JSON. Every type is correct. But <code>pgMigrator</code> is not a real tool. <code>flyway-lambda</code> does not exist. The downtime estimate has no source. If your agent passes this directly to a <code>runMigration()</code> function, it will crash. If it passes it to a user, they will Google <code>pgMigrator</code>, find nothing, and lose trust in your product.</p>
+  <p>This is the <strong>output validation gap</strong>: the space between "the LLM returned something we can parse" and "the LLM returned something we can safely use." Most agent codebases have retry logic for <em>parse</em> failures (when the JSON is malformed) but zero validation for <em>content</em> failures (when the JSON is well-formed but semantically wrong).</p>
+  <p>The six patterns below close this gap. Each one catches a different class of failure that <code>JSON.parse()</code> will never catch.</p>
+
+  <h2 id="pattern-1">Pattern 1: JSON Schema Validation at the Boundary</h2>
+  <p>The first line of defense: reject output that doesn't match the expected shape <em>before</em> any business logic runs. This means defining a schema — not just TypeScript types (which are erased at runtime) — but a runtime-validatable schema using Zod, Valibot, or Ajv.</p>
+  <p><strong>What it catches:</strong> missing required fields, wrong types (string where number expected), extra fields that indicate the LLM misunderstood the task, nested structure violations.</p>
+
+  <pre><code>import { z } from 'zod';
+
+// Define the expected output shape
+const MigrationRecommendation = z.object({
+  strategy: z.enum(['blue-green', 'rolling', 'canary', 'shadow']),
+  tool: z.string().min(1),
+  estimatedDowntime: z.string().regex(/^\d+\s+(second|minute|hour)s?$/),
+  rollbackPlan: z.string().min(10),
+  risks: z.array(z.string()).min(1).max(5),
+});
+
+// Validate at the boundary — before any business logic
+function validateAgentOutput&lt;T&gt;(
+  rawOutput: string,
+  schema: z.ZodSchema&lt;T&gt;
+): { ok: true; data: T } | { ok: false; errors: string[] } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawOutput);
+  } catch {
+    return { ok: false, errors: ['Output is not valid JSON'] };
+  }
+
+  const result = schema.safeParse(parsed);
+  if (result.success) {
+    return { ok: true, data: result.data };
+  }
+
+  // Collect all validation errors with paths
+  const errors = result.error.issues.map(i =>
+    `${i.path.join('.')}: ${i.message}`
+  );
+  return { ok: false, errors };
+}</code></pre>
+
+  <p>The key insight: <code>schema.safeParse()</code> returns <em>all</em> validation errors at once, not just the first one. This matters for retry-with-feedback (Pattern 6) — you want to send the LLM a complete list of what's wrong, not retry after each individual field fix.</p>
+
+  <div class="callout">
+    <h3>Why not just TypeScript types?</h3>
+    <p>TypeScript types are compile-time only. The LLM's output is a runtime string. <code>JSON.parse()</code> returns <code>any</code>. Your <code>as MigrationRecommendation</code> cast is a lie — it tells the compiler "trust me" while providing zero runtime protection. Zod schemas validate at runtime and give you typed output. Use both: Zod for validation, TypeScript for ergonomics.</p>
+  </div>
+
+  <h2 id="pattern-2">Pattern 2: Enum and Vocabulary Constraint Checking</h2>
+  <p>Schema validation catches type errors. But the LLM can produce a value that's the right type, passes the enum check, and is still wrong — because it invented a value that doesn't exist in your system.</p>
+  <p><strong>What it catches:</strong> function names that don't exist in your codebase, API endpoints that aren't in your router, config keys that aren't in your schema, enum values that sound right but aren't real.</p>
+
+  <pre><code>// Dynamic vocabulary — values the LLM can reference but must actually exist
+const VALID_TOOLS = new Set([
+  'pg_dump', 'pg_restore', 'flyway', 'liquibase', 'alembic',
+  'prisma-migrate', 'knex-migrate', 'typeorm-migration',
+]);
+
+const VALID_ENDPOINTS = new Set([
+  '/api/migrations/create',
+  '/api/migrations/rollback',
+  '/api/migrations/status',
+]);
+
+function validateVocabulary(
+  output: Record&lt;string, unknown&gt;,
+  constraints: Record&lt;string, Set&lt;string&gt;&gt;
+): string[] {
+  const errors: string[] = [];
+  for (const [field, allowedValues] of Object.entries(constraints)) {
+    const value = output[field];
+    if (typeof value === 'string' && !allowedValues.has(value)) {
+      errors.push(
+        `Field "${field}": "${value}" is not a recognized value. ` +
+        `Allowed: ${[...allowedValues].slice(0, 5).join(', ')}` +
+        `${allowedValues.size > 5 ? ` ... (${allowedValues.size} total)` : ''}`
+      );
+    }
+    // Also check arrays of strings
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && !allowedValues.has(item)) {
+          errors.push(
+            `Field "${field}": "${item}" is not a recognized value.`
+          );
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+// Usage
+const vocabErrors = validateVocabulary(parsedOutput, {
+  tool: VALID_TOOLS,
+  rollbackTool: VALID_TOOLS,
+});</code></pre>
+
+  <p>This pattern is especially important for agents that call tools. The <a href="/posts/2026-06-27-ai-agent-function-calling-tool-use/">function calling post</a> covers tool-call argument validation; this pattern extends it to validate that the tool <em>name</em> itself is real. An LLM that has seen documentation for both Flyway and Liquibase may confidently invent "flybase" — a portmanteau that doesn't exist.</p>
+
+  <h2 id="pattern-3">Pattern 3: Semantic Grounding Verification</h2>
+  <p>Schemas and vocabularies catch structural errors. But what about factual claims? When your agent says "the migration will take 4 minutes," is that grounded in actual measurement, or did the LLM produce a plausible-sounding number?</p>
+  <p><strong>What it catches:</strong> ungrounded factual claims, invented statistics, fabricated citations, numbers that have no source.</p>
+
+  <pre><code>interface Claim {
+  text: string;
+  source?: string;
+  verifiable: boolean;
+}
+
+interface GroundingResult {
+  passed: boolean;
+  ungroundedClaims: Claim[];
+  confidence: number;
+}
+
+function verifyGrounding(
+  claims: Claim[],
+  knowledgeBase: { search: (q: string) => { found: boolean; snippet: string } | null }
+): GroundingResult {
+  const ungrounded: Claim[] = [];
+
+  for (const claim of claims) {
+    if (!claim.verifiable) continue;
+
+    // Search the knowledge base for supporting evidence
+    const evidence = knowledgeBase.search(claim.text);
+
+    if (!evidence) {
+      ungrounded.push(claim);
+    }
+  }
+
+  const total = claims.filter(c => c.verifiable).length;
+  const grounded = total - ungrounded.length;
+  const confidence = total > 0 ? grounded / total : 1;
+
+  return {
+    passed: ungrounded.length === 0,
+    ungroundedClaims: ungrounded,
+    confidence,
+  };
+}
+
+// Example: agent claims about system performance
+const claims: Claim[] = [
+  { text: 'Current p99 latency is 120ms', source: 'grafana-query-2024-01', verifiable: true },
+  { text: 'Blue-green deployment reduces risk', verifiable: false }, // general knowledge, skip
+  { text: 'The database has 2.3M rows', verifiable: true }, // no source provided
+];
+
+// The last claim has no source and won't be found in KB → flagged as ungrounded</code></pre>
+
+  <p>Grounding verification is a spectrum. For high-stakes domains (medical, legal, financial), every verifiable claim needs a source. For lower-stakes domains, you can threshold: if more than 20% of claims are ungrounded, reject the output. The point is to make the decision <em>explicit</em> rather than silently passing through whatever the LLM generated.</p>
+
+  <h2 id="pattern-4">Pattern 4: Hallucination Refusal Detection</h2>
+  <p>LLMs have a failure mode that's particularly insidious: they don't know the answer, so they produce confident-sounding prose that contains no actual information. "Based on general best practices, the recommended approach would likely involve..." is a refusal disguised as an answer. If you pass this to a user, they think they got advice. They didn't.</p>
+  <p><strong>What it catches:</strong> hedging language that signals uncertainty, circular answers that restate the question, "I don't know" wrapped in confident prose, deflections to "consult a professional."</p>
+
+  <pre><code>const REFUSAL_PATTERNS = [
+  /based on (?:general|common|typical) best practices/i,
+  /(?:would|may|might|could) (?:likely|potentially|possibly)/i,
+  /it is (?:recommended|advised|suggested) to/i,
+  /please consult (?:a |an |your )/i,
+  /(?:further|additional) (?:research|investigation|analysis) (?:is|would be)/i,
+  /cannot (?:provide|guarantee|confirm|determine)/i,
+  /do not have (?:access to|information about)/i,
+  /unable to (?:provide|determine|verify)/i,
+];
+
+function detectHallucinatedRefusal(output: string): {
+  isRefusal: boolean;
+  confidence: number;
+  matchedPatterns: string[];
+} {
+  const matched: string[] = [];
+  let score = 0;
+
+  for (const pattern of REFUSAL_PATTERNS) {
+    if (pattern.test(output)) {
+      score++;
+      matched.push(pattern.source);
+    }
+  }
+
+  // Multiple hedging patterns = strong refusal signal
+  // Also check for low information density
+  const words = output.split(/\s+/);
+  const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+  const density = uniqueWords.size / Math.max(words.length, 1);
+
+  // Low lexical diversity + hedging = disguised refusal
+  if (density < 0.45 && score >= 2) {
+    score += 2;
+  }
+
+  return {
+    isRefusal: score >= 3,
+    confidence: Math.min(score / 5, 1),
+    matchedPatterns: matched,
+  };
+}</code></pre>
+
+  <p>This isn't about being paranoid — it's about <em>knowing</em> when your agent is uncertain so you can decide what to do about it. Options: retry with a more specific prompt, fall back to a default response, or present the answer with an explicit uncertainty flag. The <a href="/posts/2026-06-10-ai-agent-graceful-degradation/">graceful degradation post</a> covers fallback strategies; this pattern is the detection layer that triggers them.</p>
+
+  <h2 id="pattern-5">Pattern 5: Output Sanitization and Redaction</h2>
+  <p>LLMs leak. They reproduce API keys from training data, they echo back PII from context, they include internal system prompts in their output. If your agent's response goes directly to a user-facing API, you need a sanitization layer that strips dangerous content <em>after</em> validation but <em>before</em> delivery.</p>
+  <p><strong>What it catches:</strong> API keys, tokens, passwords, email addresses, phone numbers, credit card numbers, internal URLs, prompt-leakage (the agent repeating your system prompt).</p>
+
+  <pre><code>const REDACTION_PATTERNS: Array&lt;{ pattern: RegExp; replacement: string; label: string }&gt; = [
+  // API keys (common formats)
+  { pattern: /sk-[a-zA-Z0-9]{20,}/g, replacement: '[REDACTED_KEY]', label: 'API key' },
+  { pattern: /ghp_[a-zA-Z0-9]{36}/g, replacement: '[REDACTED_TOKEN]', label: 'GitHub token' },
+  { pattern: /AKIA[A-Z0-9]{16}/g, replacement: '[REDACTED_KEY]', label: 'AWS key' },
+  // Email addresses
+  { pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, replacement: '[REDACTED_EMAIL]', label: 'email' },
+  // Phone numbers (US format)
+  { pattern: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, replacement: '[REDACTED_PHONE]', label: 'phone' },
+  // Credit card numbers
+  { pattern: /\b(?:\d[ -]*?){13,16}\b/g, replacement: '[REDACTED_CARD]', label: 'card' },
+  // Prompt leakage markers
+  { pattern: /system\s*prompt|you\s+are\s+a|instructions?\s*:/gi, replacement: '[REDACTED]', label: 'prompt-leak' },
+];
+
+interface SanitizationResult {
+  cleaned: string;
+  redactions: Array&lt;{ label: string; count: number }&gt;;
+}
+
+function sanitizeOutput(raw: string): SanitizationResult {
+  let cleaned = raw;
+  const redactions: Array&lt;{ label: string; count: number }&gt; = [];
+
+  for (const { pattern, replacement, label } of REDACTION_PATTERNS) {
+    const matches = raw.match(pattern);
+    if (matches) {
+      cleaned = cleaned.replace(pattern, replacement);
+      redactions.push({ label, count: matches.length });
+    }
+  }
+
+  return { cleaned, redactions };
+}
+
+// Usage: always sanitize before returning to user
+const result = sanitizeOutput(agentResponse);
+if (result.redactions.length > 0) {
+  // Log the redaction event for security audit
+  console.warn('[SANITIZATION] Redacted from agent output:',
+    result.redactions.map(r => `${r.label} (${r.count})`).join(', '));
+}</code></pre>
+
+  <p>This pairs with the <a href="/posts/2026-06-16-ai-agent-structured-logging/">structured logging post</a> — every redaction event should be logged as a structured event so your security team can audit what the agent is leaking and when. It also pairs with the <a href="/posts/2026-06-06-prompt-injection-defense-patterns/">prompt injection defense post</a> — if an attacker injects a prompt that causes the agent to exfiltrate data, the sanitization layer is your last line of defense before the data reaches the user.</p>
+
+  <h2 id="pattern-6">Pattern 6: Retry with Structured Feedback</h2>
+  <p>When validation fails, you have two choices: retry blindly (same prompt, hope for a different result) or retry with structured feedback (tell the LLM exactly what was wrong). Blind retries waste tokens and often produce the same error. Structured feedback turns validation failures into a correction loop.</p>
+  <p><strong>What it does:</strong> collects all validation errors, formats them as a structured feedback message, appends it to the conversation, and retries — up to a budget.</p>
+
+  <pre><code>interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  attempt: number;
+}
+
+async function retryWithFeedback&lt;T&gt;(
+  initialPrompt: string,
+  validate: (output: string) => ValidationResult,
+  callLLM: (prompt: string) => Promise&lt;string&gt;,
+  maxRetries: number = 3
+): Promise&lt;T | null&gt; {
+  let prompt = initialPrompt;
+  let lastErrors: string[] = [];
+
+  for (let attempt = 1; attempt &lt;= maxRetries; attempt++) {
+    const rawOutput = await callLLM(prompt);
+    const result = validate(rawOutput);
+
+    if (result.valid) {
+      return JSON.parse(rawOutput) as T;
+    }
+
+    lastErrors = result.errors;
+
+    // Build structured feedback — be specific about what was wrong
+    const feedback = [
+      `\n\nYour previous response had these validation errors:`,
+      ...result.errors.map((e, i) => `  ${i + 1}. ${e}`),
+      ``,
+      `Please fix these issues and regenerate the response.`,
+      `Do not include explanations or apologies — return only the corrected JSON.`,
+    ].join('\n');
+
+    prompt = initialPrompt + feedback;
+  }
+
+  // Exhausted retries — log and return null (or throw)
+  console.error('[VALIDATION] Failed after retries:', lastErrors);
+  return null;
+}</code></pre>
+
+  <p>This is the output-validation counterpart to the <a href="/posts/2026-06-26-ai-agent-retry-policy/">retry policy post</a>: the retry policy handles <em>transport</em> failures (429, 503, timeout), while retry-with-feedback handles <em>content</em> failures (wrong shape, wrong values, hallucinations). Use both: transport retry first, then content retry-with-feedback on top.</p>
+  <p><strong>Budget discipline:</strong> cap retries at 2-3. If the LLM can't produce valid output in 3 attempts with explicit feedback, more retries won't help — the prompt or the task is the problem. Log the failure and fall back to a default or escalate.</p>
+
+  <h2 id="anti-patterns">Five Anti-Patterns (and How to Fix Them)</h2>
+
+  <h3>Anti-Pattern 1: Parse Equals Validate</h3>
+  <p><span class="bad">&#10006;</span> <strong>The mistake:</strong> <code>const result = JSON.parse(llmOutput) as MyType;</code></p>
+  <p>You parse the JSON and cast it to your type. No runtime validation. If the LLM omits a required field, you discover it when your code crashes with <code>TypeError: Cannot read properties of undefined</code>.</p>
+  <p><span class="good">&#10004;</span> <strong>The fix:</strong> Use <code>schema.safeParse()</code> at the boundary. If validation fails, you get a structured error list you can act on. Never use <code>as</code> to cast LLM output — it's a lie to the compiler.</p>
+
+  <h3>Anti-Pattern 2: Accept Any Valid JSON</h3>
+  <p><span class="bad">&#10006;</span> <strong>The mistake:</strong> Schema validates the shape, so you accept whatever values the LLM produced.</p>
+  <p>Your schema says <code>tool: z.string()</code>. The LLM returns <code>"tool": "quantumMigrator"</code>. The schema passes. Your <code>runTool("quantumMigrator")</code> call crashes because that tool doesn't exist.</p>
+  <p><span class="good">&#10004;</span> <strong>The fix:</strong> Layer vocabulary constraints (Pattern 2) on top of schema validation. Use <code>z.enum()</code> for known values, or validate against a dynamic <code>Set</code> for values that change at runtime (tools registered in a plugin system, endpoints in a dynamic router).</p>
+
+  <h3>Anti-Pattern 3: Trust the LLM Self-Check</h3>
+  <p><span class="bad">&#10006;</span> <strong>The mistake:</strong> After generating the answer, you ask the LLM "is this correct?" and trust the response.</p>
+  <p>The LLM that hallucinated the answer will also hallucinate the verification. Asking "are you sure?" to a model that confidently invented a tool name will produce "yes, I'm confident." Self-verification has a known failure rate near 100% for hallucinated content — the same weights that generated the error will confirm it.</p>
+  <p><span class="good">&#10004;</span> <strong>The fix:</strong> Use <em>external</em> verification. Semantic grounding (Pattern 3) checks claims against a knowledge base. Vocabulary constraints (Pattern 2) check against your actual system. A <a href="/posts/2026-06-09-build-agent-eval-harness/">separate eval harness</a> with different test cases catches systematic errors. Never use the same model instance to verify its own output.</p>
+
+  <h3>Anti-Pattern 4: No Output Redaction</h3>
+  <p><span class="bad">&#10006;</span> <strong>The mistake:</strong> The agent's output goes directly to the API response without sanitization.</p>
+  <p>LLMs reproduce training data. If your agent was given a context that includes API keys, database credentials, or PII (common in RAG systems), it may echo them in its output. Without redaction, those secrets reach your users — or worse, get logged in plaintext.</p>
+  <p><span class="good">&#10004;</span> <strong>The fix:</strong> Run Pattern 5 (sanitization) on <em>every</em> agent response before it leaves the system boundary. Log redaction events. For high-security contexts, also run a second-pass redaction on the <em>logs</em> themselves, because logging the pre-redaction output leaks the same data into your log aggregation system.</p>
+
+  <h3>Anti-Pattern 5: Silent Swallow on Validation Failure</h3>
+  <p><span class="bad">&#10006;</span> <strong>The mistake:</strong> When validation fails, you catch the error and return an empty 200 response or a generic "something went wrong" message.</p>
+  <p>The user sees nothing. Your logs show nothing (you swallowed the error). The monitoring dashboard is green. And the agent has been failing silently for three days.</p>
+  <p><span class="good">&#10004;</span> <strong>The fix:</strong> Every validation failure must produce: (1) a structured log event with the validation errors and the raw LLM output (redacted), (2) a user-facing error message that's honest ("I couldn't generate a valid response, please try rephrasing"), and (3) a metric increment for your <a href="/posts/2026-06-09-add-observability-to-ai-agents/">observability dashboard</a>. Silent failures are worse than crashes — at least crashes are visible.</p>
+
+  <h2 id="the-runtime">The Drop-In Output Validation Runtime</h2>
+  <p>Here's a complete TypeScript runtime that implements all six patterns. It takes raw LLM output, runs it through the validation pipeline, and either returns clean data or a structured failure report.</p>
+
+  <pre><code>import { z, ZodSchema } from 'zod';
+
+// ─── Types ────────────────────────────────────────────
+export interface ValidationConfig&lt;T&gt; {
+  schema: ZodSchema&lt;T&gt;;
+  vocabulary?: Record&lt;string, Set&lt;string&gt;&gt;;
+  verifyGrounding?: (
+    claims: string[]
+  ) =&gt; { ungrounded: string[]; confidence: number };
+  maxRetries?: number;
+}
+
+export interface ValidationOutcome&lt;T&gt; {
+  success: boolean;
+  data?: T;
+  errors: string[];
+  redactions: Array&lt;{ label: string; count: number }&gt;;
+  attempt: number;
+  hallucinationScore: number;
+}
+
+// ─── Refusal Detection ────────────────────────────────
+const REFUSAL_PATTERNS = [
+  /based on (?:general|common|typical) best practices/i,
+  /(?:would|may|might|could) (?:likely|potentially|possibly)/i,
+  /(?:it is|it's) (?:recommended|advised|suggested) to/i,
+  /please consult (?:a |an |your )/i,
+  /cannot (?:provide|guarantee|confirm|determine)/i,
+  /do not have (?:access to|information about)/i,
+  /unable to (?:provide|determine|verify)/i,
+];
+
+function detectRefusal(text: string): number {
+  let score = 0;
+  for (const p of REFUSAL_PATTERNS) if (p.test(text)) score++;
+  const words = text.split(/\s+/);
+  const density = new Set(words.map(w =&gt; w.toLowerCase())).size / Math.max(words.length, 1);
+  if (density &lt; 0.45 && score &gt;= 2) score += 2;
+  return Math.min(score / 5, 1);
+}
+
+// ─── Sanitization ─────────────────────────────────────
+const REDACTIONS: Array&lt;{ p: RegExp; r: string; l: string }&gt; = [
+  { p: /sk-[a-zA-Z0-9]{20,}/g, r: '[REDACTED_KEY]', l: 'api-key' },
+  { p: /ghp_[a-zA-Z0-9]{36}/g, r: '[REDACTED_TOKEN]', l: 'github-token' },
+  { p: /AKIA[A-Z0-9]{16}/g, r: '[REDACTED_KEY]', l: 'aws-key' },
+  { p: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, r: '[REDACTED_EMAIL]', l: 'email' },
+  { p: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, r: '[REDACTED_PHONE]', l: 'phone' },
+  { p: /system\s*prompt|you\s+are\s+a/gi, r: '[REDACTED]', l: 'prompt-leak' },
+];
+
+function sanitize(text: string) {
+  let cleaned = text;
+  const redactions: Array&lt;{ label: string; count: number }&gt; = [];
+  for (const { p, r, l } of REDACTIONS) {
+    const m = text.match(p);
+    if (m) { cleaned = cleaned.replace(p, r); redactions.push({ label: l, count: m.length }); }
+  }
+  return { cleaned, redactions };
+}
+
+// ─── Vocabulary Check ─────────────────────────────────
+function checkVocab(
+  obj: Record&lt;string, unknown&gt;,
+  vocab: Record&lt;string, Set&lt;string&gt;&gt;
+): string[] {
+  const errors: string[] = [];
+  for (const [field, allowed] of Object.entries(vocab)) {
+    const val = obj[field];
+    if (typeof val === 'string' && !allowed.has(val))
+      errors.push(`"${field}": "${val}" not in allowed values`);
+    if (Array.isArray(val))
+      for (const item of val)
+        if (typeof item === 'string' && !allowed.has(item))
+          errors.push(`"${field}": "${item}" not in allowed values`);
+  }
+  return errors;
+}
+
+// ─── Main Validator ───────────────────────────────────
+export function validateOutput&lt;T&gt;(
+  raw: string,
+  config: ValidationConfig&lt;T&gt;
+): ValidationOutcome&lt;T&gt; {
+  const errors: string[] = [];
+
+  // Layer 0: Sanitize first (before parsing, to catch leaks in prose)
+  const { cleaned, redactions } = sanitize(raw);
+
+  // Layer 1: Parse + schema validate
+  let parsed: unknown;
+  try { parsed = JSON.parse(cleaned); }
+  catch { return { success: false, errors: ['Invalid JSON'], redactions, attempt: 1, hallucinationScore: 0 }; }
+
+  const schemaResult = config.schema.safeParse(parsed);
+  if (!schemaResult.success) {
+    errors.push(...schemaResult.error.issues.map(i =&gt; `${i.path.join('.')}: ${i.message}`));
+  }
+
+  // Layer 2: Vocabulary constraints
+  if (config.vocabulary &amp;&amp; typeof parsed === 'object' &amp;&amp; parsed !== null) {
+    errors.push(...checkVocab(parsed as Record&lt;string, unknown&gt;, config.vocabulary));
+  }
+
+  // Layer 3: Semantic grounding
+  if (config.verifyGrounding &amp;&amp; errors.length === 0) {
+    const claims = extractClaims(parsed);
+    const grounding = config.verifyGrounding(claims);
+    if (grounding.ungrounded.length &gt; 0) {
+      errors.push(`Ungrounded claims: ${grounding.ungrounded.join('; ')}`);
+    }
+  }
+
+  // Layer 4: Hallucination detection
+  const halluScore = detectRefusal(cleaned);
+  if (halluScore &gt;= 0.6) {
+    errors.push(`Possible hallucinated refusal (score: ${halluScore.toFixed(2)})`);
+  }
+
+  return {
+    success: errors.length === 0,
+    data: errors.length === 0 ? (parsed as T) : undefined,
+    errors,
+    redactions,
+    attempt: 1,
+    hallucinationScore: halluScore,
+  };
+}
+
+// ─── Extract testable claims from structured output ───
+function extractClaims(data: unknown): string[] {
+  if (typeof data === 'string') return [data];
+  if (Array.isArray(data)) return data.flatMap(extractClaims);
+  if (typeof data === 'object' &amp;&amp; data !== null) {
+    return Object.entries(data).flatMap(([, v]) =&gt; extractClaims(v));
+  }
+  return [];
+}
+
+// ─── Retry-with-Feedback Wrapper ──────────────────────
+export async function validatedGenerate&lt;T&gt;(
+  prompt: string,
+  config: ValidationConfig&lt;T&gt;,
+  callLLM: (p: string) =&gt; Promise&lt;string&gt;
+): Promise&lt;ValidationOutcome&lt;T&gt;&gt; {
+  const maxRetries = config.maxRetries ?? 3;
+  let currentPrompt = prompt;
+
+  for (let attempt = 1; attempt &lt;= maxRetries; attempt++) {
+    const raw = await callLLM(currentPrompt);
+    const result = validateOutput(raw, config);
+    result.attempt = attempt;
+
+    if (result.success) return result;
+
+    if (attempt &lt; maxRetries) {
+      const feedback = result.errors.map((e, i) =&gt; `  ${i + 1}. ${e}`).join('\n');
+      currentPrompt = prompt +
+        `\n\nYour previous response had these errors:\n${feedback}\n` +
+        `Return only corrected JSON. No explanations.`;
+    }
+  }
+
+  return {
+    success: false,
+    errors: ['Exhausted retry budget'],
+    redactions: [],
+    attempt: maxRetries,
+    hallucinationScore: 0,
+  };
+}
+
+// ─── Selftest ─────────────────────────────────────────
+const TestSchema = z.object({
+  tool: z.string(),
+  action: z.enum(['create', 'update', 'delete']),
+  target: z.string().min(1),
+});
+
+const tests = [
+  // 1: Valid output passes
+  (): boolean =&gt; {
+    const r = validateOutput(
+      '{"tool":"flyway","action":"create","target":"users"}',
+      { schema: TestSchema }
+    );
+    return r.success === true;
+  },
+  // 2: Invalid JSON fails
+  (): boolean =&gt; {
+    const r = validateOutput('{not json', { schema: TestSchema });
+    return r.success === false &amp;&amp; r.errors[0] === 'Invalid JSON';
+  },
+  // 3: Wrong enum value fails
+  (): boolean =&gt; {
+    const r = validateOutput(
+      '{"tool":"flyway","action":"destory","target":"users"}',
+      { schema: TestSchema }
+    );
+    return r.success === false;
+  },
+  // 4: Vocabulary constraint catches invented tool
+  (): boolean =&gt; {
+    const r = validateOutput(
+      '{"tool":"quantumMigrator","action":"create","target":"users"}',
+      { schema: TestSchema, vocabulary: { tool: new Set(['flyway', 'liquibase']) } }
+    );
+    return r.success === false &amp;&amp; r.errors.some(e =&gt; e.includes('quantumMigrator'));
+  },
+  // 5: Sanitization strips API key
+  (): boolean =&gt; {
+    const r = validateOutput(
+      '{"tool":"flyway","action":"create","target":"sk-' + 'a'.repeat(40) + '"}',
+      { schema: TestSchema }
+    );
+    return r.redactions.some(rd =&gt; rd.label === 'api-key');
+  },
+  // 6: Hallucination refusal detected
+  (): boolean =&gt; {
+    const text = 'Based on general best practices, it is recommended to ' +
+      'possibly consult a professional for further research. ' +
+      'Would likely require additional investigation to determine.';
+    const r = validateOutput(
+      JSON.stringify({ tool: text, action: 'create', target: 'x' }),
+      { schema: TestSchema }
+    );
+    return r.hallucinationScore &gt; 0;
+  },
+  // 7: Missing required field fails
+  (): boolean =&gt; {
+    const r = validateOutput(
+      '{"action":"create","target":"users"}',
+      { schema: TestSchema }
+    );
+    return r.success === false;
+  },
+  // 8: Extra field is rejected (strict mode)
+  (): boolean =&gt; {
+    const strictSchema = z.object({
+      tool: z.string(),
+      action: z.enum(['create', 'update', 'delete']),
+      target: z.string(),
+    }).strict();
+    const r = validateOutput(
+      '{"tool":"x","action":"create","target":"y","extra":"boom"}',
+      { schema: strictSchema }
+    );
+    return r.success === false;
+  },
+];
+
+// Run selftest
+let passed = 0;
+for (let i = 0; i &lt; tests.length; i++) {
+  try {
+    if (tests[i]()) { passed++; }
+    else { console.error(`[SELFTEST] Test ${i + 1} FAILED`); }
+  } catch (e) {
+    console.error(`[SELFTEST] Test ${i + 1} THREW:`, e);
+  }
+}
+console.log(`[SELFTEST] ${passed}/${tests.length} passed`);
+if (passed &lt; tests.length) process.exit(1);</code></pre>
+
+  <div class="product">
+    <h3>&#128722; Related Tools</h3>
+    <p><strong><a href="https://nepo6.gumroad.com/l/agent-tool-call-validator-cli">Agent Tool-Call Validator CLI</a></strong> ($29) — a pre-LLM CI gate that validates tool-call schemas before they ship. Runs in your Woodpecker CI pipeline and fails any agent runtime change that removes schema validation.</p>
+    <p><strong><a href="https://nepo6.gumroad.com/l/agent-eval-harness-cli">Agent Eval Harness CLI</a></strong> ($29) — scores tool-selection accuracy and output quality across 100+ scenarios. Catches systematic hallucination patterns before they reach production.</p>
+    <p><strong><a href="https://nepo6.gumroad.com/l/agent-inflight-telemetry-cli">Agent Inflight Telemetry CLI</a></strong> ($29) — real-time monitoring of agent output validation pass/fail rates. Alerts when hallucination scores spike or validation failure rates exceed threshold.</p>
+  </div>
+
+  <h2 id="ci-gate">Woodpecker CI Gate</h2>
+  <p>Add this step to your <code>.woodpecker.yml</code> to enforce output validation in CI:</p>
+  <pre><code>steps:
+  validate-output-schema:
+    image: node:18-slim
+    commands:
+      - npm ci
+      - |
+        node -e "
+        const fs = require('fs');
+        const path = require('path');
+        // Check that every agent handler imports validateOutput
+        const handlers = fs.readdirSync('src/agents')
+          .filter(f =&gt; f.endsWith('.ts'));
+        let missing = [];
+        for (const f of handlers) {
+          const content = fs.readFileSync(path.join('src/agents', f), 'utf8');
+          if (!content.includes('validateOutput') &amp;&amp;
+              !content.includes('validatedGenerate')) {
+            missing.push(f);
+          }
+        }
+        if (missing.length &gt; 0) {
+          console.error('AGENTS WITHOUT OUTPUT VALIDATION:');
+          missing.forEach(f =&gt; console.error('  - ' + f));
+          process.exit(1);
+        }
+        console.log('All agent handlers have output validation.');
+        "</code></pre>
+  <p>This gate fails any PR that adds a new agent handler without importing the validation runtime. See the <a href="/posts/2026-06-05-github-actions-to-woodpecker-migration/">Woodpecker migration post</a> for CI setup, and remember: GitHub Actions is disabled at the account level for Algoram88 repos — Woodpecker is the canonical CI.</p>
+
+  <h2 id="cheatsheet">Quick Reference: Validation Layer Cheatsheet</h2>
+  <table>
+    <thead>
+      <tr><th>Layer</th><th>What It Catches</th><th>When to Apply</th><th>Cost</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>JSON Parse</td><td>Malformed JSON</td><td>Always</td><td>Negligible</td></tr>
+      <tr><td>Schema Validation</td><td>Wrong types, missing fields</td><td>Always</td><td>~0.1ms</td></tr>
+      <tr><td>Vocabulary Check</td><td>Invented values, fake tools/endpoints</td><td>When output references system entities</td><td>~0.05ms</td></tr>
+      <tr><td>Grounding Verification</td><td>Ungrounded claims, fabricated facts</td><td>High-stakes domains (medical, legal, financial)</td><td>~50-200ms (KB lookup)</td></tr>
+      <tr><td>Hallucination Detection</td><td>Disguised refusals, hedging</td><td>User-facing responses</td><td>~0.1ms (regex)</td></tr>
+      <tr><td>Sanitization</td><td>PII, credentials, prompt leaks</td><td>Always before delivery</td><td>~0.05ms</td></tr>
+      <tr><td>Retry-with-Feedback</td><td>Correctable errors</td><td>When validation fails and budget allows</td><td>1 LLM call per retry</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="related-posts">Related Posts</h2>
+  <ul>
+    <li><a href="/posts/2026-06-27-ai-agent-function-calling-tool-use/">AI Agent Function Calling</a> — tool-call argument validation (the input-side counterpart to this output-side validation)</li>
+    <li><a href="/posts/2026-06-26-ai-agent-retry-policy/">AI Agent Retry Policy</a> — transport-level retry (429/503/timeout); this post covers content-level retry</li>
+    <li><a href="/posts/2026-06-16-ai-agent-structured-logging/">AI Agent Structured Logging</a> — log every validation event as structured JSONL</li>
+    <li><a href="/posts/2026-06-09-add-observability-to-ai-agents/">AI Agent Observability</a> — dashboards for validation pass/fail rates</li>
+    <li><a href="/posts/2026-06-09-build-agent-eval-harness/">AI Agent Eval Harness</a> — systematic testing for hallucination patterns</li>
+    <li><a href="/posts/2026-06-06-prompt-injection-defense-patterns/">Prompt Injection Defense</a> — the attack surface that makes sanitization necessary</li>
+    <li><a href="/posts/2026-06-10-ai-agent-graceful-degradation/">AI Agent Graceful Degradation</a> — what to do when validation fails permanently</li>
+    <li><a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">AI Agent Prompt Regression Testing</a> — detect when prompt changes increase hallucination rates</li>
+  </ul>
+
+  <footer>
+    <p>&copy; 2026 Algoram99 / Qualigen. Built with automated infrastructure.</p>
+    <p>Part of the <strong>AI Agent Reliability Series</strong> — 32 deep-dive posts on building production-grade LLM agents.</p>
+  </footer>
+</main>
+</body>
+</html>
