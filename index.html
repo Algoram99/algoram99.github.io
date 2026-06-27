@@ -418,6 +418,46 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 
 </div>
 
+<section id="faq" style="margin-top: 3rem;">
+<h2 style="color: var(--accent); font-size:1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">FAQ</h2>
+
+<details style="margin-top: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">What exactly am I buying?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">Each product is a single JavaScript file with zero npm dependencies. You download a ZIP, unzip it, and run <code style="background:#1c2128; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.82rem;">node cli.js</code>. No build step, no install, no API keys, no network. The CLI and the module are the same file. MIT-licensed.</p>
+</details>
+
+<details style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">Why are all the Stripe buttons in test mode?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">The Stripe account is in test mode while the store is in beta. Test-mode buttons will reject real credit cards. When the account switches to live mode, every buy button on this page will accept real payments automatically &mdash; no code change needed. The tools themselves are finished and tested. The checkout is what is in beta.</p>
+</details>
+
+<details style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">Do these tools actually work or are they demos?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">Every CLI ships with its own test suite (20-50 tests per tool) and an in-process selftest command. Run <code style="background:#1c2128; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.82rem;">node cli.js selftest</code> to verify all tests pass on your machine. The test counts and selftest output are real, not simulated. If a selftest fails, the tool tells you exactly what broke.</p>
+</details>
+
+<details style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">Which tool should I start with?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">If you ship AI agents: <strong>Agent Inflight Telemetry CLI</strong> ($29) is the entry point &mdash; it instruments any agent session in under 5 minutes. If you care about security: <strong>Agent Secrets Audit CLI</strong> ($29) scans agent outputs for 8 secret-shape patterns before they reach a user. If you want the big picture: <strong>Agent Cost Optimizer</strong> ($39) analyzes your LLM spending across 19 models and finds the cheapest model for every task.</p>
+</details>
+
+<details style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">Can I see the source before buying?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">Yes. Every card with a "Source" button links to the Algoram99 GitHub org, where the full repository is public and MIT-licensed. You can read the code, run the tests, and verify everything before spending a dollar. The paid version is the same code, packaged as a ready-to-run ZIP with documentation and a Gumroad listing.</p>
+</details>
+
+<details style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">What if a tool does not work for my use case?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">Run the selftest first &mdash; if it passes, the tool works as documented. If your use case does not match, the code is MIT-licensed: modify it, fork it, or use it as a reference implementation for your own tool. The blog posts cover the design decisions and tradeoffs behind each tool, so you can evaluate fit before buying.</p>
+</details>
+
+<details style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem;">
+<summary style="cursor: pointer; font-size: 0.95rem; color: var(--accent); font-weight: 600;">How do I get updates?</summary>
+<p style="margin-top: 0.6rem; font-size: 0.88rem; color: var(--fg);">Follow the Algoram99 GitHub org. New tools are pushed weekly, and the blog covers every release with implementation notes, anti-patterns, and cross-links to related tools. The catalog has grown from 1 to 85 tools in under 4 weeks.</p>
+</details>
+
+</section>
+
 <h2 style="margin-top:2.5rem; color: var(--accent); font-size:1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">From the blog</h2>
 <p style="color: #8b949e; font-size: 0.95rem; margin-top: 0.5rem;">Shipping notes, postmortems, and field-tested catalogs. One post every cycle — picked because the problem keeps coming up, not because we ran out of templates.</p>
 
