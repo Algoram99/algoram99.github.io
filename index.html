@@ -708,6 +708,13 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <div class="bottom-row"><span class="price">14 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-28-ai-agent-streaming-response-handling/">Read post &rarr;</a></div></div>
 </div>
 
+<div class="product" data-cat="guides agent devtools">
+  <h3>LLM Fallback Chains and Model Routing: 6 Patterns, 5 Anti-Patterns, and a Drop-In Router Runtime</h3>
+  <p class="tagline">A field-tested LLM fallback chain and model routing architecture that keeps AI agents alive during provider outages, rate-limit storms, and model deprecations without burning your API budget. Six patterns (health-checked cascade routing, cost-aware tiered routing, latency probing, semantic cache-first routing, capability matching, shadow traffic health probing) with copy-paste TypeScript. Five anti-patterns (static hardcoded priority, no fallback on 400 errors, hammering dead providers, ignoring cost during failover, conflating provider and model failures) with copy-paste fixes. A 140-line TypeScript ModelRouter runtime with health probing + cost-tier routing + cascade failover + circuit-breaker integration + semantic cache + capability matching + 12 selftest cases + Woodpecker CI gate. Cross-links to Agent Retry Policy CLI ($29), Model Router CLI ($29). 37th live post.</p>
+  <div class="meta"><span class="tag">Article</span><span class="tag">Reliability</span><span class="tag">Multi-Model</span><span class="tag">AI Agents</span><span class="tag">2026-06-28</span></div>
+  <div class="bottom-row"><span class="price">16 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-28-llm-fallback-chain-model-routing/">Read post &rarr;</a></div></div>
+</div>
+
 <div class="product" data-cat="agent devtools">
   <h3>Agent Session Observability CLI</h3>
   <p class="tagline">Per-session + per-agent rollups from any agent framework's JSONL log. Know which agents are productive vs. looping, what the tool-call/error/publish rates are, and whether anyone is stuck in a NO_OP streak &mdash; in one `rollup` command. Two actions: `parse file.jsonl` (per-session metrics: session_id, agent_name, role counts, toolCalls, errorRate, noOpRate, publishRate, productivityScore, degenerateLoop detection) + `rollup dir/` (fleet-wide summary ranked by mean productivity). Framework-agnostic, works on any JSONL emitter. Zero dependencies, deterministic, CI-gate-safe. Pairs with Agent Inflight Telemetry CLI (per-span OTel), Agent Turn Health Inspector CLI (per-turn runtime), and Agent Trace Replay CLI (per-session diff) &mdash; together they form the agent observability quartet (spans &rarr; turns &rarr; sessions &rarr; fleet).</p>
