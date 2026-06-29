@@ -1,0 +1,134 @@
+# RAG Chunk Quality Validation: Stop Shipping Broken Retrieval
+
+## The Problem
+
+RAG pipelines fail silently when chunks are bad. Words split across boundaries. Orphan chunks with no useful content. Oversized chunks that get truncated by embedding models. Missing text between chunks creating knowledge gaps.
+
+Most teams discover these issues weeks after deployment, when users complain about irrelevant retrieval results.
+
+## The Solution
+
+A zero-dependency CLI that catches chunking quality issues before they reach production. Run it on any document, get a 0-100 quality score with specific, actionable recommendations.
+
+```bash
+node cli.js analyze knowledge-base.md --strategy sentence --report
+```
+
+## 4 Chunking Strategies
+
+| Strategy | Splits By | Best For |
+|----------|-----------|----------|
+| **Fixed** | Exact character count | Uniform text, baseline testing |
+| **Sentence-aware** | Sentence boundaries | Articles, documentation, prose |
+| **Recursive** | Separator priority (paragraph → sentence → word) | Mixed-format text, code + prose |
+| **Markdown** | Heading hierarchy (#, ##, ###) | README files, technical docs |
+
+The `auto` strategy detects which approach fits your text based on heading density, sentence count, and paragraph structure.
+
+## 6 Quality Dimensions
+
+### 1. Size Distribution
+Measures mean, median, standard deviation, and coefficient of variation across all chunks. High variation (CV > 0.5) means inconsistent retrieval behavior.
+
+### 2. Orphan Detection
+Flags chunks with fewer than 10 tokens (configurable). These waste embedding compute and never match user queries.
+
+### 3. Oversized Detection
+Flags chunks exceeding 2048 tokens (configurable). These get silently truncated by embedding models, losing information at the tail.
+
+### 4. Boundary Quality
+Classifies each chunk boundary as natural (sentence/heading/whitespace), mid-word, or mid-sentence. Mid-word breaks are the worst — they create fragments that don't match any query.
+
+### 5. Keyword Density
+Computes the unique-word ratio per chunk. Low density (< 0.3) means the chunk is repetitive and won't differentiate well in vector search.
+
+### 6. Context Completeness
+Detects gaps in text coverage between chunks. If chunk N ends at position 500 and chunk N+1 starts at position 550, those 50 characters are invisible to your RAG system.
+
+## Quality Scoring
+
+Each analysis produces a **0-100 quality score** with deductions:
+
+| Deduction | Trigger | Penalty |
+|-----------|---------|---------|
+| Size inconsistency | CV > 0.3 | +12-25 |
+| Orphan chunks | tokens < 10 | 5 per chunk |
+| Oversized chunks | tokens > 2048 | 8 per chunk |
+| Mid-word breaks | word split at boundary | 0.5 per break |
+| Sparse chunks | keyword density < 0.3 | 3 per chunk |
+| Text gaps | missing content | 6 per gap |
+| Inconsistent overlap | variation > 50% | 5 |
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Fixed-Size Chunking on Prose
+```
+# BAD: splits words mid-character
+chunks[0].text = "The machine learning algo"
+chunks[1].text = "rithm achieves 95% accuracy"
+```
+Use sentence-aware chunking instead.
+
+### Anti-Pattern 2: No Overlap Between Chunks
+```
+# BAD: context lost at boundaries
+chunk_0_end = "...end of paragraph one."
+chunk_1_start = "Start of paragraph two..."
+```
+The last sentence of chunk 0 and first of chunk 1 have no shared context. Use 10-20% overlap.
+
+### Anti-Pattern 3: Ignoring Markdown Structure
+```
+# BAD: heading and body in separate chunks
+chunk_0 = "# Important Section"
+chunk_1 = "The critical content that explains what this section is about..."
+```
+Use markdown-aware chunking so headings stay with their content.
+
+### Anti-Pattern 4: One Giant Chunk
+```
+# BAD: 8000-token chunk gets truncated by embedding model
+chunk_0 = [entire document in one piece]
+# Embedding model only processes first 512 tokens
+```
+
+### Anti-Pattern 5: No Quality Gate in CI
+```
+# BAD: chunking bugs reach production silently
+# No validation between chunking and embedding
+```
+Add `node cli.js score input.txt` to your CI pipeline. Exit code 1 = issues found.
+
+## Runtime Example
+
+```javascript
+const { analyzeChunking } = require('./cli.js');
+
+const analysis = analyzeChunking(documentText, {
+  strategy: 'sentence',
+  size: 512,
+  overlap: 50
+});
+
+console.log(`Quality: ${analysis.quality.score}/100 (${analysis.quality.grade})`);
+console.log(`Chunks: ${analysis.chunkCount}`);
+console.log(`Issues: ${analysis.quality.deductions.length}`);
+
+for (const rec of analysis.recommendations) {
+  console.log(`  [${rec.severity}] ${rec.message}`);
+}
+```
+
+## Getting Started
+
+```bash
+git clone https://github.com/Algoram88/rag-chunk-quality-validator.git
+cd rag-chunk-quality-validator
+node cli.js analyze your-document.md --format text
+```
+
+Zero dependencies. Node.js 14+. 42 tests passing. MIT licensed.
+
+---
+
+*Part of the [alg99 storefront](/) — autonomous developer tools and security audits.*
