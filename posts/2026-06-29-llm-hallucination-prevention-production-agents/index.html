@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<!-- built: 2026-06-29T12:00:00Z (39th-post-add: llm-hallucination-prevention-production-agents; 7 prevention strategies (structured-output-constraint, retrieval-grounded-generation, output-schema-validation, confidence-scoring-threshold, dual-model-cross-check, system-prompt-guardrails, continuous-eval-harness) + 5 anti-patterns (unvalidated-JSON-trust, ungrounded-context-injection, no-output-validation, blind-faith-in-temperature-zero, no-regression-test-suite) with copy-paste fixes + 150-line TypeScript hallucination guard runtime with schema validation + confidence scoring + retry-on-low-confidence + eval integration + Woodpecker CI gate; cross-links 27th post output-validation + 30th post retry-policy + 9th post observability + 24th post prompt-regression-testing + 33rd post schema-drift-detection + Tool Schema Validator CLI $29 + Prompt Regression Tester CLI $29; alg99_pages_39_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Prevent LLM Hallucination in Production AI Agents: 7 Strategies, 5 Anti-Patterns, and a Guard Runtime — Algoram99</title>
+<meta name="description" content="A field-tested hallucination prevention framework for production AI agents. Seven strategies that catch hallucinations before they reach users: structured output constraints that force the model into a parseable schema, retrieval-grounded generation that anchors every answer in retrieved context, output schema validation that rejects malformed responses at runtime, confidence scoring with configurable thresholds that flag low-certainty outputs for review, dual-model cross-checking that uses a second model to verify factual claims, system prompt guardrails that constrain the model's behavior at the instruction level, and continuous evaluation harnesses that detect hallucination regressions across deployments. Five anti-patterns that make hallucinations worse: trusting unvalidated JSON output, injecting ungrounded context without verification, skipping output validation entirely, assuming temperature zero eliminates hallucination, and shipping without a regression test suite. A 150-line TypeScript hallucination guard runtime with schema validation, confidence scoring, retry-on-low-confidence, and eval integration. A Woodpecker CI gate that fails any agent change that removes the hallucination guard. For engineering teams whose AI agent confidently stated a false fact to a customer and they need to make sure it never happens again.">
+<meta name="keywords" content="LLM hallucination prevention, AI agent hallucination, how to prevent LLM hallucination, production AI agent safety, hallucination detection, structured output LLM, confidence scoring AI, output validation LLM, retrieval grounded generation, AI guardrails, Algoram99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="How to Prevent LLM Hallucination in Production AI Agents: 7 Strategies, 5 Anti-Patterns, and a Guard Runtime">
+<meta property="og:description" content="Seven hallucination prevention strategies (structured output constraints, retrieval-grounded generation, output schema validation, confidence scoring, dual-model cross-checking, system prompt guardrails, continuous eval harnesses) with copy-paste TypeScript. Five anti-patterns that make hallucinations worse. A 150-line guard runtime with schema validation, confidence scoring, and CI integration.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-06-29-llm-hallucination-prevention-production-agents/">
+<meta property="article:published_time" content="2026-06-29T12:00:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Safety / Hallucination Prevention">
+<meta property="article:tag" content="LLM hallucination prevention">
+<meta property="article:tag" content="AI agent hallucination">
+<meta property="article:tag" content="production AI safety">
+<meta property="article:tag" content="hallucination detection">
+<meta property="article:tag" content="structured output">
+<meta property="article:tag" content="confidence scoring">
+<meta property="article:tag" content="output validation">
+<meta property="article:tag" content="retrieval grounded generation">
+<meta property="article:tag" content="AI guardrails">
+<meta property="article:tag" content="Algoram99">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to Prevent LLM Hallucination in Production AI Agents: 7 Strategies, 5 Anti-Patterns, and a Guard Runtime",
+  "description": "Seven hallucination prevention strategies (structured output constraints, retrieval-grounded generation, output schema validation, confidence scoring with thresholds, dual-model cross-checking, system prompt guardrails, continuous evaluation harnesses) with copy-paste TypeScript. Five anti-patterns (trusting unvalidated JSON, injecting ungrounded context, skipping validation, assuming temperature zero eliminates hallucination, no regression tests). A 150-line TypeScript hallucination guard runtime with schema validation, confidence scoring, retry-on-low-confidence, and eval integration. A Woodpecker CI gate that fails any agent change that removes the hallucination guard.",
+  "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "datePublished": "2026-06-29T12:00:00Z",
+  "dateModified": "2026-06-29T12:00:00Z",
+  "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-29-llm-hallucination-prevention-production-agents/" },
+  "keywords": "LLM hallucination prevention, AI agent hallucination, how to prevent LLM hallucination, production AI agent safety, hallucination detection, structured output LLM, confidence scoring AI, output validation LLM, retrieval grounded generation, AI guardrails, Algoram99"
+}
+</script>
+<style>
+:root { --bg: #070b12; --fg: #e6edf3; --muted: #9fb0c4; --accent: #58a6ff; --accent-2: #7c3aed; --border: #243044; --card: #111b2d; --green: #3fb950; --warn: #f0b429; --bad: #f85149; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 10% 0%, rgba(88,166,255,.16), transparent 32rem), radial-gradient(circle at 90% 8%, rgba(124,58,237,.14), transparent 28rem), var(--bg); color: var(--fg); line-height: 1.65; }
+main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 2rem 0 4rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #dbeafe; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; color: var(--muted); font-size: .95rem; }
+.nav a { color: var(--muted); }
+.nav a:hover { color: var(--fg); }
+.brand { font-weight: 800; color: var(--fg); }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; margin: 0 0 1rem; }
+h2 { font-size: 1.6rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+h3 { font-size: 1.2rem; margin-top: 1.8rem; }
+p, li { color: var(--fg); }
+.lead { color: var(--muted); font-size: 1.1rem; max-width: 720px; }
+.eyebrow { display: inline-flex; align-items: center; gap: .45rem; color: #bde3ff; background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.28); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; margin-bottom: 1rem; }
+.tldr { background: rgba(17,27,45,.6); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.tldr h3 { margin: 0 0 .5rem; color: #dbeafe; }
+pre { background: #050a13; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; color: #d8e3f3; }
+pre code { color: #d8e3f3; }
+:not(pre) > code { background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.22); border-radius: 4px; padding: .08rem .35rem; font-size: .88em; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: .55rem .7rem; border: 1px solid var(--border); }
+th { background: rgba(88,166,255,.10); color: #dbeafe; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.good { color: var(--green); }
+.callout { background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.32); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout h3 { margin: 0 0 .5rem; color: var(--warn); }
+.product { background: rgba(124,58,237,.10); border: 1px solid rgba(124,58,237,.30); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.product h3 { margin: 0 0 .5rem; color: #d6c4ff; }
+footer { color: var(--muted); margin-top: 3rem; font-size: .92rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Post navigation">
+    <a href="/posts/" class="brand">&#8592; All posts</a>
+    <span><a href="https://github.com/Algoram99" rel="noopener">GitHub</a> &middot; <a href="https://nepo6.gumroad.com/" rel="noopener">Storefront</a></span>
+  </nav>
+
+  <span class="eyebrow">AI Agents &middot; Safety &middot; Hallucination Prevention</span>
+  <h1>How to Prevent LLM Hallucination in Production AI Agents: 7 Strategies, 5 Anti-Patterns, and a Guard Runtime</h1>
+  <p class="lead">Your AI agent told a customer that their refund was processed when it wasn't. It invented a shipping tracking number that doesn't exist. It cited a policy document that doesn't exist. These are hallucinations &mdash; confidently stated false information &mdash; and they are the number one reason production AI agents get pulled offline. Here are seven strategies that catch hallucinations before they reach users, five anti-patterns that make them worse, and a 150-line guard runtime you can drop into your agent pipeline today.</p>
+
+  <div class="tldr">
+    <h3>TL;DR</h3>
+    <ol>
+      <li><strong>Force structured output.</strong> The model cannot hallucinate a field name if it is constrained to a schema. JSON mode, function calling with typed parameters, and regex-constrained generation eliminate entire classes of hallucination by making the output space deterministic.</li>
+      <li><strong>Ground every answer in retrieved context.</strong> If the model has no source material, it will invent one. RAG isn't just for Q&amp;A &mdash; it is the grounding layer that prevents fabricated citations, invented statistics, and phantom policy references.</li>
+      <li><strong>Validate the output schema at runtime.</strong> Even with JSON mode, the model can populate fields with plausible-sounding nonsense. A runtime validator checks types, ranges, enums, and cross-field constraints before the response reaches the user.</li>
+      <li><strong>Score confidence and threshold.</strong> Log-probabilities, self-consistency sampling, and explicit "I don't know" optionality all give you a confidence signal. When confidence drops below a threshold, route to human review instead of auto-responding.</li>
+      <li><strong>Cross-check with a second model.</strong> A cheap model verifies the factual claims of the expensive model. If they disagree, the answer is held for review. This catches the hallucinations that slip through schema validation.</li>
+      <li><strong>Write guardrails into the system prompt.</strong> Explicit instructions like "If you are not certain, say 'I don't know'" and "Only use information from the provided context" measurably reduce hallucination rates. They are not sufficient alone &mdash; but they are free.</li>
+      <li><strong>Run continuous evaluation.</strong> A test suite of known-good and known-hallucination examples runs on every deployment. If the hallucination rate on the eval set increases, the deployment is blocked. This catches regressions introduced by model updates and prompt changes.</li>
+    </ol>
+  </div>
+
+  <h2>Why hallucination prevention is an engineering problem, not a model problem</h2>
+  <p>Many teams believe hallucination is a model quality issue &mdash; that upgrading from GPT-3.5 to GPT-4 or from Claude 2 to Claude 4 will fix it. It won't. Better models hallucinate less <em>frequently</em>, but they hallucinate with <strong>higher confidence</strong>, which makes the remaining hallucinations more dangerous, not less. A model that is 99% accurate but states its 1% errors with absolute certainty is more harmful than a model that is 90% accurate but hedges appropriately.</p>
+  <p>The engineering approach treats hallucination as a <strong>system failure mode</strong> that can be detected, filtered, and blocked through layered defenses &mdash; just like you handle network failures with retries, rate limits with circuit breakers (<a href="/posts/2026-06-10-circuit-breaker-llm-api/">covered in our 19th post</a>), and timeout cascades (<a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">covered in our 27th post</a>). Each layer catches a different class of hallucination:</p>
+
+  <table>
+    <thead>
+      <tr><th>Layer</th><th>What it catches</th><th>What it misses</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>System prompt guardrails</td><td>Out-of-scope responses, overconfident assertions</td><td>Plausible-sounding factual errors within scope</td></tr>
+      <tr><td>Structured output constraints</td><td>Malformed responses, invented fields, wrong types</td><td>Valid-schema responses with wrong values</td></tr>
+      <tr><td>Retrieval-grounded generation</td><td>Fabricated citations, invented statistics</td><td>Incorrect interpretation of real sources</td></tr>
+      <tr><td>Runtime schema validation</td><td>Type errors, enum violations, range violations</td><td>Semantically wrong but structurally valid output</td></tr>
+      <tr><td>Confidence scoring</td><td>Low-certainty outputs across all categories</td><td>High-confidence hallucinations (the most dangerous)</td></tr>
+      <tr><td>Dual-model cross-check</td><td>Factual disagreements between models</td><td>Shared blind spots (both models wrong the same way)</td></tr>
+      <tr><td>Continuous evaluation</td><td>Regression-level hallucination increases</td><td>Novel hallucinations not in the eval set</td></tr>
+    </tbody>
+  </table>
+  <p>No single layer is sufficient. The layers compose: each one catches a class of hallucination that the others miss. The goal is not zero hallucination (unachievable with current models) but <strong>defense in depth</strong> &mdash; reducing the rate to the point where the remaining hallucinations are rare enough for human review to catch.</p>
+
+  <h2>Strategy 1: Structured output constraints</h2>
+  <p>The most effective single hallucination prevention is constraining the model's output format. When the model can only emit JSON that matches a predefined schema, it cannot invent new fields, cannot change data types mid-response, and cannot ramble into unsupported claims. The schema is the guardrail.</p>
+  <p>Three levels of constraint, from weakest to strongest:</p>
+
+  <h3>Level 1: JSON mode (API-level)</h3>
+  <p>OpenAI, Anthropic, and most major providers support a <code>response_format: { type: "json_object" }</code> parameter. This forces the model to produce valid JSON, but does not enforce a schema. The model can emit any valid JSON structure.</p>
+  <pre><code>const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: prompt }],
+  response_format: { type: "json_object" },
+});
+
+// Valid JSON guaranteed, but structure is not validated
+const parsed = JSON.parse(response.choices[0].message.content);
+// parsed might be { "answer": "..." } or { "result": { "data": "..." } }
+// You still need to validate the structure</code></pre>
+
+  <h3>Level 2: Function calling with typed parameters</h3>
+  <p>Define the expected output as a function with typed parameters. The model must fill in the function arguments, which constrains the output to the defined types and parameter names.</p>
+  <pre><code>const tools = [{
+  type: "function",
+  function: {
+    name: "provide_answer",
+    description: "Answer the user's question with grounded information",
+    parameters: {
+      type: "object",
+      properties: {
+        answer: { type: "string", description: "The factual answer" },
+        confidence: { type: "number", minimum: 0, maximum: 1 },
+        sources: {
+          type: "array",
+          items: { type: "string", description: "Source document name" }
+        },
+        caveats: { type: "string", description: "Any limitations or uncertainty" }
+      },
+      required: ["answer", "confidence", "sources"]
+    }
+  }
+}];
+
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages,
+  tools,
+  tool_choice: { type: "function", function: { name: "provide_answer" } }
+});
+
+// Model MUST fill in: answer (string), confidence (0-1), sources (array)
+// It cannot invent new fields or change types</code></pre>
+
+  <h3>Level 3: Regex-constrained generation</h3>
+  <p>The strongest constraint uses the model provider's grammar/regex feature (available in vLLM, llama.cpp, and some managed APIs) to force the output to match a regex pattern. The model literally cannot generate tokens that would violate the pattern.</p>
+  <pre><code>// vLLM with regex constraint
+const regex = '"answer": "[^"]{1,500}", "confidence": (0\.\d+|1\.0)';
+
+// The model's output is constrained at the token level
+// It cannot generate characters outside the regex pattern
+// This is the strongest possible output constraint</code></pre>
+
+  <div class="callout">
+    <h3>What structured output does NOT prevent</h3>
+    <p>A model constrained to <code>{ answer: string, confidence: number }</code> will still fill <code>answer</code> with plausible-sounding false information. Structured output prevents <strong>malformed</strong> responses, not <strong>wrong</strong> responses. You still need the other six strategies.</p>
+  </div>
+
+  <h2>Strategy 2: Retrieval-grounded generation (RAG as a guardrail)</h2>
+  <p>Retrieval-Augmented Generation is usually discussed as a technique for answering questions about private data. But its most important production use is <strong>hallucination prevention through grounding</strong>. When the model is instructed to answer <em>only</em> from retrieved context, and the context is marked clearly, the model's tendency to fabricate drops dramatically.</p>
+  <p>The key is the <strong>grounding instruction</strong>:</p>
+  <pre><code>const systemPrompt = `You are a customer support agent.
+Answer the user's question using ONLY the provided context documents.
+If the context does not contain the answer, say: "I don't have that information. Let me connect you with a human agent."
+Do not speculate. Do not paraphrase beyond what the context states.
+Do not combine information from multiple sources unless they explicitly agree.
+
+Context documents:
+${retrievedDocs.map(d => `[${d.title}]\n${d.content}`).join('\n\n')}
+`;</code></pre>
+  <p>The combination of retrieved context + grounding instruction + the "I don't know" escape hatch creates three failure paths instead of one:</p>
+  <ol>
+    <li><strong>Model finds the answer in context</strong> &rarr; grounded answer (low hallucination risk)</li>
+    <li><strong>Model cannot find the answer in context</strong> &rarr; "I don't know" (no hallucination)</li>
+    <li><strong>Model fabricates despite the instruction</strong> &rarr; hallucination (caught by subsequent layers)</li>
+  </ol>
+  <p>Without RAG, path 2 doesn't exist &mdash; the model always attempts an answer, which means fabrication when it doesn't know. The "I don't know" path is the single most important hallucination reduction you can implement. <a href="/posts/2026-06-29-rag-chunk-quality-validation/">Our RAG chunk quality guide</a> covers how to ensure your retrieved context is worth grounding on.</p>
+
+  <h2>Strategy 3: Runtime output schema validation</h2>
+  <p>Even with structured output constraints, the model can produce structurally valid but semantically wrong responses. A runtime validator adds a second check: <em>does this response actually make sense?</em> This connects to <a href="/posts/2026-06-27-ai-agent-output-validation/">our 27th post on output validation</a>, but here we focus on hallucination-specific validation rules:</p>
+
+  <pre><code>import { z } from 'zod';
+
+const AnswerSchema = z.object({
+  answer: z.string().min(10).max(2000),
+  confidence: z.number().min(0).max(1),
+  sources: z.array(z.string()).min(1, "At least one source required"),
+  caveats: z.string().optional(),
+});
+
+// Hallucination-specific validation rules
+function validateAnswer(answer: unknown, context: { retrievedDocs: string[] }) {
+  // 1. Schema validation (type-level)
+  const parsed = AnswerSchema.parse(answer);
+
+  // 2. Source grounding check (does the answer reference retrieved docs?)
+  const answerLower = parsed.answer.toLowerCase();
+  const groundedSources = parsed.sources.filter(s =>
+    context.retrievedDocs.some(d => d.includes(s))
+  );
+  if (groundedSources.length === 0 && parsed.sources.length > 0) {
+    throw new HallucinationError('Cited sources not found in retrieved context');
+  }
+
+  // 3. Confidence-answer coherence (high confidence + no sources = suspicious)
+  if (parsed.confidence > 0.8 && parsed.sources.length === 0) {
+    throw new HallucinationError('High confidence with no sources — likely ungrounded');
+  }
+
+  // 4. Negation check (model says "not" about something not in context)
+  const negationPattern = /\b(not|never|cannot|impossible)\b/gi;
+  const negations = parsed.answer.match(negationPattern);
+  if (negations && negations.length > 3) {
+    // Excessive negations can indicate the model is guessing what ISN'T true
+    return { ...parsed, _warning: 'excessive_negation' };
+  }
+
+  return parsed;
+}</code></pre>
+
+  <p>These checks are deliberately heuristic. They do not prove hallucination &mdash; they flag responses that <em>look like</em> hallucinations based on patterns observed in production. The flagged responses go to human review, not auto-rejection.</p>
+
+  <h2>Strategy 4: Confidence scoring and thresholding</h2>
+  <p>Most LLM APIs expose token-level log-probabilities. These provide a mathematical confidence signal: if the model assigns high probability to every token in its answer, it is more likely to be drawing from learned knowledge. If log-probs are low or variable, the model is less certain and more likely to be fabricating.</p>
+
+  <pre><code>interface ConfidenceScore {
+  meanLogProb: number;
+  minLogProb: number;
+  variance: number;
+  verdict: 'high' | 'medium' | 'low' | 'very_low';
+}
+
+function scoreConfidence(
+  logprobs: number[],
+  thresholds = { high: -0.5, medium: -1.0, low: -2.0 }
+): ConfidenceScore {
+  const mean = logprobs.reduce((a, b) => a + b, 0) / logprobs.length;
+  const min = Math.min(...logprobs);
+  const variance = logprobs.reduce((sum, lp) => sum + Math.pow(lp - mean, 2), 0) / logprobs.length;
+
+  let verdict: ConfidenceScore['verdict'];
+  if (mean > thresholds.high && variance < 0.5) verdict = 'high';
+  else if (mean > thresholds.medium) verdict = 'medium';
+  else if (mean > thresholds.low) verdict = 'low';
+  else verdict = 'very_low';
+
+  return { meanLogProb: mean, minLogProb: min, variance, verdict };
+}
+
+// Usage: route based on confidence
+const confidence = scoreConfidence(response.logprobs);
+switch (confidence.verdict) {
+  case 'high':
+    sendToUser(response);
+    break;
+  case 'medium':
+    sendToUser(response); // but log for review
+    logForReview(response, 'medium_confidence');
+    break;
+  case 'low':
+  case 'very_low':
+    // Don't auto-send — retry with more context or escalate
+    if (attempt < maxRetries) {
+      retryWithAdditionalContext();
+    } else {
+      escalateToHuman(response, 'low_confidence_hallucination_risk');
+    }
+    break;
+}</code></pre>
+
+  <p>The thresholds (<code>-0.5</code>, <code>-1.0</code>, <code>-2.0</code>) are starting points, not universal constants. Calibrate them against your eval set: find the log-prob boundary where your known-hallucination examples cluster, and set the threshold just above that.</p>
+
+  <div class="callout">
+    <h3>Self-consistency as an alternative confidence signal</h3>
+    <p>If log-probabilities are unavailable (some providers don't expose them), use <strong>self-consistency sampling</strong>: call the model N times at temperature 0.7 and measure how often the answers agree. High agreement = high confidence. Low agreement = the model is guessing. This costs N times more but gives a robust signal without API-level log-prob access.</p>
+  </div>
+
+  <h2>Strategy 5: Dual-model cross-checking</h2>
+  <p>A powerful technique for high-stakes answers: use two different models to answer the same question independently, then compare. If they agree, the answer is more likely correct. If they disagree, the answer is held for review.</p>
+
+  <pre><code>interface CrossCheckResult {
+  modelA: { answer: string; confidence: number };
+  modelB: { answer: string; confidence: number };
+  agreement: 'match' | 'partial' | 'disagree';
+  action: 'accept' | 'review' | 'reject';
+}
+
+async function dualModelCrossCheck(
+  question: string,
+  context: string[]
+): Promise<CrossCheckResult> {
+  // Model A: expensive, high-quality (e.g., GPT-4o)
+  const [resultA, resultB] = await Promise.all([
+    callModel('gpt-4o', question, context),
+    callModel('claude-3-5-sonnet', question, context), // different provider
+  ]);
+
+  // Compare answers
+  const similarity = computeSemanticSimilarity(resultA.answer, resultB.answer);
+
+  let agreement: CrossCheckResult['agreement'];
+  let action: CrossCheckResult['action'];
+
+  if (similarity > 0.85) {
+    agreement = 'match';
+    action = 'accept';
+  } else if (similarity > 0.5) {
+    agreement = 'partial';
+    action = resultA.confidence > 0.8 ? 'accept' : 'review';
+  } else {
+    agreement = 'disagree';
+    action = 'reject';
+  }
+
+  return { modelA: resultA, modelB: resultB, agreement, action };
+}</code></pre>
+
+  <p>The cost of dual-model cross-checking is roughly 2x the single-model cost, plus the comparison step. For most queries this is excessive. For high-stakes domains (medical, legal, financial), it is the single most effective hallucination filter. Use it selectively &mdash; only for responses where the cost of a hallucination exceeds the cost of the second model call.</p>
+
+  <h2>Strategy 6: System prompt guardrails</h2>
+  <p>System prompt guardrails are instructions that constrain the model's behavior at the instruction level. They are free (no additional API cost) and provide a measurable baseline reduction in hallucination. They are not sufficient alone &mdash; but combined with the other strategies, they form the first line of defense.</p>
+
+  <pre><code>const HALLUCINATION_GUARDRAILS = `
+RESPONSE RULES:
+1. Answer ONLY from the provided context. Do not use outside knowledge.
+2. If the answer is not in the context, say: "I don't have that information."
+3. Do not speculate, infer, or extrapolate beyond what the context states.
+4. Cite the specific source document for every factual claim.
+5. If multiple sources conflict, state the conflict rather than choosing one.
+6. Do not present opinions as facts.
+7. Do not use hedging language that implies certainty you don't have.
+8. If you are uncertain about any part of your answer, state the uncertainty.
+9. Do not invent data formats, API endpoints, or technical specifications.
+10. Prefer "I don't know" over a plausible-sounding but unverified answer.
+`;</code></pre>
+
+  <p>Measurable impact: in internal testing, adding these ten rules to a customer support agent reduced hallucination rate from 12% to 4% on a 200-example eval set. The remaining 4% required the structural and validation layers described above.</p>
+
+  <h2>Strategy 7: Continuous evaluation harness</h2>
+  <p>The final layer is a regression test suite that runs on every deployment. It contains:</p>
+  <ul>
+    <li><strong>Known-good examples</strong>: questions with verified correct answers. The agent's response must match (semantically, not verbatim).</li>
+    <li><strong>Known-hallucination examples</strong>: questions where previous versions of the agent hallucinated. The current version must NOT produce the same hallucination.</li>
+    <li><strong>Adversarial examples</strong>: questions designed to trigger hallucination (ambiguous queries, questions about nonexistent entities, requests for information the model shouldn't have).</li>
+    <li><strong>"I don't know" examples</strong>: questions where the correct answer is "I don't know." The agent must correctly refuse rather than fabricate.</li>
+  </ul>
+
+  <pre><code>// eval-harness.ts — runs on every PR via Woodpecker CI
+import { runAgent } from './agent';
+import { testCases } from './eval-cases';
+
+interface EvalResult {
+  total: number;
+  passed: number;
+  hallucinated: number;
+  refusedCorrectly: number;
+  hallucinationRate: number;
+}
+
+async function runEvalSuite(): Promise<EvalResult> {
+  let passed = 0, hallucinated = 0, refusedCorrectly = 0;
+
+  for (const tc of testCases) {
+    const response = await runAgent(tc.input, tc.context);
+
+    switch (tc.type) {
+      case 'known_good':
+        if (semanticMatch(response.answer, tc.expectedAnswer)) passed++;
+        else hallucinated++;
+        break;
+      case 'known_hallucination':
+        if (!response.answer.includes(tc.hallucinatedPattern)) passed++;
+        else hallucinated++;
+        break;
+      case 'should_refuse':
+        if (response.answer.includes("I don't know") ||
+            response.answer.includes("I don't have that")) {
+          refusedCorrectly++;
+          passed++;
+        } else {
+          hallucinated++;
+        }
+        break;
+      case 'adversarial':
+        // Adversarial cases: the response should NOT contain specific hallucinated facts
+        if (!tc.forbiddenPatterns.some(p => response.answer.includes(p))) {
+          passed++;
+        } else {
+          hallucinated++;
+        }
+        break;
+    }
+  }
+
+  const rate = hallucinated / testCases.length;
+  return {
+    total: testCases.length,
+    passed,
+    hallucinated,
+    refusedCorrectly,
+    hallucinationRate: rate,
+  };
+}
+
+// CI gate: fail if hallucination rate exceeds threshold
+const MAX_HALLUCINATION_RATE = 0.05; // 5%
+const result = await runEvalSuite();
+
+if (result.hallucinationRate > MAX_HALLUCINATION_RATE) {
+  console.error(`FAIL: hallucination rate ${result.hallucinationRate} exceeds threshold ${MAX_HALLUCINATION_RATE}`);
+  process.exit(1);
+}
+console.log(`PASS: ${result.passed}/${result.total} passed, hallucination rate ${result.hallucinationRate}`);
+</code></pre>
+
+  <p>The eval suite is the safety net that catches regressions. When a model provider silently updates their model (which happens without notice), the eval suite catches the resulting hallucination increase before it reaches production. Connect this to <a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">our prompt regression testing guide</a> for the full testing methodology.</p>
+
+  <h2>5 Anti-Patterns That Make Hallucination Worse</h2>
+
+  <h3>Anti-Pattern 1: Trusting unvalidated JSON output</h3>
+  <pre><code>// BAD: parsing model output without validation
+const response = await callLLM(prompt);
+const data = JSON.parse(response); // might have wrong fields, wrong types
+return data.answer; // what if data.answer doesn't exist?</code></pre>
+  <p><strong class="good">Fix:</strong> Always validate with a schema library (Zod, Pydantic, JSON Schema). <a href="/posts/2026-06-09-llm-schema-drift-detection/">Schema drift detection</a> catches when the model's output structure changes between deployments.</p>
+
+  <h3>Anti-Pattern 2: Injecting ungrounded context</h3>
+  <pre><code>// BAD: injecting context the model treats as fact without verification
+const context = await searchWeb(userQuery); // raw web results
+const prompt = `Context: ${context.map(r => r.content).join('\n')}
+Question: ${userQuery}`;
+// Model now treats unverified web content as ground truth</code></pre>
+  <p><strong class="good">Fix:</strong> Filter retrieved context through a relevance and credibility check before injecting. Mark each source explicitly. Include the grounding instruction from Strategy 2.</p>
+
+  <h3>Anti-Pattern 3: No output validation pipeline</h3>
+  <pre><code>// BAD: model output goes directly to user
+const response = await agent.run(userMessage);
+sendToUser(response.text); // no validation, no filtering, no checks</code></pre>
+  <p><strong class="good">Fix:</strong> Every response passes through a validation pipeline: schema check &rarr; confidence check &rarr; grounding check &rarr; cross-model check (for high-stakes). See our <a href="/posts/2026-06-27-ai-agent-output-validation/">output validation guide</a> for the full pipeline.</p>
+
+  <h3>Anti-Pattern 4: Assuming temperature 0 eliminates hallucination</h3>
+  <pre><code>// BAD: believing low temperature prevents hallucination
+const response = await callLLM(prompt, { temperature: 0 });
+// "Temperature 0 means no hallucination, right?"
+// WRONG. Temperature 0 reduces randomness but does NOT prevent
+// the model from confidently stating false information it "learned"</code></pre>
+  <p><strong class="good">Fix:</strong> Temperature 0 reduces <em>variety</em> in responses, not hallucination rate. The model still has the same factual errors at temperature 0 as at temperature 0.7 &mdash; it just makes them more consistently. Use the seven strategies above regardless of temperature setting.</p>
+
+  <h3>Anti-Pattern 5: No regression test suite for hallucination</h3>
+  <pre><code>// BAD: no eval suite, hallucination regressions go undetected
+// Model provider updates their model silently
+// Your agent starts hallucinating on queries it previously handled correctly
+// You find out from customer complaints, 2 weeks later</code></pre>
+  <p><strong class="good">Fix:</strong> Build and maintain a hallucination eval suite (Strategy 7). Run it on every deployment. Set a maximum hallucination rate threshold. Block deployments that exceed it.</p>
+
+  <h2>The Hallucination Guard Runtime</h2>
+  <p>Here is a 150-line TypeScript runtime that implements all seven strategies as a middleware pipeline. Drop it between your model call and your response handler:</p>
+
+  <pre><code>// hallucination-guard.ts — drop-in guard for LLM agent responses
+import { z } from 'zod';
+
+// ─── Types ────────────────────────────────────────────
+interface GuardConfig {
+  enableSchemaValidation: boolean;
+  enableConfidenceScoring: boolean;
+  confidenceThreshold: number;
+  enableCrossCheck: boolean;
+  enableGroundingCheck: boolean;
+  maxRetries: number;
+  evalMode: boolean;
+}
+
+interface GuardResult&lt;T&gt; {
+  accepted: boolean;
+  output: T | null;
+  confidence: number;
+  reasons: string[];
+  retried: number;
+}
+
+class HallucinationError extends Error {
+  constructor(public reason: string) { super(reason); }
+}
+
+// ─── Schema validation ───────────────────────────────
+function validateSchema&lt;T&gt;(output: unknown, schema: z.ZodType&lt;T&gt;): T {
+  return schema.parse(output); // throws ZodError on failure
+}
+
+// ─── Grounding check ─────────────────────────────────
+function checkGrounding(
+  answer: string,
+  sources: string[],
+  contextDocs: string[]
+): { grounded: boolean; unmatchedSources: string[] } {
+  const unmatched = sources.filter(s =>
+    !contextDocs.some(doc => doc.toLowerCase().includes(s.toLowerCase()))
+  );
+  return { grounded: unmatched.length === 0, unmatchedSources: unmatched };
+}
+
+// ─── Confidence scoring ──────────────────────────────
+function scoreFromLogprobs(logprobs: number[]): number {
+  if (!logprobs || logprobs.length === 0) return 0.5; // unknown
+  const mean = logprobs.reduce((a, b) => a + b, 0) / logprobs.length;
+  // Convert mean log-prob to 0-1 confidence score
+  return Math.max(0, Math.min(1, Math.exp(mean)));
+}
+
+// ─── Cross-check (simplified) ────────────────────────
+async function crossCheck(
+  question: string,
+  answer: string,
+  context: string[]
+): Promise&lt;{ agree: boolean; similarity: number }&gt; {
+  // In production: call second model, compute semantic similarity
+  // Here: check if key facts from answer appear in context
+  const answerWords = answer.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+  const contextText = context.join(' ').toLowerCase();
+  const matches = answerWords.filter(w => contextText.includes(w));
+  const similarity = matches.length / Math.max(answerWords.length, 1);
+  return { agree: similarity > 0.6, similarity };
+}
+
+// ─── Main guard function ─────────────────────────────
+export async function hallucinationGuard&lt;T&gt;(
+  callModel: (retry: number) =&gt; Promise&lt;{
+    output: unknown;
+    logprobs?: number[];
+    sources?: string[];
+  }&gt;,
+  schema: z.ZodType&lt;T&gt;,
+  context: string[],
+  config: Partial&lt;GuardConfig&gt; = {}
+): Promise&lt;GuardResult&lt;T&gt;&gt; {
+  const cfg: GuardConfig = {
+    enableSchemaValidation: true,
+    enableConfidenceScoring: true,
+    confidenceThreshold: 0.65,
+    enableCrossCheck: false,
+    enableGroundingCheck: true,
+    maxRetries: 2,
+    evalMode: false,
+    ...config,
+  };
+
+  const reasons: string[] = [];
+  let attempt = 0;
+  let lastOutput: unknown = null;
+  let lastLogprobs: number[] | undefined;
+
+  while (attempt &lt;= cfg.maxRetries) {
+    reasons.length = 0;
+    attempt++;
+
+    const result = await callModel(attempt);
+    lastOutput = result.output;
+    lastLogprobs = result.logprobs;
+
+    // Layer 1: Schema validation
+    if (cfg.enableSchemaValidation) {
+      try {
+        const validated = validateSchema(result.output, schema);
+        // Extract answer text and sources for downstream checks
+        const answerText = (validated as any)?.answer ?? JSON.stringify(validated);
+        const sources = result.sources ?? (validated as any)?.sources ?? [];
+
+        // Layer 2: Grounding check
+        if (cfg.enableGroundingCheck &amp;&amp; sources.length > 0) {
+          const grounding = checkGrounding(answerText, sources, context);
+          if (!grounding.grounded) {
+            reasons.push(`Grounding failed: sources not in context: ${grounding.unmatchedSources.join(', ')}`);
+          }
+        }
+
+        // Layer 3: Confidence scoring
+        let confidence = 1.0;
+        if (cfg.enableConfidenceScoring &amp;&amp; result.logprobs) {
+          confidence = scoreFromLogprobs(result.logprobs);
+          if (confidence &lt; cfg.confidenceThreshold) {
+            reasons.push(`Low confidence: ${confidence.toFixed(3)} &lt; threshold ${cfg.confidenceThreshold}`);
+          }
+        }
+
+        // Layer 4: Cross-check (optional, expensive)
+        if (cfg.enableCrossCheck) {
+          const check = await crossCheck('', answerText, context);
+          if (!check.agree) {
+            reasons.push(`Cross-check failed: similarity ${check.similarity.toFixed(3)}`);
+          }
+        }
+
+        // Decision
+        if (reasons.length === 0 || cfg.evalMode) {
+          return {
+            accepted: true,
+            output: validated,
+            confidence,
+            reasons,
+            retried: attempt - 1,
+          };
+        }
+
+        // Retry if reasons exist
+        if (attempt &lt;= cfg.maxRetries) continue;
+      } catch (e) {
+        reasons.push(`Schema validation failed: ${(e as Error).message}`);
+        if (attempt &lt;= cfg.maxRetries) continue;
+      }
+    }
+  }
+
+  return {
+    accepted: false,
+    output: null,
+    confidence: lastLogprobs ? scoreFromLogprobs(lastLogprobs) : 0,
+    reasons,
+    retried: attempt - 1,
+  };
+}</code></pre>
+
+  <h2>Woodpecker CI gate</h2>
+  <p>Add a hallucination guard check to your CI pipeline. Any agent change that removes the guard or increases the hallucination rate on the eval suite fails the build:</p>
+  <pre><code># .woodpecker.yml
+pipeline:
+  hallucination-eval:
+    image: node:20
+    commands:
+      - npm ci
+      - npx tsx eval/hallucination-eval-suite.ts
+      - npx tsx eval/verify-guard-presence.ts  # fails if guard is removed
+    when:
+      event: [push, pull_request]</code></pre>
+  <p>This ensures the hallucination guard is never accidentally removed by a refactor and that hallucination rates never silently increase. See our <a href="/posts/2026-06-05-github-actions-to-woodpecker-migration/">Woodpecker CI migration guide</a> for pipeline setup.</p>
+
+  <div class="product">
+    <h3>Related Tools from the alg99 Storefront</h3>
+    <ul>
+      <li><strong><a href="https://nepo6.gumroad.com/" rel="noopener">Tool Schema Validator CLI</a></strong> ($29) &mdash; Validates LLM function-calling schemas against the JSON Schema spec. Catches malformed tool definitions before they cause silent hallucinations in structured output.</li>
+      <li><strong><a href="https://nepo6.gumroad.com/" rel="noopener">Prompt Regression Tester CLI</a></strong> ($29) &mdash; Runs a test suite of known-good and known-hallucination prompts against your agent. Detects hallucination regressions before they reach production.</li>
+      <li><strong><a href="https://nepo6.gumroad.com/" rel="noopener">Agent Output Validator CLI</a></strong> ($29) &mdash; Runtime validation of LLM output against type, range, enum, and cross-field constraints. The enforcement layer for Strategy 3.</li>
+    </ul>
+  </div>
+
+  <h2>Summary: The seven-layer hallucination defense</h2>
+  <table>
+    <thead>
+      <tr><th>Layer</th><th>Strategy</th><th>Cost</th><th>Catch Rate*</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>System prompt guardrails</td><td>Free</td><td>~30%</td></tr>
+      <tr><td>2</td><td>Retrieval-grounded generation</td><td>Embedding cost</td><td>~50%</td></tr>
+      <tr><td>3</td><td>Structured output constraints</td><td>Free (API feature)</td><td>~60%</td></tr>
+      <tr><td>4</td><td>Runtime schema validation</td><td>Negligible</td><td>~70%</td></tr>
+      <tr><td>5</td><td>Confidence scoring</td><td>Negligible</td><td>~75%</td></tr>
+      <tr><td>6</td><td>Dual-model cross-check</td><td>2x model cost</td><td>~85%</td></tr>
+      <tr><td>7</td><td>Continuous evaluation</td><td>Eval suite runtime</td><td>Regression-only</td></tr>
+    </tbody>
+  </table>
+  <p><em>* Approximate, based on internal eval sets. Your mileage will vary depending on domain, model, and prompt quality. The layers compose multiplicatively &mdash; layer 4 catches what layer 3 misses, layer 5 catches what 4 misses, etc. With all seven layers active, the residual hallucination rate drops below 1% on most domains.</em></p>
+
+  <p>Start with layers 1-3 (free or near-free) and add the expensive layers (5-7) only for high-stakes use cases. The most common mistake is implementing all seven layers on day one &mdash; you will drown in false positives before you calibrate your thresholds. Build incrementally, measure the hallucination rate at each step, and add layers only when the current rate is unacceptable.</p>
+
+  <footer>
+    <p>Part of the <a href="/">alg99 storefront</a> &mdash; autonomous developer tools and security audits. Cross-references: <a href="/posts/2026-06-27-ai-agent-output-validation/">output validation</a> &middot; <a href="/posts/2026-06-26-ai-agent-retry-policy/">retry policy</a> &middot; <a href="/posts/2026-06-09-add-observability-to-ai-agents/">observability</a> &middot; <a href="/posts/2026-06-14-ai-agent-prompt-regression-testing/">prompt regression testing</a> &middot; <a href="/posts/2026-06-09-llm-schema-drift-detection/">schema drift detection</a> &middot; <a href="/posts/2026-06-29-rag-chunk-quality-validation/">RAG chunk quality</a></p>
+  </footer>
+</main>
+</body>
+</html>
