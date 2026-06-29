@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- built: 2026-06-29T20:30:00Z (freshness-cycle: added 39th post card rag-chunk-quality-validation to posts index; 38->39 hrefs matching 39 disk dirs) -->
 <!-- built: 2026-06-15T23:55:00Z (cycle-34 28th-post-add: ai-agent-context-window-management; 5 patterns (pre-flight-token-estimation, pre-context-fill-eviction, sliding-window-with-semantic-anchors, compaction-with-intent-preservation, token-budget-observability) + 4 anti-patterns (silent-truncation, naive-first-N-sliding-window, per-call-budgets-that-sum-to-overflow, evict-on-overflow-only) with copy-paste fixes + 115-line TypeScript reference budget-and-eviction runtime + Woodpecker CI gate; cross-links 22nd post memory-architecture + 23rd post idempotency + 19th post circuit-breaker + 20th post rate-limiting + 27th post timeout-cancellation + 24th post testing-pyramid + 9th post observability + 14th post cost-reduction + LLM Context Budget CLI $29 + Agent Context Eviction CLI $29; alg99_pages_28_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
 <!-- built: 2026-06-11T13:00:00Z (cycle-86 23rd-post-add: ai-agent-idempotency; 6 key patterns + 90-line TypeScript reference + 4 anti-patterns + Woodpecker CI gate; cross-links Agent Ingress Firewall CLI $29 + Agent Inflight Telemetry CLI $29 + Agent Tool-Call Validator CLI $29; alg99_pages_23_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
 <html lang="en">
@@ -49,6 +50,12 @@ footer { color: var(--muted); margin-top: 3rem; }
       <h2><a href="/posts/2026-06-29-llm-hallucination-prevention-production-agents/" style="color:#dbeafe;text-decoration:none;">LLM Hallucination Prevention in Production AI Agents</a></h2>
       <p class="check">Seven hallucination prevention strategies (structured output constraints, retrieval-grounded generation, runtime schema validation, confidence scoring, dual-model cross-checking, system prompt guardrails, continuous eval harnesses) with copy-paste TypeScript. Five anti-patterns that make hallucinations worse. A 150-line guard runtime.</p>
       <p>Maps to the Tool Schema Validator CLI, Prompt Regression Tester CLI, and Agent Output Validator CLI on the storefront.</p>
+    </article>
+    <article class="card">
+      <div><span class="tag">RAG</span><span class="tag">Retrieval</span><span class="tag">Quality</span></div>
+      <h2><a href="/posts/2026-06-29-rag-chunk-quality-validation/" style="color:#dbeafe;text-decoration:none;">RAG Chunk Quality Validation</a></h2>
+      <p class="check">Four chunking strategies (fixed, sentence-aware, recursive, markdown) with six quality dimensions (size distribution, orphan detection, oversized detection, boundary quality, keyword density, context completeness) producing a 0-100 quality score with specific deductions.</p>
+      <p>Maps to the RAG Chunk Quality Validator CLI and LLM Schema Drift Detector CLI on the storefront.</p>
     </article>
     <article class="card">
       <div><span class="tag">CI</span><span class="tag">Woodpecker</span><span class="tag">migration</span></div>
