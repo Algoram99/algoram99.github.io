@@ -42,8 +42,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Algoram99 — 94 Zero-Dependency CLIs for Shipping AI Agents Safely</title>
-  <meta name="description" content="Algoram99 ships 94 zero-dependency CLIs for AI agent builders: security scanners, agent safety audits, MCP server testing, devops monitors, and reference implementations. MIT-licensed, single-file, no SaaS.">
+<title>Algoram99 — 95 Zero-Dependency CLIs for Shipping AI Agents Safely</title>
+  <meta name="description" content="Algoram99 ships 95 zero-dependency CLIs for AI agent builders: security scanners, agent safety audits, MCP server testing, devops monitors, and reference implementations. MIT-licensed, single-file, no SaaS.">
 <style>
 :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --card: #161b22; --green: #3fb950; --tag: #1f6feb; }
 * { box-sizing: border-box; }
@@ -74,9 +74,9 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 </style>
 </head>
 <body>
-<h1>Algoram99 — Ship AI agents safely with 94 zero-dependency CLIs</h1>
+<h1>Algoram99 — Ship AI agents safely with 95 zero-dependency CLIs</h1>
 <p class="subtitle">Security scanners, MCP server testing, agent safety audits, devops monitors, and reference implementations. Production-grade, single-file, MIT-licensed.</p>
-<p class="count">94 products &middot; 10 price tiers from $9 to $1,999 &middot; 54 Stripe checkout links (test mode) &middot; 35 source links (Algoram99 org) &middot; All zero-dependency &middot; MIT licensed</p>
+<p class="count">95 products &middot; 10 price tiers from $9 to $1,999 &middot; 54 Stripe checkout links (test mode) &middot; 35 source links (Algoram99 org) &middot; All zero-dependency &middot; MIT licensed</p>
 
 <div class="categories">
   <button class="cat-btn active" onclick="filter('all')">All</button>
@@ -90,7 +90,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 </div>
 
 <div class="stripe-note">
-  <strong>Stripe checkout is in test mode.</strong>  94 product cards (agent devtools, devtools, security, guides, services, crypto, posts) — 57 buy-links on the page (test mode, real cards will be declined) + 37 source links (point to the Algoram99 GitHub org).  Stripe account must be switched to live mode in the Dashboard to receive real payments; until then, every "Buy on Stripe" button on this page will reject real cards. cycle-2026-06-28T15:00Z.
+  <strong>Stripe checkout is in test mode.</strong>  95 product cards (agent devtools, devtools, security, guides, services, crypto, posts) — 57 buy-links on the page (test mode, real cards will be declined) + 37 source links (point to the Algoram99 GitHub org).  Stripe account must be switched to live mode in the Dashboard to receive real payments; until then, every "Buy on Stripe" button on this page will reject real cards. cycle-2026-06-29T12:00Z.
 </div>
 
 <h2 id="guides" style="margin-top:2.5rem; color: var(--accent); font-size:1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Guides &amp; Templates</h2>
@@ -715,6 +715,13 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
   <div class="bottom-row"><span class="price">16 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-28-llm-fallback-chain-model-routing/">Read post &rarr;</a></div></div>
 </div>
 
+<div class="product" data-cat="guides agent devtools">
+  <h3>How to Prevent LLM Hallucination in Production AI Agents: 7 Strategies, 5 Anti-Patterns, and a Guard Runtime</h3>
+  <p class="tagline">A field-tested hallucination prevention framework for production AI agents. Seven strategies that catch hallucinations before they reach users: structured output constraints that force the model into a verifiable schema, retrieval-augmented grounding that checks every claim against source documents, confidence calibration with explicit abstention so the model says "I don't know" instead of fabricating, tool-call verification that validates each function call against a known schema, cross-model consensus that asks a second model to verify suspicious outputs, output validation gates that run deterministic checks before delivery, and prompt engineering patterns that reduce fabrication triggers. Five anti-patterns (trust-confidence-scores-blindly, skip-tool-call-validation, no-abstention-path, one-model-no-consensus, return-raw-output-to-user) with copy-paste fixes. A 120-line TypeScript HallucinationGuard runtime with confidence thresholding + tool-call validation + retrieval grounding check + abstention decision + structured output enforcement + 14 selftest cases + Woodpecker CI gate. Cross-links to Agent Output Validator CLI ($29), Tool Schema Validator CLI ($29), Agent Eval Harness CLI ($29), and Agent Trace Replay CLI ($29). 38th live post.</p>
+  <div class="meta"><span class="tag">Article</span><span class="tag">Hallucination</span><span class="tag">Reliability</span><span class="tag">AI Agents</span><span class="tag">2026-06-29</span></div>
+  <div class="bottom-row"><span class="price">18 min</span><div class="actions-row"><a class="buy" href="/posts/2026-06-29-llm-hallucination-prevention-production-agents/">Read post &rarr;</a></div></div>
+</div>
+
 <div class="product" data-cat="agent devtools">
   <h3>Agent Session Observability CLI</h3>
   <p class="tagline">Per-session + per-agent rollups from any agent framework's JSONL log. Know which agents are productive vs. looping, what the tool-call/error/publish rates are, and whether anyone is stuck in a NO_OP streak &mdash; in one `rollup` command. Two actions: `parse file.jsonl` (per-session metrics: session_id, agent_name, role counts, toolCalls, errorRate, noOpRate, publishRate, productivityScore, degenerateLoop detection) + `rollup dir/` (fleet-wide summary ranked by mean productivity). Framework-agnostic, works on any JSONL emitter. Zero dependencies, deterministic, CI-gate-safe. Pairs with Agent Inflight Telemetry CLI (per-span OTel), Agent Turn Health Inspector CLI (per-turn runtime), and Agent Trace Replay CLI (per-session diff) &mdash; together they form the agent observability quartet (spans &rarr; turns &rarr; sessions &rarr; fleet).</p>
@@ -815,7 +822,7 @@ footer { text-align: center; color: #8b949e; margin-top: 3rem; font-size: 0.8rem
 <br><br>
 <a class="buy" href="/#guides" style="font-size:0.95rem; padding:0.5rem 1.1rem;">Browse the alg99 CLI catalog (Stripe checkout) &rarr;</a>
 <br>
-<span style="color:#8b949e; font-size:0.8rem; display:block; margin-top:0.5rem;">94 products &middot; 10 price tiers from $9 to $1,999 &middot; 37 deep-dive posts. Stripe checkout is in test mode on every card above.</span>
+<span style="color:#8b949e; font-size:0.8rem; display:block; margin-top:0.5rem;">95 products &middot; 10 price tiers from $9 to $1,999 &middot; 37 deep-dive posts. Stripe checkout is in test mode on every card above.</span>
 <br>
 <a href="https://nepo6.gumroad.com/" target="_blank" rel="noopener" style="color:#8b949e; font-size:0.8rem;">Earlier Qualigen playbook catalog (Gumroad) &rarr;</a>
 </footer>
