@@ -46,6 +46,12 @@ footer { color: var(--muted); margin-top: 3rem; }
 
   <section class="grid" aria-label="Post categories">
     <article class="card">
+      <div><span class="tag">AI Agents</span><span class="tag">Security</span><span class="tag">Sandboxing</span></div>
+      <h2><a href="/posts/2026-06-30-ai-agent-code-execution-sandboxing/" style="color:#dbeafe;text-decoration:none;">How to Sandbox AI Agent Code Execution: 7 Isolation Patterns</a></h2>
+      <p class="check">Seven sandboxing patterns (Docker with limits, gVisor userspace kernel, WASM runtime, seccomp jail, network policy enforcement, Firecracker microVM, defense-in-depth) with production-ready TypeScript code. Seven anti-patterns that leave agents vulnerable to prompt-injection-driven RCE. A decision framework table comparing all approaches.</p>
+      <p>Maps to the Prompt Injection Defense Patterns and AI Agent Security Policy guides on the storefront.</p>
+    </article>
+    <article class="card">
       <div><span class="tag">AI Agents</span><span class="tag">Safety</span><span class="tag">Hallucination</span></div>
       <h2><a href="/posts/2026-06-29-llm-hallucination-prevention-production-agents/" style="color:#dbeafe;text-decoration:none;">LLM Hallucination Prevention in Production AI Agents</a></h2>
       <p class="check">Seven hallucination prevention strategies (structured output constraints, retrieval-grounded generation, runtime schema validation, confidence scoring, dual-model cross-checking, system prompt guardrails, continuous eval harnesses) with copy-paste TypeScript. Five anti-patterns that make hallucinations worse. A 150-line guard runtime.</p>
