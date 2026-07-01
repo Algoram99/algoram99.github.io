@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- built: 2026-06-30T18:00:00Z (freshness-cycle: added 41st post card multi-agent-orchestration-patterns to posts index; 40->41 hrefs matching 41 disk dirs) -->
 <!-- built: 2026-06-29T20:30:00Z (freshness-cycle: added 39th post card rag-chunk-quality-validation to posts index; 38->39 hrefs matching 39 disk dirs) -->
 <!-- built: 2026-06-15T23:55:00Z (cycle-34 28th-post-add: ai-agent-context-window-management; 5 patterns (pre-flight-token-estimation, pre-context-fill-eviction, sliding-window-with-semantic-anchors, compaction-with-intent-preservation, token-budget-observability) + 4 anti-patterns (silent-truncation, naive-first-N-sliding-window, per-call-budgets-that-sum-to-overflow, evict-on-overflow-only) with copy-paste fixes + 115-line TypeScript reference budget-and-eviction runtime + Woodpecker CI gate; cross-links 22nd post memory-architecture + 23rd post idempotency + 19th post circuit-breaker + 20th post rate-limiting + 27th post timeout-cancellation + 24th post testing-pyramid + 9th post observability + 14th post cost-reduction + LLM Context Budget CLI $29 + Agent Context Eviction CLI $29; alg99_pages_28_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
 <!-- built: 2026-06-11T13:00:00Z (cycle-86 23rd-post-add: ai-agent-idempotency; 6 key patterns + 90-line TypeScript reference + 4 anti-patterns + Woodpecker CI gate; cross-links Agent Ingress Firewall CLI $29 + Agent Inflight Telemetry CLI $29 + Agent Tool-Call Validator CLI $29; alg99_pages_23_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
@@ -50,6 +51,12 @@ footer { color: var(--muted); margin-top: 3rem; }
       <h2><a href="/posts/2026-06-30-ai-agent-code-execution-sandboxing/" style="color:#dbeafe;text-decoration:none;">How to Sandbox AI Agent Code Execution: 7 Isolation Patterns</a></h2>
       <p class="check">Seven sandboxing patterns (Docker with limits, gVisor userspace kernel, WASM runtime, seccomp jail, network policy enforcement, Firecracker microVM, defense-in-depth) with production-ready TypeScript code. Seven anti-patterns that leave agents vulnerable to prompt-injection-driven RCE. A decision framework table comparing all approaches.</p>
       <p>Maps to the Prompt Injection Defense Patterns and AI Agent Security Policy guides on the storefront.</p>
+    </article>
+    <article class="card">
+      <div><span class="tag">AI Agents</span><span class="tag">Multi-Agent</span><span class="tag">Orchestration</span></div>
+      <h2><a href="/posts/2026-06-30-multi-agent-orchestration-patterns/" style="color:#dbeafe;text-decoration:none;">Multi-Agent Orchestration Patterns: 6 Proven Architectures for Coordinating AI Agents</a></h2>
+      <p class="check">Six orchestration patterns (sequential pipeline, parallel fan-out/fan-in, hierarchical supervisor, peer-to-peer handoff, auction-based task allocation, event-driven choreography) with production-ready TypeScript code. Four anti-patterns (uncontrolled recursive delegation, shared mutable state, no correlation ID, uniform model selection) with copy-paste fixes. Comparison table and decision framework. Framework quick-reference for LangGraph, CrewAI, AutoGen, and OpenAI Swarm.</p>
+      <p>Maps to the Agent Swarm Callgraph CLI, Agent Session Observability CLI, and Agent Trace Replay CLI on the storefront.</p>
     </article>
     <article class="card">
       <div><span class="tag">AI Agents</span><span class="tag">Safety</span><span class="tag">Hallucination</span></div>

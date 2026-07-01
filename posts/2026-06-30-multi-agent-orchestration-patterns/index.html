@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Orchestration Patterns: 6 Proven Architectures for Coordinating AI Agents | alg99</title>
+    <meta name="description" content="Learn how to coordinate multiple AI agents in production with 6 proven orchestration patterns: sequential pipeline, parallel fan-out/fan-in, hierarchical supervisor, peer-to-peer handoff, auction-based task allocation, and event-driven choreography. Includes production-ready TypeScript code, anti-patterns to avoid, and a decision framework for choosing the right multi-agent architecture for your use case. Covers LangGraph, CrewAI, AutoGen, and custom frameworks.">
+    <meta name="keywords" content="multi-agent orchestration, AI agent coordination, multi-agent system design, LangGraph orchestration, CrewAI patterns, agent handoff patterns, LLM agent architecture, distributed AI agents, agent supervisor pattern, fan-out fan-in agents">
+    <meta name="author" content="alg99">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Multi-Agent Orchestration Patterns: 6 Proven Architectures for Coordinating AI Agents">
+    <meta property="og:description" content="6 production-tested patterns for coordinating multiple AI agents: sequential pipeline, parallel fan-out/fan-in, hierarchical supervisor, peer-to-peer handoff, auction-based allocation, and event-driven choreography. With TypeScript code and anti-patterns.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://algoram99.github.io/posts/2026-06-30-multi-agent-orchestration-patterns/">
+    <meta property="og:site_name" content="alg99">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Multi-Agent Orchestration Patterns: 6 Proven Architectures">
+    <meta name="twitter:description" content="6 production-tested patterns for coordinating multiple AI agents: sequential pipeline, parallel fan-out/fan-in, hierarchical supervisor, peer-to-peer handoff, auction-based allocation, and event-driven choreography.">
+
+    <!-- Schema.org Article -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": "Multi-Agent Orchestration Patterns: 6 Proven Architectures for Coordinating AI Agents",
+        "description": "6 production-tested orchestration patterns for coordinating multiple AI agents in production: sequential pipeline, parallel fan-out/fan-in, hierarchical supervisor, peer-to-peer handoff, auction-based task allocation, and event-driven choreography with TypeScript code.",
+        "author": {
+            "@type": "Organization",
+            "name": "alg99"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "alg99"
+        },
+        "datePublished": "2026-06-30",
+        "dateModified": "2026-06-30",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://algoram99.github.io/posts/2026-06-30-multi-agent-orchestration-patterns/"
+        },
+        "keywords": "multi-agent orchestration, AI agent coordination, multi-agent system design, LangGraph, CrewAI, AutoGen, agent handoff, fan-out fan-in, supervisor pattern",
+        "proficiencyLevel": "Expert"
+    }
+    </script>
+
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --danger: #f85149;
+            --success: #3fb950;
+            --warning: #d29922;
+            --code-bg: #1c2128;
+            --code-border: #373e47;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        header a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        header a:hover { color: var(--accent-hover); }
+
+        h1 {
+            font-size: 1.9rem;
+            line-height: 1.3;
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+        }
+
+        p { margin-bottom: 1rem; }
+
+        ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+
+        li { margin-bottom: 0.4rem; }
+
+        code {
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 4px;
+            padding: 0.1rem 0.35rem;
+            font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+            font-size: 0.88rem;
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            overflow-x: auto;
+            margin-bottom: 1.2rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .tldr {
+            background: rgba(88, 166, 255, 0.08);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .tldr h2 {
+            border-bottom: none;
+            margin-top: 0;
+            color: var(--accent);
+        }
+
+        .danger-box {
+            background: rgba(248, 81, 73, 0.08);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .danger-box h3 { color: var(--danger); margin-top: 0; }
+
+        .product-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin: 1.5rem 0;
+        }
+
+        .product-card h3 { margin-top: 0; }
+        .product-card a { color: var(--accent); text-decoration: none; }
+        .product-card a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+        .comparison-table { overflow-x: auto; margin-bottom: 1.5rem; }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+        }
+
+        th { background: var(--surface); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-high { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+        .badge-med { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+        .badge-low { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+
+        footer {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { color: var(--accent-hover); }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="https://algoram99.github.io">&larr; alg99</a>
+        <span style="color: var(--text-muted)"> &middot; </span>
+        <a href="https://algoram99.github.io/posts/">All Posts</a>
+    </header>
+
+    <h1>Multi-Agent Orchestration Patterns: 6 Proven Architectures for Coordinating AI Agents</h1>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">June 30, 2026 &middot; 12 min read</p>
+
+    <div class="tldr">
+        <h2>&#9889; TL;DR</h2>
+        <p>When a single LLM agent cannot handle a complex task alone, you need multiple agents working together &mdash; but coordinating them is where most multi-agent systems fail. This guide walks through <strong>6 production-tested orchestration patterns</strong>: sequential pipeline, parallel fan-out/fan-in, hierarchical supervisor, peer-to-peer handoff, auction-based task allocation, and event-driven choreography. Each pattern includes TypeScript code, tradeoffs, and when to use it. The most common starting point is the <strong>sequential pipeline</strong> (one agent's output feeds the next); the most robust for complex workflows is the <strong>hierarchical supervisor</strong> (a coordinator agent routes sub-tasks to specialist agents). The critical anti-pattern to avoid at all costs: <strong>uncontrolled peer-to-peer delegation</strong>, where agents recursively spawn sub-agents without depth limits or budget caps.</p>
+    </div>
+
+    <div class="danger-box">
+        <h3>&#128680; Why This Matters</h3>
+        <p>Multi-agent systems fail in production for predictable reasons: <strong>infinite delegation loops</strong> where Agent A calls Agent B which calls Agent A; <strong>token budget explosions</strong> where N agents each consume full context windows; <strong>cascade failures</strong> where one agent's bad output poisons downstream agents; and <strong>observability black holes</strong> where no one can reconstruct which agent made which decision. The orchestration pattern you choose is the single biggest determinant of whether your multi-agent system is debuggable, cost-controlled, and reliable.</p>
+    </div>
+
+    <h2>Pattern 1: Sequential Pipeline (Chain of Agents)</h2>
+
+    <p>The simplest multi-agent pattern: each agent in a fixed sequence receives the previous agent's output as input, transforms it, and passes it forward. This is the multi-agent equivalent of a Unix pipe &mdash; <code>agent1 | agent2 | agent3</code>. Each agent has a single responsibility and a well-defined input/output contract.</p>
+
+    <h3>When to Use</h3>
+    <ul>
+        <li>The task decomposes into a fixed, linear sequence of steps</li>
+        <li>Each step requires a different system prompt, model, or toolset</li>
+        <li>Latency is acceptable (total = sum of all agent latencies)</li>
+        <li>You want simplicity and debuggability above all</li>
+    </ul>
+
+    <h3>Implementation</h3>
+
+    <pre><code>/**
+ * Sequential Pipeline Pattern
+ * Each agent receives the previous agent's output.
+ * Failures propagate immediately (fail-fast).
+ */
+
+interface AgentResult {
+  agentId: string;
+  output: string;
+  tokensUsed: number;
+  durationMs: number;
+  status: 'success' | 'error';
+}
+
+interface PipelineAgent {
+  id: string;
+  systemPrompt: string;
+  model: string;
+  execute: (input: string) =&gt; Promise&lt;string&gt;;
+}
+
+class SequentialPipeline {
+  private agents: PipelineAgent[];
+  private maxTotalTokens: number;
+  private totalTokensUsed: number = 0;
+
+  constructor(agents: PipelineAgent[], maxTotalTokens: number = 50_000) {
+    this.agents = agents;
+    this.maxTotalTokens = maxTotalTokens;
+  }
+
+  async run(initialInput: string): Promise&lt;AgentResult[]&gt; {
+    const results: AgentResult[] = [];
+    let currentInput = initialInput;
+
+    for (const agent of this.agents) {
+      // Budget guard: stop before token explosion
+      if (this.totalTokensUsed &gt;= this.maxTotalTokens) {
+        throw new Error(
+          `Token budget exhausted: ${this.totalTokensUsed} / ${this.maxTotalTokens}. ` +
+          `Agent ${agent.id} was not executed.`
+        );
+      }
+
+      const startTime = Date.now();
+      try {
+        const output = await agent.execute(currentInput);
+        const durationMs = Date.now() - startTime;
+
+        // Estimate tokens (rough: 1 token ~ 4 chars)
+        const tokensUsed = Math.ceil((currentInput.length + output.length) / 4);
+        this.totalTokensUsed += tokensUsed;
+
+        const result: AgentResult = {
+          agentId: agent.id,
+          output,
+          tokensUsed,
+          durationMs,
+          status: 'success',
+        };
+        results.push(result);
+
+        // Pass output to next agent
+        currentInput = output;
+      } catch (err) {
+        const result: AgentResult = {
+          agentId: agent.id,
+          output: '',
+          tokensUsed: 0,
+          durationMs: Date.now() - startTime,
+          status: 'error',
+        };
+        results.push(result);
+
+        // Fail-fast: propagate error
+        throw new Error(
+          `Agent ${agent.id} failed: ${(err as Error).message}. ` +
+          `Pipeline aborted after ${results.length} of ${this.agents.length} agents.`
+        );
+      }
+    }
+
+    return results;
+  }
+
+  getTotalTokensUsed(): number {
+    return this.totalTokensUsed;
+  }
+}
+
+// Usage: Research -&gt; Draft -&gt; Review -&gt; Polish
+const pipeline = new SequentialPipeline([
+  {
+    id: 'researcher',
+    systemPrompt: 'You are a research agent. Find 3 key facts about the topic.',
+    model: 'gpt-4o',
+    execute: async (input) =&gt; { /* call LLM with input */ return 'FACTS: ...'; },
+  },
+  {
+    id: 'drafter',
+    systemPrompt: 'You are a writer. Write a blog post from the research.',
+    model: 'gpt-4o',
+    execute: async (input) =&gt; { /* call LLM with research */ return 'DRAFT: ...'; },
+  },
+  {
+    id: 'reviewer',
+    systemPrompt: 'You are an editor. Review and suggest improvements.',
+    model: 'gpt-4o-mini',
+    execute: async (input) =&gt; { /* call LLM with draft */ return 'REVIEWED: ...'; },
+  },
+]);
+
+const results = await pipeline.run('The impact of vector databases on RAG performance');
+console.log(`Pipeline used ${pipeline.getTotalTokensUsed()} tokens across ${results.length} agents`);</code></pre>
+
+    <p><strong>Complexity:</strong> <span class="badge badge-low">Low</span> &nbsp; <strong>Debuggability:</strong> <span class="badge badge-low">High</span> &nbsp; <strong>Token Efficiency:</strong> <span class="badge badge-low">High</span></p>
+
+    <p><strong>Tradeoff:</strong> Latency is additive. If each agent takes 3 seconds, a 5-agent pipeline takes 15 seconds. There is no parallelism &mdash; each agent waits for the previous one to finish.</p>
+
+    <h2>Pattern 2: Parallel Fan-Out / Fan-In</h2>
+
+    <p>When a task can be decomposed into independent sub-tasks, run them in parallel. A <strong>splitter</strong> agent breaks the task into N parts, each part is processed by a worker agent simultaneously, and a <strong>merger</strong> agent combines the results. This is the multi-agent equivalent of <code>Promise.all()</code>.</p>
+
+    <h3>When to Use</h3>
+    <ul>
+        <li>Sub-tasks are independent (no dependency between them)</li>
+        <li>Latency matters more than token cost (parallel is faster but uses more total tokens)</li>
+        <li>The merger can meaningfully combine disparate outputs</li>
+        <li>You need to process multiple data sources simultaneously</li>
+    </ul>
+
+    <h3>Implementation</h3>
+
+    <pre><code>/**
+ * Parallel Fan-Out / Fan-In Pattern
+ * Splitter decomposes -&gt; workers process in parallel -&gt; merger combines.
+ * Includes max concurrency limit and per-worker timeout.
+ */
+
+interface SubTask {
+  id: string;
+  description: string;
+  input: string;
+}
+
+interface WorkerResult {
+  subTaskId: string;
+  output: string;
+  status: 'success' | 'error' | 'timeout';
+  tokensUsed: number;
+}
+
+class FanOutFanIn {
+  private maxConcurrency: number;
+  private workerTimeoutMs: number;
+  private maxWorkers: number;
+
+  constructor(options: {
+    maxConcurrency?: number;
+    workerTimeoutMs?: number;
+    maxWorkers?: number;
+  } = {}) {
+    this.maxConcurrency = options.maxConcurrency ?? 5;
+    this.workerTimeoutMs = options.workerTimeoutMs ?? 30_000;
+    this.maxWorkers = options.maxWorkers ?? 10;
+  }
+
+  async run&lt;T&gt;(
+    input: string,
+    splitter: (input: string) =&gt; Promise&lt;SubTask[]&gt;,
+    worker: (subTask: SubTask) =&gt; Promise&lt;string&gt;,
+    merger: (results: WorkerResult[]) =&gt; Promise&lt;T&gt;
+  ): Promise&lt;T&gt; {
+    // Phase 1: Fan-out (split)
+    const subTasks = await splitter(input);
+
+    if (subTasks.length &gt; this.maxWorkers) {
+      console.warn(
+        `Splitter produced ${subTasks.length} sub-tasks; ` +
+        `capping at ${this.maxWorkers}. Excess tasks dropped.`
+      );
+    }
+    const capped = subTasks.slice(0, this.maxWorkers);
+
+    // Phase 2: Parallel execution with concurrency limit
+    const results: WorkerResult[] = [];
+    const executing: Promise&lt;void&gt;[] = [];
+
+    for (const subTask of capped) {
+      // If at concurrency limit, wait for one to finish
+      if (executing.length &gt;= this.maxConcurrency) {
+        await Promise.race(executing);
+      }
+
+      const promise = this.executeWorker(worker, subTask)
+        .then((result) =&gt; { results.push(result); })
+        .catch((err) =&gt; {
+          results.push({
+            subTaskId: subTask.id,
+            output: '',
+            status: 'error',
+            tokensUsed: 0,
+          });
+        })
+        .finally(() =&gt; {
+          const idx = executing.indexOf(promise);
+          if (idx &gt;= 0) executing.splice(idx, 1);
+        });
+
+      executing.push(promise);
+    }
+
+    await Promise.all(executing);
+
+    // Phase 3: Fan-in (merge)
+    return merger(results);
+  }
+
+  private async executeWorker(
+    worker: (subTask: SubTask) =&gt; Promise&lt;string&gt;,
+    subTask: SubTask
+  ): Promise&lt;WorkerResult&gt; {
+    try {
+      // Race worker against timeout
+      const output = await Promise.race([
+        worker(subTask),
+        new Promise&lt;never&gt;((_, reject) =&gt;
+          setTimeout(() =&gt; reject(new Error('timeout')), this.workerTimeoutMs)
+        ),
+      ]);
+
+      const tokensUsed = Math.ceil(output.length / 4);
+      return { subTaskId: subTask.id, output, status: 'success', tokensUsed };
+    } catch (err) {
+      const isTimeout = (err as Error).message === 'timeout';
+      return {
+        subTaskId: subTask.id,
+        output: '',
+        status: isTimeout ? 'timeout' : 'error',
+        tokensUsed: 0,
+      };
+    }
+  }
+}
+
+// Usage: Analyze 3 repos in parallel, merge findings
+const fanOutFanIn = new FanOutFanIn({
+  maxConcurrency: 3,
+  workerTimeoutMs: 20_000,
+  maxWorkers: 5,
+});
+
+const report = await fanOutFanIn.run(
+  'Analyze security posture of langchain, llama-index, and autogen repos',
+  // Splitter
+  async (input) =&gt; [
+    { id: 'r1', description: 'Analyze langchain', input: 'langchain' },
+    { id: 'r2', description: 'Analyze llama-index', input: 'llama-index' },
+    { id: 'r3', description: 'Analyze autogen', input: 'autogen' },
+  ],
+  // Worker (runs in parallel)
+  async (subTask) =&gt; {
+    // Call LLM to analyze the repo
+    return `Security analysis of ${subTask.input}: ...`;
+  },
+  // Merger
+  async (results) =&gt; {
+    const successful = results.filter(r =&gt; r.status === 'success');
+    const failed = results.filter(r =&gt; r.status !== 'success');
+    return {
+      summary: `${successful.length}/${results.length} repos analyzed successfully`,
+      failed: failed.map(f =&gt; f.subTaskId),
+      details: successful.map(s =&gt; s.output),
+    };
+  }
+);</code></pre>
+
+    <p><strong>Complexity:</strong> <span class="badge badge-med">Medium</span> &nbsp; <strong>Latency:</strong> <span class="badge badge-low">Low</span> (parallel) &nbsp; <strong>Token Cost:</strong> <span class="badge badge-med">Medium</span> (N agents each consume full context)</p>
+
+    <p><strong>Tradeoff:</strong> Total token cost scales linearly with the number of workers. If each worker uses 5K tokens and you fan out to 10 workers, you spend 50K tokens on the fan-out phase alone. The splitter and merger add overhead on top.</p>
+
+    <h2>Pattern 3: Hierarchical Supervisor</h2>
+
+    <p>A supervisor agent acts as the coordinator. It receives the user's request, decides which specialist agents to invoke, routes the task, collects results, and decides whether the task is complete or needs another round. The supervisor holds the conversation state and makes routing decisions &mdash; the specialist agents are stateless workers.</p>
+
+    <p>This is the pattern used by <strong>LangGraph's</strong> <code>StateGraph</code> with a supervisor node, <strong>OpenAI's Swarm</strong> framework, and most production multi-agent systems.</p>
+
+    <h3>When to Use</h3>
+    <ul>
+        <li>The task requires dynamic routing (you don't know upfront which agents to call)</li>
+        <li>Tasks may require multiple rounds (supervisor iterates until done)</li>
+        <li>You need a single entry point for observability and cost control</li>
+        <li>Different sub-tests require fundamentally different tools or models</li>
+    </ul>
+
+    <h3>Implementation</h3>
+
+    <pre><code>/**
+ * Hierarchical Supervisor Pattern
+ * Supervisor decides routing, specialists execute, loop until done.
+ * Includes max iterations, token budget, and depth tracking.
+ */
+
+type AgentName = 'researcher' | 'coder' | 'reviewer' | 'writer' | 'supervisor';
+
+interface SupervisorDecision {
+  nextAgent: AgentName | 'DONE';
+  taskForAgent: string;
+  reason: string;
+}
+
+interface SpecialistAgent {
+  name: AgentName;
+  description: string;
+  execute: (task: string, context: string) =&gt; Promise&lt;string&gt;;
+}
+
+interface ConversationTurn {
+  agent: AgentName;
+  input: string;
+  output: string;
+  timestamp: number;
+}
+
+class HierarchicalSupervisor {
+  private specialists: Map&lt;AgentName, SpecialistAgent&gt;;
+  private maxIterations: number;
+  private maxTokens: number;
+  private totalTokens: number = 0;
+  private conversationLog: ConversationTurn[] = [];
+
+  constructor(options: {
+    specialists: SpecialistAgent[];
+    maxIterations?: number;
+    maxTokens?: number;
+  }) {
+    this.specialists = new Map(options.specialists.map(s =&gt; [s.name, s]));
+    this.maxIterations = options.maxIterations ?? 10;
+    this.maxTokens = options.maxTokens ?? 100_000;
+  }
+
+  async run(userRequest: string): Promise&lt;{ result: string; turns: ConversationTurn[]; tokensUsed: number }&gt; {
+    let context = userRequest;
+    let iteration = 0;
+
+    while (iteration &lt; this.maxIterations) {
+      // Budget guard
+      if (this.totalTokens &gt;= this.maxTokens) {
+        return {
+          result: `Supervisor hit token budget (${this.maxTokens}) after ${iteration} iterations.`,
+          turns: this.conversationLog,
+          tokensUsed: this.totalTokens,
+        };
+      }
+
+      // Supervisor decides next step
+      const decision = await this.supervisorDecide(context, iteration);
+
+      if (decision.nextAgent === 'DONE') {
+        return {
+          result: decision.taskForAgent, // final answer
+          turns: this.conversationLog,
+          tokensUsed: this.totalTokens,
+        };
+      }
+
+      // Route to specialist
+      const specialist = this.specialists.get(decision.nextAgent);
+      if (!specialist) {
+        throw new Error(`Supervisor routed to unknown agent: ${decision.nextAgent}`);
+      }
+
+      const startTime = Date.now();
+      const output = await specialist.execute(decision.taskForAgent, context);
+      const tokensUsed = Math.ceil((decision.taskForAgent.length + output.length) / 4);
+      this.totalTokens += tokensUsed;
+
+      // Log the turn
+      this.conversationLog.push({
+        agent: decision.nextAgent,
+        input: decision.taskForAgent,
+        output,
+        timestamp: startTime,
+      });
+
+      // Feed output back into context for next supervisor decision
+      context += `\n\n[${decision.nextAgent}]: ${output}`;
+      iteration++;
+    }
+
+    return {
+      result: `Supervisor hit max iterations (${this.maxIterations}) without completing.`,
+      turns: this.conversationLog,
+      tokensUsed: this.totalTokens,
+    };
+  }
+
+  private async supervisorDecide(context: string, iteration: number): Promise&lt;SupervisorDecision&gt; {
+    const availableAgents = Array.from(this.specialists.values())
+      .map(s =&gt; `- ${s.name}: ${s.description}`)
+      .join('\n');
+
+    const prompt = `You are a supervisor agent coordinating a team of specialists.
+
+Available agents:
+${availableAgents}
+
+Conversation so far:
+${context.slice(-4000)}
+
+Iteration: ${iteration + 1} / ${this.maxIterations}
+
+Decide the next step. Respond in JSON:
+{"nextAgent": "&lt;agent_name or DONE&gt;", "taskForAgent": "&lt;specific instruction&gt;", "reason": "&lt;why&gt;"}`;
+
+    // In production, call your LLM here
+    // const response = await llm.complete(prompt);
+    // return JSON.parse(response);
+
+    // Simplified for illustration
+    if (iteration === 0) {
+      return { nextAgent: 'researcher', taskForAgent: 'Research the topic', reason: 'Need facts first' };
+    } else if (iteration === 1) {
+      return { nextAgent: 'coder', taskForAgent: 'Write code', reason: 'Need implementation' };
+    } else if (iteration === 2) {
+      return { nextAgent: 'reviewer', taskForAgent: 'Review the code', reason: 'Need quality check' };
+    }
+    return { nextAgent: 'DONE', taskForAgent: 'Task complete', reason: 'All steps done' };
+  }
+
+  getConversationLog(): ConversationTurn[] {
+    return [...this.conversationLog];
+  }
+}
+
+// Usage
+const supervisor = new HierarchicalSupervisor({
+  maxIterations: 8,
+  maxTokens: 80_000,
+  specialists: [
+    { name: 'researcher', description: 'Finds information and facts', execute: async (t) =&gt; 'RESEARCH: ...' },
+    { name: 'coder', description: 'Writes and modifies code', execute: async (t) =&gt; 'CODE: ...' },
+    { name: 'reviewer', description: 'Reviews code for bugs and security', execute: async (t) =&gt; 'REVIEW: ...' },
+    { name: 'writer', description: 'Writes documentation and prose', execute: async (t) =&gt; 'DOCS: ...' },
+  ],
+});
+
+const result = await supervisor.run('Build a REST API endpoint that fetches user preferences');
+console.log(`Completed in ${result.turns.length} turns, ${result.tokensUsed} tokens`);
+console.log('Agent trace:', result.turns.map(t =&gt; `${t.agent}(${t.timestamp}ms)`).join(' -&gt; '));</code></pre>
+
+    <p><strong>Complexity:</strong> <span class="badge badge-med">Medium</span> &nbsp; <strong>Flexibility:</strong> <span class="badge badge-low">High</span> &nbsp; <strong>Observability:</strong> <span class="badge badge-low">High</span> (single entry point, logged turns)</p>
+
+    <p><strong>Tradeoff:</strong> The supervisor itself consumes tokens on every routing decision. With 8 iterations, the supervisor makes 8 LLM calls just for routing. This overhead is acceptable for complex tasks but wasteful for simple ones.</p>
+
+    <div class="product-card">
+        <h3>&#128722; Related Tool: Agent Swarm Callgraph CLI</h3>
+        <p>If you're running a hierarchical supervisor or any multi-agent system, you need to visualize the agent-to-agent call graph. The <strong><a href="https://buy.stripe.com/test_cNi6oJcsl0LSdOJgSJ73G0S">Agent Swarm Callgraph CLI</a></strong> ($29) reconstructs the directed graph of agent-to-agent and agent-to-tool calls from a JSONL session log, finds orphan nodes, cycles, and dead-ends, and emits Graphviz <code>.dot</code> source. Framework-agnostic &mdash; works with LangGraph, CrewAI, AutoGen, or custom. 30 integration tests + selftest included.</p>
+    </div>
+
+    <h2>Pattern 4: Peer-to-Peer Handoff</h2>
+
+    <p>Agents communicate directly with each other without a central supervisor. When an agent encounters a task outside its expertise, it hands off to another agent with a context summary. This is the pattern used by <strong>OpenAI Swarm</strong> &mdash; agents can call <code>transfer_to_agent()</code> to delegate.</p>
+
+    <h3>When to Use</h3>
+    <ul>
+        <li>Agents have well-defined specialties and can recognize when to hand off</li>
+        <li>You want emergent, flexible routing without a centralized bottleneck</li>
+        <li>The conversation is conversational (user might interact with multiple agents in one session)</li>
+    </ul>
+
+    <h3>Implementation</h3>
+
+    <pre><code>/**
+ * Peer-to-Peer Handoff Pattern
+ * Agents transfer control to each other with context summaries.
+ * Includes cycle detection and max handoff depth.
+ */
+
+interface HandoffResult {
+  finalAgent: string;
+  response: string;
+  handoffChain: string[];
+  totalTokens: number;
+}
+
+interface HandoffAgent {
+  name: string;
+  systemPrompt: string;
+  // Returns either a direct response OR a handoff directive
+  handle: (
+    message: string,
+    context: string,
+    availableAgents: string[]
+  ) =&gt; Promise&lt;{ type: 'respond'; content: string } | { type: 'handoff'; target: string; summary: string }&gt;;
+}
+
+class PeerToPeerHandoff {
+  private agents: Map&lt;string, HandoffAgent&gt;;
+  private maxHandoffs: number;
+  private maxHandoffDepth: number;
+  private visitedAgents: Set&lt;string&gt; = new Set();
+
+  constructor(options: {
+    agents: HandoffAgent[];
+    maxHandoffs?: number;
+    maxHandoffDepth?: number;
+  }) {
+    this.agents = new Map(options.agents.map(a =&gt; [a.name, a]));
+    this.maxHandoffs = options.maxHandoffs ?? 6;
+    this.maxHandoffDepth = options.maxHandoffDepth ?? 3;
+  }
+
+  async run(
+    initialMessage: string,
+    startAgent: string
+  ): Promise&lt;HandoffResult&gt; {
+    let currentAgent = startAgent;
+    let message = initialMessage;
+    let context = '';
+    const handoffChain: string[] = [startAgent];
+    let totalTokens = 0;
+    let handoffCount = 0;
+
+    while (handoffCount &lt; this.maxHandoffs) {
+      const agent = this.agents.get(currentAgent);
+      if (!agent) {
+        throw new Error(`Unknown agent: ${currentAgent}`);
+      }
+
+      // Cycle detection: if we've visited this agent before in this chain,
+      // we're in a loop &mdash; break it
+      if (this.visitedAgents.has(currentAgent) &amp;&amp; handoffCount &gt; 0) {
+        console.warn(`Cycle detected: agent ${currentAgent} visited twice. Breaking.`);
+        break;
+      }
+      this.visitedAgents.add(currentAgent);
+
+      const availableAgents = Array.from(this.agents.keys())
+        .filter(n =&gt; n !== currentAgent);
+
+      const result = await agent.handle(message, context, availableAgents);
+      const tokens = Math.ceil((message.length + context.length) / 4);
+      totalTokens += tokens;
+
+      if (result.type === 'respond') {
+        // Agent produced a final answer
+        return { finalAgent: currentAgent, response: result.content, handoffChain, totalTokens };
+      }
+
+      // Agent requested handoff
+      handoffCount++;
+      context += `\n[Handoff from ${currentAgent} to ${result.target}]: ${result.summary}`;
+
+      // Depth guard
+      if (handoffCount &gt;= this.maxHandoffDepth) {
+        return {
+          finalAgent: currentAgent,
+          response: `Max handoff depth (${this.maxHandoffDepth}) reached. Last context: ${context.slice(-500)}`,
+          handoffChain,
+          totalTokens,
+        };
+      }
+
+      handoffChain.push(result.target);
+      message = result.summary; // next agent gets the summary, not the original
+      currentAgent = result.target;
+    }
+
+    return {
+      finalAgent: currentAgent,
+      response: `Max handoffs (${this.maxHandoffs}) reached without resolution.`,
+      handoffChain,
+      totalTokens,
+    };
+  }
+}
+
+// Usage: Customer support with triage -&gt; billing -&gt; technical
+const p2p = new PeerToPeerHandoff({
+  maxHandoffs: 6,
+  maxHandoffDepth: 4,
+  agents: [
+    {
+      name: 'triage',
+      systemPrompt: 'Route customer queries to the right team.',
+      handle: async (msg, ctx, available) =&gt; {
+        if (msg.includes('refund') || msg.includes('charge')) {
+          return { type: 'handoff', target: 'billing', summary: `Customer asks: ${msg.slice(0, 200)}` };
+        }
+        if (msg.includes('error') || msg.includes('bug')) {
+          return { type: 'handoff', target: 'technical', summary: `Customer reports: ${msg.slice(0, 200)}` };
+        }
+        return { type: 'respond', content: 'How can I help you today?' };
+      },
+    },
+    {
+      name: 'billing',
+      systemPrompt: 'Handle billing and refund queries.',
+      handle: async (msg, ctx, available) =&gt; {
+        return { type: 'respond', content: 'I can process your refund. Please provide your order ID.' };
+      },
+    },
+    {
+      name: 'technical',
+      systemPrompt: 'Handle technical issues and bug reports.',
+      handle: async (msg, ctx, available) =&gt; {
+        return { type: 'respond', content: 'Let me look into this error for you.' };
+      },
+    },
+  ],
+});
+
+const result = await p2p.run('I was charged twice for my subscription', 'triage');
+console.log(`Chain: ${result.handoffChain.join(' -&gt; ')}, tokens: ${result.totalTokens}`);</code></pre>
+
+    <p><strong>Complexity:</strong> <span class="badge badge-med">Medium</span> &nbsp; <strong>Flexibility:</strong> <span class="badge badge-low">High</span> &nbsp; <strong>Cycle Risk:</strong> <span class="badge badge-high">High</span> (requires cycle detection)</p>
+
+    <p><strong>Critical guard:</strong> Without cycle detection and max-depth limits, peer-to-peer handoffs can loop infinitely &mdash; Agent A hands off to Agent B, which hands back to Agent A. Always track visited agents and enforce a hard ceiling.</p>
+
+    <h2>Pattern 5: Auction-Based Task Allocation</h2>
+
+    <p>Instead of a supervisor deciding who does what, each agent "bids" on tasks based on its self-assessed capability and availability. The highest bidder wins the task. This is useful when agents have varying specializations and you want emergent task assignment without a central router.</p>
+
+    <h3>When to Use</h3>
+    <ul>
+        <li>Agents have overlapping but non-identical capabilities</li>
+        <li>You want load balancing across agents</li>
+        <li>Task assignment should be dynamic, not hardcoded</li>
+        <li>Multiple agents could plausibly handle a task, and the "best" one varies</li>
+    </ul>
+
+    <h3>Implementation</h3>
+
+    <pre><code>/**
+ * Auction-Based Task Allocation Pattern
+ * Agents bid on tasks; highest bidder wins.
+ * Uses a simple capability scoring function.
+ */
+
+interface Bid {
+  agentName: string;
+  score: number;   // 0-1 confidence
+  reason: string;
+}
+
+interface Task {
+  id: string;
+  description: string;
+  type: string;
+  priority: number;
+}
+
+interface AuctionAgent {
+  name: string;
+  bid: (task: Task) =&gt; Promise&lt;Bid&gt;;
+  execute: (task: Task) =&gt; Promise&lt;string&gt;;
+  currentLoad: number;  // number of tasks currently assigned
+  maxLoad: number;      // max concurrent tasks
+}
+
+class AuctionAllocator {
+  private agents: AuctionAgent[];
+  private taskLog: { task: Task; winner: string; bids: Bid[] }[] = [];
+
+  constructor(agents: AuctionAgent[]) {
+    this.agents = agents;
+  }
+
+  async allocateAndExecute(tasks: Task[]): Promise&lt;Map&lt;string, string&gt;&gt; {
+    const results = new Map&lt;string, string&gt;();
+
+    // Sort by priority (highest first)
+    const sorted = [...tasks].sort((a, b) =&gt; b.priority - a.priority);
+
+    for (const task of sorted) {
+      // Collect bids from all available agents
+      const availableAgents = this.agents.filter(a =&gt; a.currentLoad &lt; a.maxLoad);
+
+      if (availableAgents.length === 0) {
+        results.set(task.id, `NO_AVAILABLE_AGENT: all agents at max load`);
+        continue;
+      }
+
+      const bids = await Promise.all(
+        availableAgents.map(a =&gt; a.bid(task))
+      );
+
+      // Winner = highest score
+      const sortedBids = bids.sort((a, b) =&gt; b.score - a.score);
+      const winner = sortedBids[0];
+
+      if (winner.score &lt;= 0) {
+        results.set(task.id, `NO_BIDDER: no agent could handle this task`);
+        continue;
+      }
+
+      // Execute
+      const winningAgent = this.agents.find(a =&gt; a.name === winner.agentName)!;
+      winningAgent.currentLoad++;
+
+      this.taskLog.push({ task, winner: winner.agentName, bids: sortedBids });
+
+      try {
+        const output = await winningAgent.execute(task);
+        results.set(task.id, output);
+      } catch (err) {
+        // Re-auction: try the next bidder
+        const runnerUp = sortedBids[1];
+        if (runnerUp &amp;&amp; runnerUp.score &gt; 0) {
+          const altAgent = this.agents.find(a =&gt; a.name === runnerUp.agentName)!;
+          const altOutput = await altAgent.execute(task);
+          results.set(task.id, `[RECOVERED via ${runnerUp.agentName}] ${altOutput}`);
+        } else {
+          results.set(task.id, `EXECUTION_FAILED: ${(err as Error).message}`);
+        }
+      } finally {
+        winningAgent.currentLoad--;
+      }
+    }
+
+    return results;
+  }
+
+  getAllocationLog() {
+    return this.taskLog;
+  }
+}
+
+// Usage: Route support tickets to agents based on expertise
+const allocator = new AuctionAllocator([
+  {
+    name: 'python-expert',
+    currentLoad: 0,
+    maxLoad: 3,
+    bid: async (task) =&gt; ({
+      agentName: 'python-expert',
+      score: task.type === 'python' ? 0.95 : task.type === 'general' ? 0.3 : 0.1,
+      reason: 'Strong Python expertise',
+    }),
+    execute: async (task) =&gt; `Python fix for: ${task.description}`,
+  },
+  {
+    name: 'frontend-expert',
+    currentLoad: 0,
+    maxLoad: 3,
+    bid: async (task) =&gt; ({
+      agentName: 'frontend-expert',
+      score: task.type === 'react' ? 0.90 : task.type === 'css' ? 0.85 : 0.2,
+      reason: 'Frontend specialist',
+    }),
+    execute: async (task) =&gt; `Frontend fix for: ${task.description}`,
+  },
+]);
+
+const outputs = await allocator.allocateAndExecute([
+  { id: 't1', description: 'Fix import error', type: 'python', priority: 3 },
+  { id: 't2', description: 'Center a div', type: 'css', priority: 1 },
+]);
+console.log(allocator.getAllocationLog().map(l =&gt; `${l.task.id} -&gt; ${l.winner} (${l.bids[0].score})`));</code></pre>
+
+    <p><strong>Complexity:</strong> <span class="badge badge-med">Medium</span> &nbsp; <strong>Load Balancing:</strong> <span class="badge badge-low">Good</span> &nbsp; <strong>Token Cost:</strong> <span class="badge badge-med">Medium</span> (bidding overhead)</p>
+
+    <h2>Pattern 6: Event-Driven Choreography</h2>
+
+    <p>There is no central coordinator. Instead, agents subscribe to an event bus and react to events. When an agent completes work, it publishes an event; other agents that are interested in that event type pick it up and process it. This is the most decentralized pattern &mdash; closest to how microservices work in distributed systems.</p>
+
+    <h3>When to Use</h3>
+    <ul>
+        <li>Tasks are reactive (triggered by external events, webhooks, or scheduled triggers)</li>
+        <li>Multiple independent agent workflows need to coexist</li>
+        <li>You need loose coupling between agents (add/remove agents without rewiring)</li>
+        <li>The system is long-running (agents live as services, not one-shot invocations)</li>
+    </ul>
+
+    <h3>Implementation</h3>
+
+    <pre><code>/**
+ * Event-Driven Choreography Pattern
+ * Agents subscribe to events on a shared bus.
+ * No central coordinator; agents react independently.
+ */
+
+type EventType =
+  | 'user_request'
+  | 'research_complete'
+  | 'code_generated'
+  | 'review_passed'
+  | 'review_failed'
+  | 'task_complete';
+
+interface AgentEvent {
+  type: EventType;
+  payload: any;
+  source: string;
+  timestamp: number;
+  correlationId: string;  // tracks a single user request across agents
+}
+
+type EventHandler = (event: AgentEvent) =&gt; Promise&lt;void&gt;;
+
+class EventBus {
+  private handlers: Map&lt;EventType, EventHandler[]&gt; = new Map();
+  private eventLog: AgentEvent[] = [];
+  private maxLogSize: number;
+
+  constructor(maxLogSize: number = 10_000) {
+    this.maxLogSize = maxLogSize;
+  }
+
+  subscribe(eventType: EventType, handler: EventHandler): void {
+    if (!this.handlers.has(eventType)) {
+      this.handlers.set(eventType, []);
+    }
+    this.handlers.get(eventType)!.push(handler);
+  }
+
+  async publish(event: AgentEvent): Promise&lt;void&gt; {
+    this.eventLog.push(event);
+    if (this.eventLog.length &gt; this.maxLogSize) {
+      this.eventLog.shift();  // ring buffer
+    }
+
+    const handlers = this.handlers.get(event.type) ?? [];
+    // Fire all handlers in parallel; collect errors
+    const results = await Promise.allSettled(
+      handlers.map(h =&gt; h(event))
+    );
+
+    // Log handler failures without crashing the bus
+    for (let i = 0; i &lt; results.length; i++) {
+      if (results[i].status === 'rejected') {
+        console.error(
+          `Handler ${i} failed for event ${event.type} ` +
+          `(correlationId=${event.correlationId}): ${(results[i] as any).reason}`
+        );
+      }
+    }
+  }
+
+  getEventLog(correlationId?: string): AgentEvent[] {
+    if (correlationId) {
+      return this.eventLog.filter(e =&gt; e.correlationId === correlationId);
+    }
+    return [...this.eventLog];
+  }
+}
+
+// Usage: Research -&gt; Code -&gt; Review pipeline via events
+const bus = new EventBus();
+
+// Researcher subscribes to user requests
+bus.subscribe('user_request', async (event) =&gt; {
+  const research = `Research on: ${event.payload.query}`;
+  await bus.publish({
+    type: 'research_complete',
+    payload: { research },
+    source: 'researcher',
+    timestamp: Date.now(),
+    correlationId: event.correlationId,
+  });
+});
+
+// Coder subscribes to research completion
+bus.subscribe('research_complete', async (event) =&gt; {
+  const code = `Implementation based on: ${event.payload.research.slice(0, 100)}`;
+  await bus.publish({
+    type: 'code_generated',
+    payload: { code },
+    source: 'coder',
+    timestamp: Date.now(),
+    correlationId: event.correlationId,
+  });
+});
+
+// Reviewer subscribes to code generation
+bus.subscribe('code_generated', async (event) =&gt; {
+  const passed = Math.random() &gt; 0.3;  // simulate review
+  await bus.publish({
+    type: passed ? 'review_passed' : 'review_failed',
+    payload: { code: event.payload.code, issues: passed ? [] : ['missing tests'] },
+    source: 'reviewer',
+    timestamp: Date.now(),
+    correlationId: event.correlationId,
+  });
+});
+
+// On failure, coder gets another chance
+bus.subscribe('review_failed', async (event) =&gt; {
+  await bus.publish({
+    type: 'research_complete',  // re-trigger the coder
+    payload: { research: `Fix issues: ${event.payload.issues.join(', ')}` },
+    source: 'reviewer',
+    timestamp: Date.now(),
+    correlationId: event.correlationId,
+  });
+});
+
+// Kick off a request
+await bus.publish({
+  type: 'user_request',
+  payload: { query: 'Build a rate limiter' },
+  source: 'user',
+  timestamp: Date.now(),
+  correlationId: 'req-001',
+});
+
+// Trace the full event chain
+const trace = bus.getEventLog('req-001');
+console.log(`Event chain for req-001: ${trace.map(e =&gt; e.type).join(' -&gt; ')}`);</code></pre>
+
+    <p><strong>Complexity:</strong> <span class="badge badge-high">High</span> &nbsp; <strong>Decoupling:</strong> <span class="badge badge-low">Maximum</span> &nbsp; <strong>Observability:</strong> <span class="badge badge-med">Medium</span> (requires correlation IDs)</p>
+
+    <p><strong>Tradeoff:</strong> Event-driven systems are harder to debug because there's no single call stack. A user request might trigger a chain of 15 events across 6 agents, and reconstructing "what happened" requires careful correlation ID tracking. But for long-running, reactive systems, this is the most scalable pattern.</p>
+
+    <div class="product-card">
+        <h3>&#128722; Related Tool: Agent Session Observability CLI</h3>
+        <p>For any multi-agent pattern, you need per-session and per-agent rollups from your JSONL logs. The <strong><a href="https://buy.stripe.com/test_3cIfZj2RL2U0dOJcCt73G10">Agent Session Observability CLI</a></strong> ($29) parses any agent framework's JSONL session log and produces per-session + per-agent productivity rollups, degenerate-loop detection, and framework-agnostic metrics. Pairs with the Agent Swarm Callgraph CLI for topology visualization and the <strong><a href="https://buy.stripe.com/test_3cIaEZ63X66ceSNeKB73G12">Agent Trace Replay CLI</a></strong> ($29) for step-level diff between sessions.</p>
+    </div>
+
+    <h2>Comparison: Choosing the Right Pattern</h2>
+
+    <div class="comparison-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Pattern</th>
+                <th>Complexity</th>
+                <th>Latency</th>
+                <th>Token Cost</th>
+                <th>Flexibility</th>
+                <th>Debuggability</th>
+                <th>Best For</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Sequential Pipeline</strong></td>
+                <td><span class="badge badge-low">Low</span></td>
+                <td>High (additive)</td>
+                <td><span class="badge badge-low">Low</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-low">High</span></td>
+                <td>Fixed, linear workflows</td>
+            </tr>
+            <tr>
+                <td><strong>Fan-Out / Fan-In</strong></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-low">Low</span> (parallel)</td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td>Independent parallel sub-tasks</td>
+            </tr>
+            <tr>
+                <td><strong>Hierarchical Supervisor</strong></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-low">High</span></td>
+                <td><span class="badge badge-low">High</span></td>
+                <td>Dynamic routing, multi-step tasks</td>
+            </tr>
+            <tr>
+                <td><strong>Peer-to-Peer Handoff</strong></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-low">High</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td>Conversational, customer support</td>
+            </tr>
+            <tr>
+                <td><strong>Auction-Based</strong></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-low">High</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td>Load-balanced specialist pools</td>
+            </tr>
+            <tr>
+                <td><strong>Event-Driven</strong></td>
+                <td><span class="badge badge-high">High</span></td>
+                <td><span class="badge badge-low">Low</span> (async)</td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td><span class="badge badge-low">Max</span></td>
+                <td><span class="badge badge-med">Med</span></td>
+                <td>Reactive, long-running services</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h2>Anti-Pattern 1: Uncontrolled Recursive Delegation</h2>
+
+    <div class="danger-box">
+        <h3>&#128680; What Goes Wrong</h3>
+        <p>Agent A decides it needs help, so it spawns Agent B. Agent B decides it needs help, so it spawns Agent C. Agent C hands back to Agent A for "more context." Before you know it, you have 50 agents running, each consuming a full context window, in an infinite delegation loop. This is the <strong>#1 failure mode</strong> in multi-agent systems.</p>
+    </div>
+
+    <p><strong>The fix:</strong> Always enforce a <strong>max delegation depth</strong> (typically 2-3 levels) and a <strong>max total token budget</strong>. Track the delegation chain and reject any agent that tries to delegate back to an agent already in its ancestry chain.</p>
+
+    <pre><code>// BAD: No depth limit, no cycle detection
+async function badDelegate(agent, task) {
+  const result = await agent.handle(task);
+  if (result.type === 'delegate') {
+    return badDelegate(getAgent(result.target), result.task);  // &#128073; infinite loop risk
+  }
+  return result;
+}
+
+// GOOD: Depth limit + visited set + token budget
+async function safeDelegate(agent, task, depth = 0, visited = new Set(), budget = { tokens: 0, max: 50_000 }) {
+  if (depth &gt;= 3) throw new Error('Max delegation depth exceeded');
+  if (visited.has(agent.name)) throw new Error(`Cycle detected: ${agent.name}`);
+  if (budget.tokens &gt;= budget.max) throw new Error('Token budget exhausted');
+
+  visited.add(agent.name);
+  const result = await agent.handle(task);
+  budget.tokens += Math.ceil(result.output.length / 4);
+
+  if (result.type === 'delegate') {
+    return safeDelegate(getAgent(result.target), result.task, depth + 1, visited, budget);
+  }
+  return result;
+}</code></pre>
+
+    <h2>Anti-Pattern 2: Shared Mutable State Without Coordination</h2>
+
+    <p>When multiple agents read and write to the same shared state object (e.g., a shared document, a shared codebase, or a shared database), you get race conditions. Agent A writes a paragraph while Agent B simultaneously deletes the section containing it. The result is corrupted state that neither agent intended.</p>
+
+    <p><strong>The fix:</strong> Use one of three approaches: (1) <strong>immutable snapshots</strong> &mdash; each agent receives a read-only copy and produces a new version; (2) <strong>explicit locks</strong> &mdash; only one agent can modify state at a time, with a timeout; (3) <strong>event sourcing</strong> &mdash; agents emit intent events, and a single reducer applies them sequentially.</p>
+
+    <h2>Anti-Pattern 3: No Correlation ID for Tracing</h2>
+
+    <p>In event-driven or supervisor patterns, a single user request might flow through 5+ agents. Without a <strong>correlation ID</strong> threaded through every event and log entry, you cannot reconstruct which agents processed a given request, in what order, or where it failed. This makes debugging impossible.</p>
+
+    <p><strong>The fix:</strong> Generate a UUID at request entry, attach it to every agent invocation, every event, and every log line. At debug time, grep for the correlation ID to see the full trace.</p>
+
+    <pre><code>// Generate at request entry
+const correlationId = crypto.randomUUID();
+
+// Thread through every agent call
+await supervisor.run({
+  request: userRequest,
+  correlationId,  // &#128073; appears in every downstream event
+});
+
+// In logs:
+// [req-abc123] supervisor -&gt; researcher: "Find facts about X"
+// [req-abc123] researcher -&gt; supervisor: "Found 3 facts"
+// [req-abc123] supervisor -&gt; coder: "Write code based on facts"
+// [req-abc123] coder -&gt; supervisor: "Wrote function Y"
+// [req-abc123] supervisor -&gt; DONE</code></pre>
+
+    <h2>Anti-Pattern 4: Uniform Model Selection</h2>
+
+    <p>Using the same LLM for every agent in the system. A researcher agent that reads documents doesn't need GPT-4 &mdash; a cheaper model like GPT-4o-mini or Claude Haiku is sufficient. But a code generation agent might need the strongest reasoning model available. Uniform model selection wastes money on overpowered models for simple tasks and underpowers agents that need strong reasoning.</p>
+
+    <p><strong>The fix:</strong> Assign models per agent based on task complexity. Research/triage agents use small/fast models. Code/reasoning agents use large/smart models. The supervisor uses a medium model (it needs to reason about routing but not generate complex output).</p>
+
+    <h2>Decision Framework: Which Pattern Should You Use?</h2>
+
+    <ol>
+        <li><strong>Is your workflow fixed and linear?</strong> &rarr; Sequential Pipeline</li>
+        <li><strong>Can sub-tasks run independently?</strong> &rarr; Fan-Out / Fan-In</li>
+        <li><strong>Do you need dynamic routing?</strong> &rarr; Hierarchical Supervisor</li>
+        <li><strong>Is it conversational with handoffs?</strong> &rarr; Peer-to-Peer Handoff</li>
+        <li><strong>Do you have a pool of specialists?</strong> &rarr; Auction-Based</li>
+        <li><strong>Is it reactive/long-running?</strong> &rarr; Event-Driven Choreography</li>
+    </ol>
+
+    <p>Most production systems start with <strong>Pattern 1 (Sequential Pipeline)</strong> and evolve to <strong>Pattern 3 (Hierarchical Supervisor)</strong> as complexity grows. Patterns 4-6 are for advanced use cases where the simpler patterns cannot meet the requirements.</p>
+
+    <h2>Essential Guardrails for Every Multi-Agent System</h2>
+
+    <p>Regardless of which pattern you choose, every multi-agent system needs these guardrails:</p>
+
+    <ul>
+        <li><strong>Max iterations / handoffs:</strong> Hard ceiling on how many agent invocations a single request can trigger (typically 5-15)</li>
+        <li><strong>Total token budget:</strong> Aggregate cap across all agents (typically 50K-100K tokens per user request)</li>
+        <li><strong>Per-agent timeout:</strong> No single agent should run for more than 30-60 seconds</li>
+        <li><strong>Correlation ID:</strong> UUID threaded through every event for traceability</li>
+        <li><strong>Cycle detection:</strong> Track visited agents and reject cycles</li>
+        <li><strong>Graceful degradation:</strong> If an agent fails, the system should degrade, not crash &mdash; see our <a href="https://algoram99.github.io/posts/2026-06-10-ai-agent-graceful-degradation/">guide to graceful degradation patterns</a></li>
+        <li><strong>Cost attribution:</strong> Track per-agent, per-session token costs &mdash; see our <a href="https://algoram99.github.io/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">LLM cost reduction guide</a></li>
+        <li><strong>Distributed tracing:</strong> See our <a href="https://algoram99.github.io/posts/2026-06-27-ai-agent-distributed-tracing/">distributed tracing for AI agents</a> guide</li>
+        <li><strong>Rate limiting:</strong> See our <a href="https://algoram99.github.io/posts/2026-06-10-ai-agent-rate-limiting/">rate limiting patterns</a> to prevent thundering herd</li>
+        <li><strong>Circuit breaker:</strong> See our <a href="https://algoram99.github.io/posts/2026-06-10-circuit-breaker-llm-api/">LLM API circuit breaker</a> guide</li>
+    </ul>
+
+    <h2>Framework Quick Reference</h2>
+
+    <p>Popular multi-agent frameworks and which patterns they support:</p>
+
+    <div class="comparison-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Framework</th>
+                <th>Primary Pattern</th>
+                <th>Also Supports</th>
+                <th>State Model</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>LangGraph</strong></td>
+                <td>Hierarchical Supervisor</td>
+                <td>All 6 (via StateGraph)</td>
+                <td>Shared state graph</td>
+            </tr>
+            <tr>
+                <td><strong>CrewAI</strong></td>
+                <td>Sequential + Hierarchical</td>
+                <td>Fan-Out/Fan-In</td>
+                <td>Task delegation</td>
+            </tr>
+            <tr>
+                <td><strong>AutoGen</strong></td>
+                <td>Peer-to-Peer Conversation</td>
+                <td>Group chat, Supervisor</td>
+                <td>Message history</td>
+            </tr>
+            <tr>
+                <td><strong>OpenAI Swarm</strong></td>
+                <td>Peer-to-Peer Handoff</td>
+                <td>Routine-based routing</td>
+                <td>Context variables</td>
+            </tr>
+            <tr>
+                <td><strong>Custom (DIY)</strong></td>
+                <td>Any (you build it)</td>
+                <td>Any</td>
+                <td>Your choice</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <p>The patterns in this guide are framework-agnostic. The TypeScript implementations work with any LLM provider and any framework &mdash; or no framework at all.</p>
+
+    <h2>Conclusion</h2>
+
+    <p>Multi-agent orchestration is not about adding more agents &mdash; it's about choosing the right coordination pattern for your task. Start simple (sequential pipeline), add complexity only when the simpler patterns cannot meet your requirements, and always enforce the four guardrails: max iterations, token budget, cycle detection, and correlation IDs. The pattern you choose determines whether your system is debuggable, cost-controlled, and reliable &mdash; or a token-burning observability nightmare.</p>
+
+    <p>For visualizing your agent call graphs, detecting degenerate loops, and producing per-agent observability metrics, check out the <a href="https://algoram99.github.io">alg99 agent observability toolkit</a> &mdash; zero-dependency CLIs that parse any framework's JSONL logs.</p>
+
+    <div class="product-card">
+        <h3>&#128722; Buy the related alg99 tools</h3>
+        <p><a href="https://buy.stripe.com/test_cNi6oJcsl0LSdOJgSJ73G0S">Agent Swarm Callgraph CLI</a> ($29) &middot; <a href="https://buy.stripe.com/test_3cIfZj2RL2U0dOJcCt73G10">Agent Session Observability CLI</a> ($29) &middot; <a href="https://buy.stripe.com/test_3cIaEZ63X66ceSNeKB73G12">Agent Trace Replay CLI</a> ($29). Stripe checkout is in test mode.</p>
+    </div>
+
+    <footer>
+        <p><a href="https://algoram99.github.io">alg99</a> &middot; <a href="https://algoram99.github.io/posts/">All Posts</a> &middot; <a href="https://github.com/Algoram99">GitHub</a></p>
+        <p>MIT-licensed, zero-dependency developer tools for shipping AI agents safely.</p>
+    </footer>
+</body>
+</html>
