@@ -345,6 +345,7 @@ console.log("\n5/5 invariants passing. agent-memory is production-shaped.");
   <h2>Related tools (Algoram99 catalog)</h2>
   <p>This post is part of the broader Algoram99 reliability trilogy (19th-post circuit-breaker, 20th-post graceful-degradation, 21st-post rate-limiting) plus the memory/eviction surface:</p>
   <ul>
+    <li><a href="https://buy.stripe.com/test_14AeVf1NH528h0VfOF73G13" rel="noopener">Agent Memory Drift Auditor CLI</a> ($29) — audits memory corpora for stale facts, duplicate facts, contradictory active relationships, missing provenance, and wrong-scope private/user data before ingestion.</li>
     <li><a href="https://buy.stripe.com/test_3cI3cx8c566c7ql31T73G0I" rel="noopener">Agent Context Eviction CLI</a> ($29) — the pre-context-fill enforcement layer. Decides which memory entries actually make it into the LLM prompt when the budget is tight. Pairs with the working store of this post.</li>
     <li><a href="https://buy.stripe.com/test_cNi9AVakd2U0aCx45X73G0z" rel="noopener">Agent Inflight Telemetry CLI</a> ($29) — surfaces memory hit/miss/eviction rates in real time. The dashboard metric that tells you when the memory layer is silently degrading.</li>
     <li><a href="https://buy.stripe.com/test_cNifZjdwp66cfWRgSJ73G0N" rel="noopener">Agent SLO Tracker CLI</a> ($29) — turns session JSONL into availability, error budget, p50/p95/p99 latency, burn rate, and a healthy/burning/exhausted verdict. The offline zero-dep SLO layer that runs alongside the OTel observability.</li>

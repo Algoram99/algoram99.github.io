@@ -122,12 +122,12 @@ for (const rec of analysis.recommendations) {
 ## Getting Started
 
 ```bash
-# Public repo distribution is not currently live; use the guide implementation above.
-# Copy the validator into cli.js, then run:
-node cli.js analyze your-document.md --format text
+node cli.js analyze your-document.md --strategy sentence --report
 ```
 
-Zero dependencies. Node.js 14+. 42 tests passing. MIT licensed. Last reviewed: 2026-06-30.
+The packaged CLI is now available on Stripe: [RAG Chunk Quality Validator CLI ($29)](https://buy.stripe.com/test_bJe6oJ78166cbGB6e573G15). Use it as the CI gate before documents enter your vector index.
+
+Zero dependencies. Node.js 14+. 42 tests passing. MIT licensed. Last reviewed: 2026-07-01.
 
 ---
 
