@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- built: 2026-07-01T14:30:00Z (freshness-cycle: added 42nd post card ai-agent-permission-model to posts index; 41->42 hrefs matching 42 disk dirs; no new products/payment links) -->
 <!-- built: 2026-06-30T18:00:00Z (freshness-cycle: added 41st post card multi-agent-orchestration-patterns to posts index; 40->41 hrefs matching 41 disk dirs) -->
 <!-- built: 2026-06-29T20:30:00Z (freshness-cycle: added 39th post card rag-chunk-quality-validation to posts index; 38->39 hrefs matching 39 disk dirs) -->
 <!-- built: 2026-06-15T23:55:00Z (cycle-34 28th-post-add: ai-agent-context-window-management; 5 patterns (pre-flight-token-estimation, pre-context-fill-eviction, sliding-window-with-semantic-anchors, compaction-with-intent-preservation, token-budget-observability) + 4 anti-patterns (silent-truncation, naive-first-N-sliding-window, per-call-budgets-that-sum-to-overflow, evict-on-overflow-only) with copy-paste fixes + 115-line TypeScript reference budget-and-eviction runtime + Woodpecker CI gate; cross-links 22nd post memory-architecture + 23rd post idempotency + 19th post circuit-breaker + 20th post rate-limiting + 27th post timeout-cancellation + 24th post testing-pyramid + 9th post observability + 14th post cost-reduction + LLM Context Budget CLI $29 + Agent Context Eviction CLI $29; alg99_pages_28_posts; test mode still blocks real revenue; cron must not autonomously switch to live mode) -->
@@ -46,6 +47,12 @@ footer { color: var(--muted); margin-top: 3rem; }
   <p class="lead">This is the stable index for public updates about Qualigen developer tools, Woodpecker-backed CI, AI-agent verification workflows, and operator infrastructure.</p>
 
   <section class="grid" aria-label="Post categories">
+    <article class="card">
+      <div><span class="tag">AI Agents</span><span class="tag">Permissions</span><span class="tag">Security</span></div>
+      <h2><a href="/posts/2026-07-01-ai-agent-permission-model/" style="color:#dbeafe;text-decoration:none;">AI Agent Permission Model: 7 Layers for Safe Tool-Use Authorization</a></h2>
+      <p class="check">Seven permission layers for production AI agents: intent gate, actor identity, typed tool registry, argument scopes, budget limits, approval boundary, and audit/replay. Includes a deterministic TypeScript authorization gate, five anti-patterns, and a migration checklist for MCP/tool-use runtimes.</p>
+      <p>Maps to Agent Ingress Firewall CLI, Agent Tool-Call Validator CLI, MCP Policy Linter CLI, and Agent Skill Lifecycle CLI on the storefront.</p>
+    </article>
     <article class="card">
       <div><span class="tag">AI Agents</span><span class="tag">Security</span><span class="tag">Sandboxing</span></div>
       <h2><a href="/posts/2026-06-30-ai-agent-code-execution-sandboxing/" style="color:#dbeafe;text-decoration:none;">How to Sandbox AI Agent Code Execution: 7 Isolation Patterns</a></h2>
