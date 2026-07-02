@@ -27,7 +27,7 @@
   "headline": "AI Agent Structured Logging: 5 Patterns, 4 Anti-Patterns, and a Drop-In JSONL Logger",
   "description": "Five structured-logging patterns (JSONL session record with one file per session and one JSON line per event, schema-first with JSON Schema validation enforced in CI, an eight-event taxonomy covering request_started / tool_called / tool_returned / context_evicted / budget_decided / compacted / completed / failed, deterministic write-time PII redaction with sha256-prefixed masks, and a line + turn + token_offset searchable index) with copy-paste TypeScript, four anti-patterns (prettyprint-the-prompt that leaks PII and blows the budget, log-only-the-response that loses the tool-call trail and breaks cost attribution, json-per-call with no schema that drifts between runs, and local-file-only with no rotation that fills the disk and breaks the agent) with copy-paste fixes, a 95-line drop-in TypeScript structured-logger runtime with 8 selftest cases, and a Woodpecker CI gate that fails any agent runtime change that regresses the eight-event taxonomy or ships a log line that does not validate against the JSON Schema.",
   "author": { "@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/" },
-  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://algoram99.github.io/og-logo.png" } },
+  "publisher": { "@type": "Organization", "name": "Algoram99", "logo": { "@type": "ImageObject", "url": "https://github.com/Algoram99.png" } },
   "datePublished": "2026-06-16T18:00:00Z",
   "dateModified": "2026-06-16T18:00:00Z",
   "mainEntityOfPage": { "@type": "WebPage", "id": "https://algoram99.github.io/posts/2026-06-16-ai-agent-structured-logging/" },
