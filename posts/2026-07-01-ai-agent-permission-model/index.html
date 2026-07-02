@@ -25,7 +25,7 @@
     "author": {"@type": "Organization", "name": "alg99"},
     "publisher": {"@type": "Organization", "name": "alg99"},
     "datePublished": "2026-07-01",
-    "dateModified": "2026-07-01",
+    "dateModified": "2026-07-02",
     "mainEntityOfPage": {"@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-07-01-ai-agent-permission-model/"},
     "keywords": "AI agent permission model, LLM agent authorization, tool permissions, MCP authorization, agent security policy",
     "proficiencyLevel": "Intermediate"
@@ -224,6 +224,11 @@ export function authorize(call: ToolCall, policy: PermissionPolicy): { verdict: 
 
 <div class="tools">
   <div class="tool">
+    <h3>Agent Approval Ledger CLI</h3>
+    <p>Audits session JSONL for missing, expired, future, wrong-scope, or wrong-resource approvals before public, financial, wallet-adjacent, email, destructive, or external-write actions run.</p>
+    <p><a href="https://buy.stripe.com/test_4gM4gBakd8ekcKF6e573G18">Stripe test checkout</a> · <a href="https://github.com/Algoram99">Source</a></p>
+  </div>
+  <div class="tool">
     <h3>Agent Ingress Firewall CLI</h3>
     <p>Pre-tool-call filter for prompt injection, role escalation, dangerous URLs, and tool-call confusion before the agent acts.</p>
     <p><a href="https://buy.stripe.com/test_7sYaEZ3VPfGMaCx0TL73G0Z">Stripe test checkout</a> · <a href="https://github.com/Algoram99">Source</a></p>
@@ -252,7 +257,7 @@ export function authorize(call: ToolCall, policy: PermissionPolicy): { verdict: 
 <p>The operational rule is simple: an AI agent may propose, but the runtime disposes. The model can explain why it wants to call a tool. The permission model decides whether that call is authorized. That separation is what lets you ship useful autonomy without giving every prompt the keys to the machine.</p>
 
 <footer>
-  <p>Stripe checkout links above are existing alg99 test-mode links; no new product or payment link was created for this post.</p>
+  <p>Stripe checkout links above are alg99 test-mode links, including the newly surfaced Agent Approval Ledger CLI for turning the approval-boundary layer into a replayable audit gate.</p>
 </footer>
 </body>
 </html>
