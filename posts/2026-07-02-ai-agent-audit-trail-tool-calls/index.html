@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Audit Trail for Tool Calls: Tamper-Evident Logs, Replay, and CI Verification | alg99</title>
+  <meta name="description" content="Build a production AI agent audit trail for tool calls: canonical event schema, hash-chained tamper evidence, prompt and secret redaction, replay packets, retention policy, incident response, and Woodpecker CI checks. Includes copy-paste TypeScript.">
+  <meta name="keywords" content="AI agent audit trail, AI agent tool calls, tamper evident logs, LLM audit log, agent replay, MCP audit trail, tool call logging, AI agent compliance, hash chain log, production agent observability">
+  <meta name="author" content="alg99">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="AI Agent Audit Trail for Tool Calls: Tamper-Evident Logs, Replay, and CI Verification">
+  <meta property="og:description" content="A practical audit-trail architecture for AI agents that call tools: immutable event records, hash chains, redaction, replay, retention, and CI enforcement.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://algoram99.github.io/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">
+  <meta property="og:site_name" content="alg99">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AI Agent Audit Trail for Tool Calls">
+  <meta name="twitter:description" content="Canonical event schema, tamper-evident hash chain, replay packets, redaction, and CI checks for production AI-agent tool calls.">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "AI Agent Audit Trail for Tool Calls: Tamper-Evident Logs, Replay, and CI Verification",
+    "description": "Build a production audit trail for AI agents that call tools: canonical event schema, hash-chained tamper evidence, redaction, replay packets, retention, incident response, and CI enforcement.",
+    "author": {"@type": "Organization", "name": "alg99"},
+    "publisher": {"@type": "Organization", "name": "alg99"},
+    "datePublished": "2026-07-02",
+    "dateModified": "2026-07-02",
+    "mainEntityOfPage": {"@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-07-02-ai-agent-audit-trail-tool-calls/"},
+    "keywords": "AI agent audit trail, tool call logging, tamper evident logs, agent replay, MCP audit trail, hash chain log",
+    "proficiencyLevel": "Intermediate"
+  }
+  </script>
+  <style>
+    :root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --warning:#d29922; --red:#f85149; --code:#1c2128; }
+    * { box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; line-height:1.7; max-width:900px; margin:0 auto; padding:2rem 1rem; }
+    a { color:var(--accent); }
+    header { border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:2rem; }
+    header a { text-decoration:none; font-size:.92rem; }
+    h1 { font-size:2rem; line-height:1.25; margin:.5rem 0; }
+    h2 { font-size:1.35rem; margin-top:2.4rem; padding-bottom:.35rem; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.08rem; margin-top:1.6rem; }
+    p, ul, ol { margin-bottom:1rem; }
+    li { margin-bottom:.35rem; }
+    code { background:var(--code); border:1px solid var(--border); border-radius:4px; padding:.1rem .35rem; }
+    pre { background:var(--code); border:1px solid var(--border); border-radius:10px; padding:1rem; overflow-x:auto; line-height:1.45; }
+    pre code { background:transparent; border:0; padding:0; }
+    table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
+    th, td { border:1px solid var(--border); padding:.6rem; vertical-align:top; }
+    th { background:#111b2d; color:#dbeafe; text-align:left; }
+    .meta { color:var(--muted); font-size:.9rem; margin-bottom:1.2rem; }
+    .lead { font-size:1.08rem; color:#dbeafe; }
+    .callout { background:rgba(88,166,255,.10); border:1px solid rgba(88,166,255,.32); border-radius:10px; padding:1rem; margin:1.5rem 0; }
+    .warning { background:rgba(210,153,34,.10); border-color:rgba(210,153,34,.35); }
+    .danger { background:rgba(248,81,73,.10); border-color:rgba(248,81,73,.35); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1.2rem 0; }
+    .tile { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+    .tile h3 { margin-top:0; color:#dbeafe; }
+    .tag { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:.1rem .55rem; color:#bde3ff; background:rgba(88,166,255,.10); font-size:.78rem; margin-right:.3rem; }
+    footer { border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; color:var(--muted); font-size:.9rem; }
+  </style>
+</head>
+<body>
+<header>
+  <a href="/">&larr; Algoram99 home</a> · <a href="/posts/">Posts</a>
+  <h1>AI Agent Audit Trail for Tool Calls: Tamper-Evident Logs, Replay, and CI Verification</h1>
+  <p class="meta">Published 2026-07-02 · 43rd live post · AI agents, audit trails, tool calls, security, observability</p>
+</header>
+
+<p class="lead">If an AI agent can call tools, the question after an incident is never just "what did the model say?" The real question is: <em>which actor proposed which tool call, under which policy, with which arguments, what was redacted, who approved it, what executed, what changed, and can we prove the log was not edited afterward?</em></p>
+
+<div class="callout">
+  <strong>Short answer for search and SGE:</strong> a production AI-agent audit trail is an append-only, schema-validated event log for every tool-call decision and result. Each event should include actor identity, task intent, tool name, normalized arguments, policy verdict, approval state, execution result, redaction hashes, trace IDs, idempotency keys, and a hash-chain pointer to the previous event. The log should be queryable for debugging, replayable for incident response, tamper-evident for compliance, and enforced by CI so new tools cannot ship without audit coverage.
+</div>
+
+<p>This guide is intentionally narrower than a general observability post. <a href="/posts/2026-06-09-add-observability-to-ai-agents/">Observability</a> tells you whether the system is healthy. <a href="/posts/2026-06-16-ai-agent-structured-logging/">Structured logging</a> gives every event a consistent shape. <a href="/posts/2026-06-27-ai-agent-distributed-tracing/">Distributed tracing</a> explains latency and causality across services. An <strong>audit trail</strong> answers the accountability question: what was allowed, denied, approved, executed, and provably preserved?</p>
+
+<h2>Why normal logs are not enough for agent tool calls</h2>
+
+<p>Traditional application logs are usually optimized for debugging. They are sampled, rotated, redacted inconsistently, and often written by whatever code path happened to be closest to the failure. That is not enough for AI agents, because agents make delegated decisions in natural language, call tools through a runtime, and often operate across trust boundaries: local files, SaaS APIs, email, payment processors, deployment systems, browsers, databases, and subagents.</p>
+
+<p>A normal log says <code>tool_call succeeded</code>. An audit trail says:</p>
+
+<ul>
+  <li>the trusted ingress intent that made this class of action in scope,</li>
+  <li>the actor identity that proposed the action,</li>
+  <li>the exact tool registry version and schema used to validate arguments,</li>
+  <li>the normalized arguments after path, URL, amount, account, and tenant normalization,</li>
+  <li>the policy rule that returned <code>ALLOW</code>, <code>DENY</code>, or <code>APPROVAL_REQUIRED</code>,</li>
+  <li>the human or scheduler approval token if the call crossed a public, financial, destructive, privacy, or wallet boundary,</li>
+  <li>the executor result and side-effect receipt,</li>
+  <li>the redacted prompt, result, and secret-detection fingerprints,</li>
+  <li>the previous event hash and current event hash, so edits are detectable.</li>
+</ul>
+
+<p>That difference matters when a customer asks why an action happened, when a regulator asks who approved a decision, when an internal incident review needs exact replay, or when a prompt-injection attempt tries to make a fetched document look like a trusted instruction.</p>
+
+<h2>The 8 fields every tool-call audit event needs</h2>
+
+<table>
+  <thead><tr><th>Field</th><th>Purpose</th><th>Common failure if missing</th></tr></thead>
+  <tbody>
+    <tr><td><code>event_id</code>, <code>prev_hash</code>, <code>hash</code></td><td>Make each record unique and tamper-evident.</td><td>Someone can edit or delete a bad decision without detection.</td></tr>
+    <tr><td><code>task_intent</code></td><td>Bind the action to the trusted request, ticket, cron definition, or operator-approved plan.</td><td>Tool output can smuggle new instructions and appear in-scope.</td></tr>
+    <tr><td><code>actor</code></td><td>Identify the agent, subagent, workflow, service account, or human reviewer.</td><td>Every worker inherits the same ambient authority and nobody owns the action.</td></tr>
+    <tr><td><code>tool</code> and <code>schema_version</code></td><td>Freeze which typed tool definition was used.</td><td>Replay later validates against a newer schema and reaches the wrong conclusion.</td></tr>
+    <tr><td><code>args_normalized</code></td><td>Record deterministic path/URL/account/amount normalization before execution.</td><td>Reviewers see friendly strings, not the real target that executed.</td></tr>
+    <tr><td><code>policy_verdict</code></td><td>Record the exact rule, risk class, and decision before execution.</td><td>All denied calls disappear, and allowed calls cannot be justified.</td></tr>
+    <tr><td><code>approval</code></td><td>Preserve human/scheduler approval for high-risk boundaries.</td><td>The team cannot distinguish autonomous action from approved action.</td></tr>
+    <tr><td><code>result_receipt</code></td><td>Capture side-effect receipts, idempotency keys, status, and external references.</td><td>Retries, rollbacks, and incident reconstruction depend on guesswork.</td></tr>
+  </tbody>
+</table>
+
+<h2>The canonical event sequence</h2>
+
+<p>A tool-call audit trail should not only log successful executions. It should log every decision point. Use this sequence:</p>
+
+<ol>
+  <li><strong><code>tool.proposed</code></strong> — model or worker proposes a tool, arguments, and reason.</li>
+  <li><strong><code>tool.normalized</code></strong> — runtime canonicalizes paths, URLs, amounts, accounts, tenant IDs, and idempotency key.</li>
+  <li><strong><code>policy.evaluated</code></strong> — deterministic policy returns allow, deny, blur, approval-required, or block.</li>
+  <li><strong><code>approval.requested</code></strong> — optional, only for public, financial, destructive, privacy, credential, or wallet-adjacent actions.</li>
+  <li><strong><code>approval.resolved</code></strong> — approved, rejected, expired, modified, auto-approved, or escalated.</li>
+  <li><strong><code>tool.executed</code></strong> — executor starts with schema version, trace ID, timeout, budget, and idempotency key.</li>
+  <li><strong><code>tool.result</code></strong> — success, failure, retryable failure, denied-by-downstream, or partial result with receipt hash.</li>
+  <li><strong><code>compensation.started</code></strong> / <strong><code>compensation.result</code></strong> — optional rollback or retraction path for side effects.</li>
+</ol>
+
+<p>This event taxonomy plugs directly into the <a href="/posts/2026-07-01-ai-agent-permission-model/">AI agent permission model</a>: the audit trail is Layer 7, but it should also record evidence from Layers 1-6. It also complements the <a href="/posts/2026-06-27-ai-agent-human-in-the-loop/">human-in-the-loop</a> layer: approvals are useless if you cannot replay the context packet that reviewers saw.</p>
+
+<h2>Reference TypeScript: append-only hash-chained audit log</h2>
+
+<p>The following implementation is deliberately small. It uses Node's standard library, writes one JSON line per event, redacts common secret shapes before persistence, and computes a SHA-256 hash over a canonical JSON payload that includes the previous hash. In production you would store the same record in object storage, Postgres, or an append-only ledger, but the invariants are the same.</p>
+
+<pre><code>import { createHash, randomUUID } from "node:crypto";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
+
+type PolicyVerdict = "ALLOW" | "DENY" | "APPROVAL_REQUIRED" | "BLOCK";
+type AuditKind =
+  | "tool.proposed" | "tool.normalized" | "policy.evaluated"
+  | "approval.requested" | "approval.resolved"
+  | "tool.executed" | "tool.result"
+  | "compensation.started" | "compensation.result";
+
+type AuditEvent = {
+  event_id: string;
+  ts: string;
+  kind: AuditKind;
+  trace_id: string;
+  actor: { id: string; role: string; parent?: string };
+  task_intent: { id: string; source: "user" | "ticket" | "cron" | "operator_plan"; hash: string };
+  tool?: { name: string; schema_version: string; side_effect: string };
+  args_normalized?: Record&lt;string, unknown&gt;;
+  policy_verdict?: { verdict: PolicyVerdict; rule_id: string; reason: string; risk: string };
+  approval?: { required: boolean; reviewer?: string; decision?: string; token_hash?: string };
+  result_receipt?: { status: string; idempotency_key?: string; external_ref?: string; result_hash?: string };
+  redaction?: { prompt_hash?: string; args_hash?: string; result_hash?: string; redacted_fields: string[] };
+  prev_hash: string;
+  hash: string;
+};
+
+const ZERO = "0".repeat(64);
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function canonical(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
+  return "{" + Object.keys(value as Record&lt;string, unknown&gt;).sort()
+    .map(k =&gt; JSON.stringify(k) + ":" + canonical((value as Record&lt;string, unknown&gt;)[k]))
+    .join(",") + "}";
+}
+
+function redact(value: unknown, redacted: string[] = [], path = "$ "): unknown {
+  if (typeof value === "string") {
+    const patterns = [
+      [/sk-[A-Za-z0-9_-]{20,}/g, "openai_key"],
+      [/ghp_[A-Za-z0-9_]{20,}/g, "github_pat"],
+      [/xox[baprs]-[A-Za-z0-9-]{20,}/g, "slack_token"],
+      [/AKIA[0-9A-Z]{16}/g, "aws_access_key"],
+      [/0x[a-fA-F0-9]{64}/g, "wallet_private_key"]
+    ] as const;
+    let out = value;
+    for (const [regex, label] of patterns) {
+      if (regex.test(out)) {
+        redacted.push(`${path}:${label}`);
+        out = out.replace(regex, `[REDACTED:${label}]`);
+      }
+    }
+    return out;
+  }
+  if (Array.isArray(value)) return value.map((v, i) =&gt; redact(v, redacted, `${path}[${i}]`));
+  if (value && typeof value === "object") {
+    const out: Record&lt;string, unknown&gt; = {};
+    for (const [k, v] of Object.entries(value)) out[k] = redact(v, redacted, `${path}.${k}`);
+    return out;
+  }
+  return value;
+}
+
+function lastHash(path: string): string {
+  if (!existsSync(path)) return ZERO;
+  const lines = readFileSync(path, "utf8").trim().split("
+").filter(Boolean);
+  if (lines.length === 0) return ZERO;
+  return JSON.parse(lines[lines.length - 1]).hash;
+}
+
+export function appendAudit(path: string, event: Omit&lt;AuditEvent, "event_id" | "ts" | "prev_hash" | "hash"&gt;): AuditEvent {
+  const redactedFields: string[] = [];
+  const safeEvent = redact(event, redactedFields) as typeof event;
+  const prev_hash = lastHash(path);
+  const unsigned = {
+    ...safeEvent,
+    event_id: randomUUID(),
+    ts: new Date().toISOString(),
+    prev_hash,
+    redaction: { ...(safeEvent.redaction ?? {}), redacted_fields: redactedFields }
+  };
+  const hash = sha256(canonical(unsigned));
+  const signed = { ...unsigned, hash } as AuditEvent;
+  appendFileSync(path, JSON.stringify(signed) + "
+", { mode: 0o600 });
+  return signed;
+}
+
+export function verifyAudit(path: string): { ok: boolean; line?: number; reason?: string } {
+  let prev = ZERO;
+  const lines = readFileSync(path, "utf8").trim().split("
+").filter(Boolean);
+  for (let i = 0; i &lt; lines.length; i++) {
+    const row = JSON.parse(lines[i]);
+    if (row.prev_hash !== prev) return { ok: false, line: i + 1, reason: "prev_hash mismatch" };
+    const { hash, ...unsigned } = row;
+    const expected = sha256(canonical(unsigned));
+    if (hash !== expected) return { ok: false, line: i + 1, reason: "hash mismatch" };
+    prev = hash;
+  }
+  return { ok: true };
+}</code></pre>
+
+<div class="warning callout">
+  <strong>Do not log raw secrets, private wallet material, browser session cookies, or full private transcripts.</strong> The audit trail should preserve accountability without becoming a new exfiltration target. Store hashes and redacted excerpts by default. Store raw private payloads only in a separately encrypted evidence vault with strict retention and break-glass access.
+</div>
+
+<h2>How to connect audit trails to permission gates</h2>
+
+<p>The audit trail should sit before and after the executor. The policy gate writes the proposed call and verdict. The executor writes the actual start/result receipt. This prevents the common failure where rejected or blocked calls disappear from logs.</p>
+
+<pre><code>async function auditedToolCall(call: ToolCall, policy: Policy, exec: Executor) {
+  const trace_id = call.trace_id ?? crypto.randomUUID();
+  appendAudit("agent.audit.jsonl", {
+    kind: "tool.proposed",
+    trace_id,
+    actor: call.actor,
+    task_intent: call.task_intent,
+    tool: { name: call.tool, schema_version: call.schema_version, side_effect: call.side_effect },
+    args_normalized: normalizeArgs(call.args)
+  });
+
+  const verdict = evaluatePolicy(call, policy);
+  appendAudit("agent.audit.jsonl", {
+    kind: "policy.evaluated",
+    trace_id,
+    actor: call.actor,
+    task_intent: call.task_intent,
+    tool: { name: call.tool, schema_version: call.schema_version, side_effect: call.side_effect },
+    policy_verdict: verdict
+  });
+
+  if (verdict.verdict === "DENY" || verdict.verdict === "BLOCK") {
+    return { ok: false, blocked: true, reason: verdict.reason };
+  }
+
+  if (verdict.verdict === "APPROVAL_REQUIRED") {
+    const approval = await requestApproval(call, verdict);
+    appendAudit("agent.audit.jsonl", {
+      kind: "approval.resolved",
+      trace_id,
+      actor: call.actor,
+      task_intent: call.task_intent,
+      approval: {
+        required: true,
+        reviewer: approval.reviewer_id,
+        decision: approval.decision,
+        token_hash: sha256(approval.token)
+      }
+    });
+    if (approval.decision !== "approved") return { ok: false, blocked: true, reason: "approval rejected" };
+  }
+
+  const idempotency_key = deriveIdempotencyKey(call);
+  appendAudit("agent.audit.jsonl", {
+    kind: "tool.executed",
+    trace_id,
+    actor: call.actor,
+    task_intent: call.task_intent,
+    tool: { name: call.tool, schema_version: call.schema_version, side_effect: call.side_effect },
+    result_receipt: { status: "started", idempotency_key }
+  });
+
+  const result = await exec(call, { idempotency_key, trace_id });
+  appendAudit("agent.audit.jsonl", {
+    kind: "tool.result",
+    trace_id,
+    actor: call.actor,
+    task_intent: call.task_intent,
+    result_receipt: {
+      status: result.ok ? "success" : "failure",
+      idempotency_key,
+      external_ref: result.external_ref,
+      result_hash: sha256(JSON.stringify(result.public_receipt ?? result))
+    }
+  });
+  return result;
+}</code></pre>
+
+<h2>Replay packets: the incident-response superpower</h2>
+
+<p>An audit trail is only useful if the team can reconstruct the decision without asking the model to remember what happened. For every high-risk action, build a replay packet from the audit rows with the same <code>trace_id</code>:</p>
+
+<ul>
+  <li>trusted user/job intent and anti-actions,</li>
+  <li>agent identity and parent delegation chain,</li>
+  <li>tool registry version, schema, and side-effect classification,</li>
+  <li>normalized arguments and redaction fingerprints,</li>
+  <li>policy verdict and rule ID,</li>
+  <li>approval packet and reviewer decision if applicable,</li>
+  <li>executor receipt, idempotency key, downstream status, and external reference,</li>
+  <li>hash-chain verification result for the event window.</li>
+</ul>
+
+<p>Replay does not mean blindly re-executing the tool. Replay means reconstructing the decision with enough fidelity to answer: <em>would the current policy allow the same call, what changed since then, and which compensating action is available?</em> That is the bridge to <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency</a>, <a href="/posts/2026-06-26-ai-agent-retry-policy/">retry policy</a>, and rollback after approval mistakes.</p>
+
+<h2>Retention and privacy: keep proof, not toxic waste</h2>
+
+<p>The audit trail should preserve proofs longer than it preserves sensitive payloads. A practical retention policy:</p>
+
+<table>
+  <thead><tr><th>Data</th><th>Default retention</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Event envelope, hashes, verdicts, timestamps, actor IDs</td><td>1-7 years depending on compliance needs</td><td>Low sensitivity, high accountability value.</td></tr>
+    <tr><td>Redacted arguments and redacted result snippets</td><td>90-365 days</td><td>Useful for debugging and incident review.</td></tr>
+    <tr><td>Raw prompts or raw tool results</td><td>0 days by default; encrypted evidence vault only on explicit incident hold</td><td>High privacy and secret-leak risk.</td></tr>
+    <tr><td>Approval context packets</td><td>365 days for public/financial/destructive actions</td><td>Needed to prove reviewers saw enough context.</td></tr>
+    <tr><td>Hash-chain anchors</td><td>Permanent or periodically notarized</td><td>Lets you prove historical logs were not silently rewritten.</td></tr>
+  </tbody>
+</table>
+
+<p>Anchor the hash chain periodically. For many teams, a daily signed summary file is enough: write the last hash of the day, sign it with a KMS key, and store it in immutable object storage. Higher-assurance teams can anchor to transparency logs, append-only databases, or external notaries. The point is not blockchain theater; the point is making retroactive edits detectable.</p>
+
+<h2>CI gate: do not let new tools bypass the audit trail</h2>
+
+<p>The most common audit-trail regression is not a dramatic breach. It is a new tool added during a sprint that calls a side-effectful API but never emits <code>tool.proposed</code>, <code>policy.evaluated</code>, and <code>tool.result</code>. Prevent that in CI.</p>
+
+<pre><code># .woodpecker.yml snippet
+when:
+  event: [push, pull_request, manual]
+steps:
+  audit_contract:
+    image: node:22-alpine
+    commands:
+      - node scripts/audit-tool-contract.mjs
+      - node scripts/audit-log-selftest.mjs
+      - node scripts/audit-redaction-selftest.mjs</code></pre>
+
+<p>The contract script should fail if:</p>
+
+<ul>
+  <li>a tool appears in the registry without a side-effect classification,</li>
+  <li>a side-effectful tool lacks an audit wrapper,</li>
+  <li>a policy decision can return allow/deny without writing an audit event,</li>
+  <li>a result path can throw before writing a failure receipt,</li>
+  <li>redaction self-tests fail for known secret shapes,</li>
+  <li>hash-chain verification fails for fixture logs.</li>
+</ul>
+
+<p>For this site, Woodpecker is the canonical CI layer. The same principle applies in any CI system: audit coverage is a release gate, not a dashboard improvement.</p>
+
+<h2>Five anti-patterns that break agent audit trails</h2>
+
+<h3>1. Logging only successful executions</h3>
+<p><strong>Failure:</strong> denied calls, policy conflicts, prompt-injection attempts, and approval rejections vanish. The incident review sees only what executed, not what the agent tried to do.</p>
+<p><strong>Fix:</strong> write <code>tool.proposed</code> and <code>policy.evaluated</code> before execution. Blocked and denied decisions are first-class audit events.</p>
+
+<h3>2. Pretty-printing raw prompts into logs</h3>
+<p><strong>Failure:</strong> logs become a privacy and secret vault. Teams stop giving engineers access, so nobody can debug the system.</p>
+<p><strong>Fix:</strong> store prompt hashes, redacted excerpts, source IDs, and retrieval document IDs. Use an encrypted evidence vault only for incident-hold raw payloads.</p>
+
+<h3>3. Trusting timestamps without hash chaining</h3>
+<p><strong>Failure:</strong> a bad row can be edited after the incident and still look plausible. The log is chronological but not tamper-evident.</p>
+<p><strong>Fix:</strong> include <code>prev_hash</code> and <code>hash</code> on every row, then anchor the latest hash periodically outside the mutable log store.</p>
+
+<h3>4. Mixing observability spans with audit facts</h3>
+<p><strong>Failure:</strong> sampling drops the one event the auditor needs. Traces explain latency, but audit rows must be complete.</p>
+<p><strong>Fix:</strong> connect traces and audit rows with <code>trace_id</code>, but never sample audit events for side-effectful decisions.</p>
+
+<h3>5. No replay contract</h3>
+<p><strong>Failure:</strong> the team has logs but cannot reconstruct which policy version, schema version, approval packet, or idempotency key applied.</p>
+<p><strong>Fix:</strong> every high-risk action must produce a replay packet from audit rows alone. If replay needs tribal knowledge, the audit trail is incomplete.</p>
+
+<h2>Migration plan for an existing agent runtime</h2>
+
+<ol>
+  <li><strong>Inventory tools.</strong> List every tool and classify side effects: read-only, local-write, network-write, public, destructive, financial, privacy, credential, wallet-adjacent.</li>
+  <li><strong>Define the canonical event schema.</strong> Start with the 8 fields above. Add domain-specific receipts, but do not remove actor, intent, verdict, result, or hashes.</li>
+  <li><strong>Wrap the dispatcher, not each tool manually.</strong> The runtime boundary is where every call already passes. Put audit before policy, after policy, before execution, and after execution.</li>
+  <li><strong>Backfill fixture logs.</strong> Create clean, denied, approval-required, failure, retry, and rollback fixtures. Verify hash chains and replay packets.</li>
+  <li><strong>Add CI gates.</strong> Fail when a new side-effectful tool lacks audit coverage or redaction tests.</li>
+  <li><strong>Add incident runbooks.</strong> Document how to query by trace ID, verify a hash window, build a replay packet, and select a compensating action.</li>
+  <li><strong>Anchor daily.</strong> Persist the daily terminal hash somewhere the application cannot silently rewrite.</li>
+</ol>
+
+<h2>How this fits the rest of the production-agent stack</h2>
+
+<div class="grid">
+  <div class="tile"><h3>Permission model</h3><p>The <a href="/posts/2026-07-01-ai-agent-permission-model/">permission model</a> decides whether a call is allowed. The audit trail proves the decision happened.</p></div>
+  <div class="tile"><h3>Human-in-the-loop</h3><p>The <a href="/posts/2026-06-27-ai-agent-human-in-the-loop/">HITL layer</a> routes high-risk actions. The audit trail preserves the approval packet and decision.</p></div>
+  <div class="tile"><h3>Function calling</h3><p>The <a href="/posts/2026-06-27-ai-agent-function-calling-tool-use/">tool-use runtime</a> validates arguments. The audit trail records the normalized arguments and schema version.</p></div>
+  <div class="tile"><h3>Structured logging</h3><p>The <a href="/posts/2026-06-16-ai-agent-structured-logging/">structured log</a> is the base event format. The audit trail adds completeness, replay, and tamper evidence.</p></div>
+</div>
+
+<h2>Definition of done</h2>
+
+<p>A production AI-agent audit trail is done when a verifier can pick any high-risk tool call and answer these questions from records alone:</p>
+
+<ul>
+  <li>What trusted intent made this action in scope?</li>
+  <li>Which actor proposed it, and what parent delegated to that actor?</li>
+  <li>Which tool schema and policy version evaluated it?</li>
+  <li>Were the arguments normalized and within scope?</li>
+  <li>Was approval required, and who approved or rejected it?</li>
+  <li>What executed, with which idempotency key and trace ID?</li>
+  <li>What side-effect receipt or downstream reference proves the result?</li>
+  <li>Were private values redacted before persistence?</li>
+  <li>Does the hash chain verify for the whole event window?</li>
+  <li>Can the team construct a replay packet and decide whether a compensating action is needed?</li>
+</ul>
+
+<p>If the answer to any of those is "we would have to ask the model," the audit trail is not an audit trail yet. It is just a log.</p>
+
+<footer>
+  <p>Related reading: <a href="/posts/2026-07-01-ai-agent-permission-model/">AI agent permission model</a>, <a href="/posts/2026-06-27-ai-agent-human-in-the-loop/">human-in-the-loop agents</a>, <a href="/posts/2026-06-27-ai-agent-function-calling-tool-use/">function calling and tool use</a>, <a href="/posts/2026-06-16-ai-agent-structured-logging/">structured logging</a>, <a href="/posts/2026-06-09-add-observability-to-ai-agents/">observability</a>, and <a href="/posts/2026-06-27-ai-agent-distributed-tracing/">distributed tracing</a>.</p>
+  <p>alg99 ships zero-dependency tools and reference implementations for teams building production AI-agent systems.</p>
+</footer>
+</body>
+</html>
