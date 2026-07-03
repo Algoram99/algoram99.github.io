@@ -1,0 +1,198 @@
+<!-- built: 2026-07-03T14:32:13Z (freshness-cycle: 44th post add — ai-agent-deployment-checklist; long-tail keyword selected from ai-agent deployment/rollback/readiness cluster; 8-gate production deployment checklist for LLM-powered AI agents + TypeScript gate runner + Woodpecker CI pattern; cross-links Agent Skill Lifecycle CLI, Agent SLO Tracker CLI, Agent Config Drift Detector CLI, Agent Trace Replay CLI, Agent Secrets Audit CLI, and prior production-agent guides; no new products, no new payment links, Stripe remains test mode; home post card and posts/index card pending publication) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Deployment Checklist: 8 Gates for Shipping LLM Agents to Production — Algoram99</title>
+<meta name="description" content="A production AI agent deployment checklist with eight gates: skill lifecycle lock, environment audit, config drift detection, secrets hygiene, SLO baseline, cost cap, trace replay, and canary rollback. Includes TypeScript and Woodpecker CI.">
+<meta name="keywords" content="ai agent deployment checklist, llm agent production readiness, ai agent deploy gate, llm production checklist, ai agent canary rollback, agent config drift, agent slo baseline, woodpecker ci ai agents, alg99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Deployment Checklist: 8 Gates for Shipping LLM Agents to Production">
+<meta property="og:description" content="Eight deploy gates for production AI agents: lock skills, audit environment, catch config drift, redact secrets, enforce SLOs, cap cost, replay traces, and prove rollback.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-07-03-ai-agent-deployment-checklist/">
+<meta property="article:published_time" content="2026-07-03T14:32:13Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Deployment">
+<meta property="article:tag" content="ai agent deployment checklist">
+<meta property="article:tag" content="llm agent production readiness">
+<meta property="article:tag" content="agent config drift">
+<meta property="article:tag" content="canary rollback">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "AI Agent Deployment Checklist: 8 Gates for Shipping LLM Agents to Production",
+  "description": "A practical deployment checklist for LLM-powered AI agents. The eight deploy gates are skill lifecycle lock, environment audit, config drift detection, secrets hygiene, SLO baseline, cost attribution cap, trace replay readiness, and canary rollback readiness.",
+  "author": {"@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/"},
+  "publisher": {"@type": "Organization", "name": "Algoram99", "logo": {"@type": "ImageObject", "url": "https://github.com/Algoram99.png"}},
+  "datePublished": "2026-07-03T14:32:13Z",
+  "dateModified": "2026-07-03T14:32:13Z",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-07-03-ai-agent-deployment-checklist/"},
+  "keywords": "ai agent deployment checklist, llm agent production readiness, ai agent deploy gate, agent config drift, ai agent canary rollback, Woodpecker CI",
+  "proficiencyLevel": "Intermediate"
+}
+</script>
+<style>
+:root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --warning:#d29922; --red:#f85149; --code:#1c2128; }
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; line-height:1.7; max-width:900px; margin:0 auto; padding:2rem 1rem; }
+a { color:var(--accent); }
+header { border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:2rem; }
+header a { text-decoration:none; font-size:.92rem; }
+h1 { font-size:2rem; line-height:1.25; margin:.5rem 0; }
+h2 { font-size:1.35rem; margin-top:2.4rem; padding-bottom:.35rem; border-bottom:1px solid var(--border); }
+h3 { font-size:1.08rem; margin-top:1.6rem; }
+p, ul, ol { margin-bottom:1rem; }
+li { margin-bottom:.35rem; }
+code { background:var(--code); border:1px solid var(--border); border-radius:4px; padding:.1rem .35rem; }
+pre { background:var(--code); border:1px solid var(--border); border-radius:10px; padding:1rem; overflow-x:auto; line-height:1.45; }
+pre code { background:transparent; border:0; padding:0; }
+table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
+th, td { border:1px solid var(--border); padding:.6rem; vertical-align:top; }
+th { background:#111b2d; color:#dbeafe; text-align:left; }
+.meta { color:var(--muted); font-size:.9rem; margin-bottom:1.2rem; }
+.lead { font-size:1.08rem; color:#dbeafe; }
+.callout { background:rgba(88,166,255,.10); border:1px solid rgba(88,166,255,.32); border-radius:10px; padding:1rem; margin:1.5rem 0; }
+.warning { background:rgba(210,153,34,.10); border-color:rgba(210,153,34,.35); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1.2rem 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+.tile h3 { margin-top:0; color:#dbeafe; }
+.tag { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:.1rem .55rem; color:#bde3ff; background:rgba(88,166,255,.10); font-size:.78rem; margin-right:.3rem; }
+footer { border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">&larr; Algoram99 home</a> &middot; <a href="/posts/">Posts</a>
+  <h1>AI Agent Deployment Checklist: 8 Gates for Shipping LLM Agents to Production</h1>
+  <p class="meta">Published 2026-07-03 &middot; 44th live post &middot; AI agents, deployment, CI, Woodpecker, rollback</p>
+</header>
+
+<p class="lead">Shipping an LLM-powered agent is not the same as shipping a web endpoint. The agent has prompts, skills, tool permissions, model routes, memory, logs, and cost surfaces that can change without a traditional code diff. This checklist gives teams one deploy gate that catches those changes before the canary receives real users.</p>
+
+<div class="callout">
+  <strong>Short answer for search and SGE:</strong> a production AI-agent deployment checklist needs eight gates: skill lifecycle lock, environment audit, config drift detection, secrets hygiene, SLO baseline, cost attribution cap, trace replay readiness, and canary rollback readiness. Each gate needs an owner, a pass condition, and a rollback action. If a gate cannot be verified by a deterministic command, it is a note, not a deploy control.
+</div>
+
+<h2>Why ordinary deploy checklists miss agent failures</h2>
+
+<p>A normal deployment checklist asks whether tests passed, migrations ran, the build artifact exists, and the health check is green. Those are still necessary. They are not sufficient for agents because the failure modes are not only binary up/down failures. A prompt edit can change tool-call behavior while the process stays healthy. A newly loaded skill can expand the runtime's authority without touching application code. A fallback model can double token cost after an outage. A redaction rule can be removed from a logger and still leave every HTTP health check green.</p>
+
+<p>The checklist below treats the agent runtime as a system of contracts. Every contract is verified before release. The goal is not bureaucracy. The goal is to make the risky parts of an agent visible at the exact moment when a deployment can still be stopped cheaply.</p>
+
+<h2>The eight deployment gates</h2>
+
+<table>
+<thead><tr><th>Gate</th><th>Question</th><th>Pass condition</th><th>Rollback if failed</th></tr></thead>
+<tbody>
+<tr><td>1. Skill lifecycle lock</td><td>Are the loaded skills exactly the reviewed skills?</td><td>Committed manifest matches runtime lock.</td><td>Freeze skill edits and redeploy prior lock.</td></tr>
+<tr><td>2. Environment audit</td><td>Is the target host the intended host?</td><td>OS, Node version, env names, service user, and paths match the manifest.</td><td>Abort deploy; repair host or switch target.</td></tr>
+<tr><td>3. Config drift detection</td><td>Did live config diverge from git?</td><td>Config hash manifest has zero diff.</td><td>Restore committed config or commit the intentional change.</td></tr>
+<tr><td>4. Secrets hygiene</td><td>Can secrets leak through prompts, logs, or outputs?</td><td>Redaction fixtures pass and session logs scan clean.</td><td>Block rollout; rotate any exposed credential.</td></tr>
+<tr><td>5. SLO baseline</td><td>Is the new version slower or more error-prone?</td><td>Canary p95 latency, error rate, and tool success are inside thresholds.</td><td>Stop canary and keep previous release serving.</td></tr>
+<tr><td>6. Cost attribution cap</td><td>Can this release run away financially?</td><td>Predicted and canary cost per task stay under budget.</td><td>Disable route or model tier that breached the cap.</td></tr>
+<tr><td>7. Trace replay readiness</td><td>Does yesterday's trace behave the same today?</td><td>Golden traces replay with acceptable structural similarity.</td><td>Revert prompts, tool schema, or model route.</td></tr>
+<tr><td>8. Canary rollback</td><td>Can we undo a bad agent action?</td><td>Rollback command, idempotency keys, and audit receipts exist.</td><td>Run rollback, then incident review.</td></tr>
+</tbody>
+</table>
+
+<h2>Gate 1: lock the skill lifecycle</h2>
+
+<p>Agent skills are operational code even when they are written in Markdown. A skill can change tool selection, approval boundaries, prompt structure, and memory behavior. Before deployment, create a resolved skill manifest containing every skill name, version, file hash, declared capability, and hook. The runtime should load only the skills in that manifest. If someone edits a skill after review, the deploy fails instead of quietly mixing reviewed code with unreviewed operating instructions.</p>
+
+<p>For this layer, the related <a href="https://buy.stripe.com/test_bJebJ33VPbqw4e96e573G11" rel="noopener">Agent Skill Lifecycle CLI</a> is the catalog fit: it audits skill shape, catches phantom capability names, and gives the release process a lock artifact to compare.</p>
+
+<h2>Gate 2 and 3: audit environment and config drift</h2>
+
+<p>The second gate proves the host is the host you think it is. Record the Node version, package manager, service user, working directory, required binaries, env-var names, open ports, and outbound network policy. The pass condition is not "the app started"; the pass condition is that the deploy target matches the manifest the team approved.</p>
+
+<p>The third gate catches the hand-edit that does not show up in git. Hash the production config tree, compare it to the committed hash manifest, and fail on any unapproved change. Do not normalize away meaningful differences. If <code>MODEL=fast</code> was changed to <code>MODEL=smart</code> on the host, the deploy should explain that exact axis before traffic moves. The <a href="https://buy.stripe.com/test_5kQ14p63XfGMbGB7i973G0P" rel="noopener">Agent Config Drift Detector CLI</a> maps to this gate.</p>
+
+<h2>Gate 4: secrets hygiene before any canary traffic</h2>
+
+<p>An agent deployment is not ready if its logs can preserve secrets. Run redaction fixtures for API keys, GitHub tokens, cloud keys, live payment keys, mnemonic phrases, wallet private keys, database URLs, and generic bearer tokens. Then scan a representative session log and confirm the report masks values instead of copying them. This must cover inputs and outputs because model output can leak a secret it saw earlier.</p>
+
+<p>The <a href="https://buy.stripe.com/test_5kQdRb2RL7ag7ql8md73G0R" rel="noopener">Agent Secrets Audit CLI</a> is the post-hoc audit layer. Pair it with runtime redaction from the <a href="/posts/2026-06-16-ai-agent-structured-logging/">structured logging</a> guide so secrets are prevented first and detected second.</p>
+
+<h2>Gate 5 and 6: SLOs and cost caps</h2>
+
+<p>A release can be functionally correct and still not be shippable. If p95 latency doubles, tool success falls, or the cost per task jumps from $0.03 to $0.41, the canary is telling you something tests did not. Compute a baseline from the last known-good release, then let the first canary batch compare itself against that baseline. Treat cost as an SLO, not a monthly surprise.</p>
+
+<p>Use the <a href="https://buy.stripe.com/test_cNifZjdwp66cfWRgSJ73G0N" rel="noopener">Agent SLO Tracker CLI</a> for availability and latency, and pair it with the cost surfaces described in <a href="/posts/2026-06-08-reduce-llm-api-costs-without-downgrading-model/">the LLM cost reduction guide</a>. The deploy gate should fail if a model route, fallback chain, or prompt expansion violates the budget.</p>
+
+<h2>Gate 7: replay traces, do not trust vibes</h2>
+
+<p>Before release, replay a small corpus of real traces against the new runtime in a staging mirror. The replay should compare tool names, argument shapes, result shapes, policy verdicts, token counts, and final answer class. It does not need the same exact tokens; it does need the same operational behavior. If the new runtime calls a destructive tool where the old runtime only asked for approval, the deploy should stop.</p>
+
+<p>This is where <a href="https://buy.stripe.com/test_3cIaEZ63X66ceSNeKB73G12" rel="noopener">Agent Trace Replay CLI</a> fits. It complements the <a href="/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">audit trail</a>: audit proves what happened; replay proves whether the new version would still do the same kind of thing.</p>
+
+<h2>Gate 8: prove rollback before rollout</h2>
+
+<p>Rollback for agents is not only "deploy the old container." The agent may have sent an email, opened a pull request, wrote a file, called a billing API, or delegated to another worker. Every state-mutating tool needs an idempotency key, a side-effect receipt, and a compensating action. The canary should be allowed to touch only actions that have rollback semantics. Public, financial, destructive, and privacy-impacting actions require human approval until the receipts prove the rollback path works.</p>
+
+<p>The deeper pattern is covered in the <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency guide</a>, the <a href="/posts/2026-07-01-ai-agent-permission-model/">permission model</a>, and the <a href="/posts/2026-06-27-ai-agent-human-in-the-loop/">human-in-the-loop guide</a>.</p>
+
+<h2>A compact TypeScript deploy gate runner</h2>
+
+<pre><code>type Gate = { name: string; run: () =&gt; Promise&lt;{ ok: boolean; detail: string }&gt; };
+
+const gates: Gate[] = [
+  { name: "skill-lock", run: () =&gt; sh("node scripts/check-skill-lock.mjs") },
+  { name: "environment", run: () =&gt; sh("node scripts/check-env.mjs") },
+  { name: "config-drift", run: () =&gt; sh("node scripts/config-drift.mjs") },
+  { name: "secrets", run: () =&gt; sh("node scripts/secrets-selftest.mjs") },
+  { name: "slo", run: () =&gt; sh("node scripts/slo-canary.mjs") },
+  { name: "cost", run: () =&gt; sh("node scripts/cost-cap.mjs") },
+  { name: "trace-replay", run: () =&gt; sh("node scripts/replay-golden-traces.mjs") },
+  { name: "rollback", run: () =&gt; sh("node scripts/rollback-readiness.mjs") },
+];
+
+async function main() {
+  for (const gate of gates) {
+    const result = await gate.run();
+    console.log(`${gate.name}: ${result.ok ? "PASS" : "FAIL"} ${result.detail}`);
+    if (!result.ok) process.exit(1);
+  }
+}
+main().catch(err =&gt; { console.error(err); process.exit(1); });</code></pre>
+
+<p>The important property is sequencing. The deploy stops at the first failed gate and prints a repairable reason. That is better than a 4,000-line release report where the dangerous failure is buried halfway down.</p>
+
+<h2>Woodpecker CI pattern</h2>
+
+<pre><code>when:
+  event: [push, pull_request, manual]
+steps:
+  agent_deploy_check:
+    image: node:22-alpine
+    commands:
+      - npm ci
+      - node scripts/agent-deploy-check.mjs
+      - node scripts/render-deploy-summary.mjs</code></pre>
+
+<p>Run the gate on every pull request that touches prompts, skills, config, tools, model routes, memory, logging, redaction, or deployment files. On main, run it again before canary promotion. For Algoram99 infrastructure, Woodpecker is the release gate, not GitHub Actions.</p>
+
+<h2>Five anti-patterns</h2>
+
+<ol>
+  <li><strong>Health-check-only deploys:</strong> the server is up, but the agent now calls the wrong tool. Add trace replay.</li>
+  <li><strong>Manual checklist in a doc:</strong> nobody knows which boxes were actually verified. Convert every box to a command.</li>
+  <li><strong>No cost gate:</strong> a fallback model makes the release unaffordable while still correct. Treat dollars per task as a release metric.</li>
+  <li><strong>Canary without rollback:</strong> the canary can mutate state but cannot compensate. Block mutating tools until rollback receipts exist.</li>
+  <li><strong>Secrets checked only at ingress:</strong> model output and logs can leak what input filters caught earlier. Scan both sides.</li>
+</ol>
+
+<h2>Definition of done</h2>
+
+<p>The deployment checklist is complete when a release manager can point at one CI run and answer: which skills loaded, which host ran, which config hashes matched, which redaction fixtures passed, which SLOs stayed within threshold, which cost cap held, which golden traces replayed, and which rollback command would run if the canary failed. If any answer is "we would inspect it manually after the incident," the checklist is not finished.</p>
+
+<p>Keep the checklist small enough that engineers actually run it. Eight gates is enough to catch the agent-specific failures without turning release into paperwork. When a new class of incident appears, add one deterministic probe or tighten one pass condition; do not add a vague reminder. The checklist compounds only when each item can fail the deploy before customers become the monitoring system.</p>
+
+<footer>
+  <p>Related reading: <a href="/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">AI agent audit trails</a>, <a href="/posts/2026-07-01-ai-agent-permission-model/">AI agent permission model</a>, <a href="/posts/2026-06-30-ai-agent-code-execution-sandboxing/">code execution sandboxing</a>, <a href="/posts/2026-06-28-llm-fallback-chain-model-routing/">LLM fallback chains</a>, <a href="/posts/2026-06-26-ai-agent-retry-policy/">retry policy</a>, and <a href="/posts/2026-06-15-ai-agent-prompt-version-control/">prompt version control</a>.</p>
+  <p>alg99 ships zero-dependency tools and reference implementations for teams building production AI-agent systems.</p>
+</footer>
+</body>
+</html>
