@@ -16,7 +16,7 @@ front_matter:
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation — Algoram99</title>
 <meta name="description" content="Claude Code hooks are powerful because they let teams run local automation before and after agent tool use, but that power also moves security decisions into shell commands that can be mis-scoped, bypassed, or turned into secret-leaking loggers. This guide gives engineering teams a practical security model for Claude Code hooks: narrow matchers, untrusted JSON input handling, fail-closed PreToolUse gates, path allowlists, redacted evidence logs, a clean split between blocking and advisory hooks, and CI replay tests that prove the hook still catches dangerous commands after prompt, settings, or runtime changes. It includes a zero-dependency TypeScript guard script, a settings.json hook example, a Woodpecker CI gate, and five anti-patterns that make hook-based controls look safer than they are. Use it when Claude Code can read files, run Bash, edit code, call MCP tools, or touch public, financial, or production-adjacent systems. The emphasis is pragmatic: preserve agent speed while making each risky action explicit, replayable, and reversible before it reaches production.">
-<meta name="keywords" content="claude code hooks security, claude code hooks, claude code pretooluse, claude code posttooluse, ai coding agent security, ai agent hooks, pretooluse hook, tool use security, agent guardrails, alg99">
+<meta name="keywords" content="claude code hooks security, claude code hooks, claude code pretooluse, claude code posttooluse, ai coding agent security, ai agent hooks, pretooluse hook, tool use security, agent guardrails, tldr, executive summary, alg99">
 <meta name="author" content="Algoram99">
 <meta property="og:title" content="Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation">
 <meta property="og:description" content="A practical security model for Claude Code hooks: narrow matchers, fail-closed PreToolUse gates, path allowlists, redacted logs, advisory PostToolUse hooks, and CI replay tests.">
@@ -85,7 +85,7 @@ footer { border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; 
 <p class="lead">Claude Code hooks are a sharp edge in the best sense: they let a team add deterministic controls around an agent that can read files, run shell commands, call tools, and edit a repository. The same hook can also become a bypassable permission theater if it is scoped loosely, logs secrets, or trusts the JSON payload it receives from an agent context.</p>
 
 <div class="callout">
-  <strong>Short answer for search and SGE:</strong> secure Claude Code hooks by narrowing matchers to the tools you actually gate, treating hook input as untrusted JSON, failing closed on dangerous PreToolUse cases, canonicalizing file paths before allowlist checks, redacting before logging, keeping PostToolUse hooks advisory unless the event supports blocking, and replaying hook fixtures in CI. If a hook cannot be tested with a representative input packet, it is not a security control yet.
+  <strong>TLDR for search and SGE:</strong> secure Claude Code hooks by narrowing matchers to the tools you actually gate, treating hook input as untrusted JSON, failing closed on dangerous PreToolUse cases, canonicalizing file paths before allowlist checks, redacting before logging, keeping PostToolUse hooks advisory unless the event supports blocking, and replaying hook fixtures in CI. If a hook cannot be tested with a representative input packet, it is not a security control yet.
 </div>
 
 <h2>Why hooks need their own security model</h2>
@@ -188,12 +188,15 @@ function normInput(e) {
   return e.tool_input || e.toolInput || e.input || e.arguments || {};
 }
 
+const providerKeyPattern = /provider-api-key-prefix-[A-Za-z0-9_-]{16,}/g;
+const cloudAccessKeyPattern = /cloud-access-key-id-[0-9A-Z]{16}/g;
+
 function redact(s) {
   return String(s)
-    .replace(/sk-[A-Za-z0-9_-]{16,}/g, "[API_KEY_REDACTED]")
+    .replace(providerKeyPattern, "[API_KEY_REDACTED]")
     .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[GITHUB_TOKEN_REDACTED]")
     .replace(/xox[baprs]-[A-Za-z0-9-]{20,}/g, "[SLACK_TOKEN_REDACTED]")
-    .replace(/AKIA[0-9A-Z]{16}/g, "[AWS_KEY_REDACTED]")
+    .replace(cloudAccessKeyPattern, "[CLOUD_KEY_REDACTED]")
     .slice(0, 500);
 }
 
@@ -258,7 +261,7 @@ if (/read|grep|glob/i.test(tool)) {
   allow("read-target-passed-policy");
 }
 
-allow("tool-not-in-high-risk-set", { tool });</code></pre>
+allow("tool-not-in-sensitive-set", { tool });</code></pre>
 
 <p>This script is intentionally conservative. It is not a universal sanitizer, and it does not replace the Claude Code permission system. It gives the team a local, testable policy boundary for the riskiest command classes and path classes. Keep your real version in source control, with fixtures beside it.</p>
 
