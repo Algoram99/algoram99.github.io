@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<!--
+front_matter:
+  title: "AI Agent Checkpoint Resume: 6 Patterns for Restarting Failed Agent Runs Safely"
+  slug: "2026-07-04-ai-agent-checkpoint-resume"
+  published: "2026-07-04T23:20:00Z"
+  target_keyword: "AI agent checkpoint resume"
+  description: |
+    AI agent checkpoint resume is the missing recovery layer between simple retry logic and full durable execution. When an LLM agent runs a multi-step job, a process crash, rate-limit storm, tool timeout, or human approval pause should not force the system to start over, repeat side effects, lose audit context, or ask the user to reconstruct what happened. This guide shows how to design checkpoint/resume for production AI agents with six practical patterns: explicit step boundaries, deterministic input hashes, atomic checkpoint writes, dependency-aware cursors, idempotency-aware replay, and verification gates that prove a resumed run is equivalent to an uninterrupted run. It also explains five anti-patterns—prompt-history checkpointing, retrying non-idempotent writes, marking steps done before evidence is durable, skipping schema/version checks, and hiding resumed state from operators. Includes a 100+ line zero-dependency TypeScript reference runtime, a Woodpecker CI fixture gate, and internal links that place recovery inside the broader agent reliability stack.
+  search_volume_estimate: "unknown; public HN/search-result evidence shows active discussion around agent checkpointing and durable execution, but no reliable free volume number"
+  reasoning_kernel_trace_summary: "GATHER: existing 45 alg99 posts checked; public HN/StackOverflow/DuckDuckGo evidence sampled; RECONCILE: selected non-duplicate checkpoint/resume topic aligned with newest Agent Checkpoint Resume CLI; REALIZE: article plus homepage/posts-index cards; CONSISTENCY: no new product, no new direct payment link, no credentials."
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Checkpoint Resume: 6 Patterns for Restarting Failed Agent Runs Safely — Algoram99</title>
+<meta name="description" content="AI agent checkpoint resume is the missing recovery layer between simple retry logic and full durable execution. When an LLM agent runs a multi-step job, a process crash, rate-limit storm, tool timeout, or human approval pause should not force the system to start over, repeat side effects, lose audit context, or ask the user to reconstruct what happened. This guide shows how to design checkpoint/resume for production AI agents with six practical patterns: explicit step boundaries, deterministic input hashes, atomic checkpoint writes, dependency-aware cursors, idempotency-aware replay, and verification gates that prove a resumed run is equivalent to an uninterrupted run. It also explains five anti-patterns—prompt-history checkpointing, retrying non-idempotent writes, marking steps done before evidence is durable, skipping schema/version checks, and hiding resumed state from operators. Includes a 100+ line zero-dependency TypeScript reference runtime, a Woodpecker CI fixture gate, and internal links that place recovery inside the broader agent reliability stack.">
+<meta name="keywords" content="AI agent checkpoint resume, ai agent checkpointing, resume failed agent runs, durable execution ai agents, agent checkpoints, llm agent recovery, idempotent agent replay, agent checkpoint TypeScript, Woodpecker CI agent resume, alg99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="AI Agent Checkpoint Resume: 6 Patterns for Restarting Failed Agent Runs Safely">
+<meta property="og:description" content="A production checkpoint/resume model for AI agents: explicit step boundaries, atomic checkpoint files, input hashes, dependency-aware cursors, idempotent replay, and CI fixtures.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-07-04-ai-agent-checkpoint-resume/">
+<meta property="article:published_time" content="2026-07-04T23:20:00Z">
+<meta property="article:modified_time" content="2026-07-04T23:20:00Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Reliability">
+<meta property="article:tag" content="AI agent checkpoint resume">
+<meta property="article:tag" content="checkpointing">
+<meta property="article:tag" content="durable execution">
+<meta property="article:tag" content="agent recovery">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "AI Agent Checkpoint Resume: 6 Patterns for Restarting Failed Agent Runs Safely",
+  "description": "A practical checkpoint/resume design for production AI agents: explicit step boundaries, deterministic input hashes, atomic checkpoint writes, dependency-aware cursors, idempotency-aware replay, and CI verification.",
+  "author": {"@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/"},
+  "publisher": {"@type": "Organization", "name": "Algoram99", "logo": {"@type": "ImageObject", "url": "https://github.com/Algoram99.png"}},
+  "datePublished": "2026-07-04T23:20:00Z",
+  "dateModified": "2026-07-04T23:20:00Z",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-07-04-ai-agent-checkpoint-resume/"},
+  "keywords": "AI agent checkpoint resume, ai agent checkpointing, durable execution ai agents, failed agent run recovery, idempotent replay",
+  "proficiencyLevel": "Intermediate",
+  "articleSection": "AI agent reliability"
+}
+</script>
+<style>
+:root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --warning:#d29922; --code:#1c2128; }
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; line-height:1.7; max-width:920px; margin:0 auto; padding:2rem 1rem; }
+a { color:var(--accent); }
+header { border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:2rem; }
+header a { text-decoration:none; font-size:.92rem; }
+h1 { font-size:2rem; line-height:1.25; margin:.5rem 0; }
+h2 { font-size:1.35rem; margin-top:2.4rem; padding-bottom:.35rem; border-bottom:1px solid var(--border); }
+h3 { font-size:1.08rem; margin-top:1.6rem; }
+p, ul, ol { margin-bottom:1rem; }
+li { margin-bottom:.35rem; }
+code { background:var(--code); border:1px solid var(--border); border-radius:4px; padding:.1rem .35rem; }
+pre { background:var(--code); border:1px solid var(--border); border-radius:10px; padding:1rem; overflow-x:auto; line-height:1.45; }
+pre code { background:transparent; border:0; padding:0; }
+table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
+th, td { border:1px solid var(--border); padding:.6rem; vertical-align:top; }
+th { background:#111b2d; color:#dbeafe; text-align:left; }
+.meta { color:var(--muted); font-size:.9rem; margin-bottom:1.2rem; }
+.lead { font-size:1.08rem; color:#dbeafe; }
+.callout { background:rgba(88,166,255,.10); border:1px solid rgba(88,166,255,.32); border-radius:10px; padding:1rem; margin:1.5rem 0; }
+.warning { background:rgba(210,153,34,.10); border-color:rgba(210,153,34,.35); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1.2rem 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+.tile h3 { margin-top:0; color:#dbeafe; }
+.tag { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:.1rem .55rem; color:#bde3ff; background:rgba(88,166,255,.10); font-size:.78rem; margin-right:.3rem; }
+footer { border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">&larr; Algoram99 home</a> &middot; <a href="/posts/">Posts</a>
+  <h1>AI Agent Checkpoint Resume: 6 Patterns for Restarting Failed Agent Runs Safely</h1>
+  <p class="meta">Published 2026-07-04 &middot; 46th live post &middot; AI agent checkpoint resume, durable execution, recovery, replay, TypeScript</p>
+</header>
+
+<p class="lead">AI agent checkpoint resume sounds like a small operational feature until the first long-running agent dies at step 18 of 23. Without a resumable boundary, the operator must either rerun the whole job, risk repeating side effects, or manually reconstruct which steps actually completed. That is how agents double-send emails, re-open pull requests, lose audit trails, and make operators afraid to run ambitious workflows.</p>
+
+<div class="callout">
+  <strong>TLDR for search and SGE:</strong> AI agent checkpoint resume means saving deterministic step state after each completed boundary so a failed or interrupted agent run can continue without replaying unsafe side effects. A production design needs explicit step IDs, stable input hashes, atomic checkpoint writes, dependency-aware cursors, idempotent replay rules, and a CI fixture that kills the process mid-run and proves the resumed run is equivalent to an uninterrupted one.
+</div>
+
+<h2>Why checkpoint/resume is not just retry logic</h2>
+<p>Retry logic answers a narrow question: should this failed operation be attempted again? <a href="/posts/2026-06-26-ai-agent-retry-policy/">AI agent retry policy</a> covers that layer. Checkpoint/resume answers a larger question: after the whole agent process stops, which completed decisions, tool calls, approvals, files, and evidence packets can be trusted, and where should the next run continue?</p>
+<p>That is why <strong>AI agent checkpoint resume</strong> belongs beside <a href="/posts/2026-06-11-ai-agent-idempotency/">idempotency</a>, <a href="/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">tool-call audit trails</a>, <a href="/posts/2026-06-10-ai-agent-memory-architecture/">agent memory architecture</a>, and <a href="/posts/2026-07-03-ai-agent-deployment-checklist/">deployment gates</a>. A checkpoint is useful only if it records the right boundary, survives crashes, and can be verified before reuse.</p>
+<p>Public discussion around agent checkpointing and durable execution is already splitting into two camps. One side treats checkpoints as enough. The other points out that distributed agents need more than snapshots: side-effect deduplication, external workflow state, and replay semantics. The practical middle ground for small teams is to implement a boring, explicit checkpoint/resume layer first, then graduate to heavier durable execution only when the workflow needs it.</p>
+
+<h2>The production failure modes</h2>
+<table>
+<thead><tr><th>Failure</th><th>What breaks without checkpoint/resume</th><th>Correct recovery behavior</th></tr></thead>
+<tbody>
+<tr><td>Process crash</td><td>The agent loses which steps completed and starts over.</td><td>Load the last atomic checkpoint and continue at the first incomplete step.</td></tr>
+<tr><td>Rate-limit storm</td><td>The job retries every tool call or abandons a mostly finished run.</td><td>Preserve completed steps, wait for budget, then resume only pending work.</td></tr>
+<tr><td>Human approval pause</td><td>The run waits in memory and dies during restart.</td><td>Store approval state as a durable boundary and continue after receipt.</td></tr>
+<tr><td>Side-effect uncertainty</td><td>The agent cannot tell if it already sent, wrote, charged, deployed, or published.</td><td>Require idempotency keys and output receipts before marking a step done.</td></tr>
+<tr><td>Prompt or config drift</td><td>A new run resumes from stale assumptions.</td><td>Compare task hash, step input hashes, schema version, and tool registry version.</td></tr>
+</tbody>
+</table>
+
+<h2>Pattern 1: checkpoint explicit step boundaries, not raw prompt history</h2>
+<p>The first rule of <strong>AI agent checkpoint resume</strong> is that the checkpoint should not be a dumped conversation transcript. Prompt history is noisy, private, expensive to reload, and ambiguous. A useful checkpoint says: step ID, input hash, status, attempt count, output reference, error summary, dependencies, and timestamps. Store enough to resume safely, not enough to leak the whole run.</p>
+<p>Use semantic step IDs such as <code>observe</code>, <code>draft</code>, <code>verify</code>, <code>publish</code>, or <code>send-invoice</code>. If the agent cannot name a step, it cannot resume it reliably. Step boundaries should be chosen around irreversible side effects and expensive work: after a source crawl, after a validated draft, after a CI verification report, after an approval receipt.</p>
+
+<h2>Pattern 2: hash the task and each step input</h2>
+<p>A checkpoint is only safe to reuse if the underlying task has not changed. Hash the normalized task envelope and each step input. On resume, compare the fresh plan against the stored checkpoint. If the task hash changes, start a new run. If one step input changes, reset that step and every dependent step. This prevents the subtle bug where a resumed agent publishes a draft generated for yesterday's requirements.</p>
+<p>This also makes <strong>AI agent checkpoint resume</strong> auditable: the operator can prove that a resumed step ran against the same normalized input, or see exactly where drift forced a reset.</p>
+
+<h2>Pattern 3: write checkpoints atomically</h2>
+<p>A checkpoint file that can be half-written is not a checkpoint. Write to a temporary file, flush it, then rename it into place. In most local filesystems, rename is atomic inside the same directory. That gives you a clean old checkpoint or a clean new checkpoint, not a corrupt in-between JSON blob. The same rule applies if you store checkpoints in SQLite, Postgres, Redis, S3, or a workflow engine: updates must be transactional at the boundary you claim is durable.</p>
+<p>Never mark a step <code>done</code> before the evidence is durable. If a step writes an output file, saves a pull request URL, or records an approval receipt, persist that output first, then mark the step done, then write the checkpoint.</p>
+
+<h2>Pattern 4: use dependency-aware cursors</h2>
+<p>Linear cursor-only resume works for simple jobs. Real agents branch: observe two sources in parallel, draft three sections, verify all of them, then publish. Store dependencies per step and resume the first pending step whose dependencies are done. That lets a resumed run skip completed branches without pretending every workflow is a flat list.</p>
+<p>This is also where multi-agent orchestration needs a contract. A parent agent should checkpoint delegation packets and child results, not just the final synthesis. If a child agent times out, the parent should know which child result is missing and whether the completed children are still valid.</p>
+
+<h2>Pattern 5: pair replay with idempotency keys</h2>
+<p>Checkpoint/resume without idempotency is unsafe. If a step sends an email, creates an invoice, opens a PR, updates a database, or deploys a site, it needs an idempotency key derived from the run ID and step ID. On resume, the agent asks the destination system for the prior receipt before doing the side effect again. If the receipt exists, mark the step done. If it does not, execute once with the same idempotency key.</p>
+<p>This is the bridge between <strong>AI agent checkpoint resume</strong> and side-effect safety. The checkpoint says what the agent believes. The idempotency receipt proves what the outside world accepted.</p>
+
+<h2>Pattern 6: verify resumed equivalence in CI</h2>
+<p>A checkpoint/resume layer must be tested by killing it. The fixture should run a four-step job, stop the process after step two, load the checkpoint, resume, and compare the final summary against a clean uninterrupted run. Add cases for changed task hash, changed step input, corrupted checkpoint schema, interrupted <code>running</code> status, and a failed side-effect receipt lookup.</p>
+<p>For Algoram99-owned repositories, that fixture belongs in Woodpecker CI. It should be local, deterministic, and free: no live LLM call, no paid API call, no external workflow engine required. The point is not to simulate intelligence. The point is to prove the recovery contract.</p>
+
+<p>A minimal Woodpecker-ready gate looks like this:</p>
+<pre><code># .woodpecker.yml
+steps:
+  checkpoint-resume-fixture:
+    image: node:22-alpine
+    commands:
+      - node --version
+      - node scripts/checkpoint-resume-fixture.mjs fresh
+      - node scripts/checkpoint-resume-fixture.mjs kill-after=verify || test $? -eq 86
+      - node scripts/checkpoint-resume-fixture.mjs resume
+      - node scripts/checkpoint-resume-fixture.mjs compare reports/fresh.json reports/resumed.json
+</code></pre>
+
+<h2>Reference implementation: zero-dependency TypeScript checkpoint runtime</h2>
+<pre><code>// checkpoint-resume.ts
+// Zero-dependency reference runtime for resumable AI agent jobs.
+// It stores only deterministic step boundaries, not raw prompts or secrets.
+import fs from &quot;node:fs&quot;;
+import path from &quot;node:path&quot;;
+import crypto from &quot;node:crypto&quot;;
+
+type StepStatus = &quot;pending&quot; | &quot;running&quot; | &quot;done&quot; | &quot;failed&quot; | &quot;skipped&quot;;
+type ResumeMode = &quot;fresh&quot; | &quot;resume&quot; | &quot;replay&quot;;
+
+type Step = {
+  id: string;
+  dependsOn?: string[];
+  inputHash: string;
+  status: StepStatus;
+  attempts: number;
+  startedAt?: string;
+  finishedAt?: string;
+  outputRef?: string;
+  error?: string;
+};
+
+type Checkpoint = {
+  schema: &quot;alg99.agent-checkpoint.v1&quot;;
+  runId: string;
+  taskHash: string;
+  mode: ResumeMode;
+  createdAt: string;
+  updatedAt: string;
+  cursor: number;
+  steps: Step[];
+  audit: Array&lt;{ at: string; event: string; step?: string; reason?: string }&gt;;
+};
+
+const now = () =&gt; new Date().toISOString();
+const sha = (value: unknown) =&gt; crypto.createHash(&quot;sha256&quot;).update(JSON.stringify(value)).digest(&quot;hex&quot;);
+const safeId = (s: string) =&gt; s.replace(/[^a-z0-9._-]/gi, &quot;_&quot;).slice(0, 80);
+
+function checkpointPath(dir: string, runId: string) {
+  return path.join(dir, `${safeId(runId)}.checkpoint.json`);
+}
+
+function atomicWrite(file: string, obj: unknown) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+function load(file: string): Checkpoint | null {
+  if (!fs.existsSync(file)) return null;
+  const parsed = JSON.parse(fs.readFileSync(file, &quot;utf8&quot;));
+  if (parsed.schema !== &quot;alg99.agent-checkpoint.v1&quot;) throw new Error(&quot;bad checkpoint schema&quot;);
+  if (!Array.isArray(parsed.steps)) throw new Error(&quot;checkpoint missing steps&quot;);
+  return parsed;
+}
+
+function create(runId: string, task: unknown, stepDefs: Array&lt;{ id: string; dependsOn?: string[]; input: unknown }&gt;): Checkpoint {
+  const ids = new Set&lt;string&gt;();
+  const steps: Step[] = stepDefs.map(def =&gt; {
+    if (ids.has(def.id)) throw new Error(`duplicate step id: ${def.id}`);
+    ids.add(def.id);
+    return { id: def.id, dependsOn: def.dependsOn || [], inputHash: sha(def.input), status: &quot;pending&quot;, attempts: 0 };
+  });
+  for (const step of steps) {
+    for (const dep of step.dependsOn || []) {
+      if (!ids.has(dep)) throw new Error(`unknown dependency ${dep} for ${step.id}`);
+    }
+  }
+  return {
+    schema: &quot;alg99.agent-checkpoint.v1&quot;,
+    runId,
+    taskHash: sha(task),
+    mode: &quot;fresh&quot;,
+    createdAt: now(),
+    updatedAt: now(),
+    cursor: 0,
+    steps,
+    audit: [{ at: now(), event: &quot;created&quot;, reason: &quot;fresh run&quot; }]
+  };
+}
+
+function reconcile(existing: Checkpoint | null, fresh: Checkpoint): Checkpoint {
+  if (!existing) return fresh;
+  if (existing.taskHash !== fresh.taskHash) throw new Error(&quot;task hash changed; start a new run id&quot;);
+  const byId = new Map(existing.steps.map(s =&gt; [s.id, s]));
+  const merged = { ...fresh, mode: &quot;resume&quot; as ResumeMode, createdAt: existing.createdAt, audit: existing.audit.slice() };
+  merged.steps = fresh.steps.map(step =&gt; {
+    const prev = byId.get(step.id);
+    if (!prev) return step;
+    if (prev.inputHash !== step.inputHash) return { ...step, status: &quot;pending&quot;, attempts: prev.attempts, error: &quot;input changed&quot; };
+    if (prev.status === &quot;done&quot;) return prev;
+    if (prev.status === &quot;running&quot;) return { ...prev, status: &quot;pending&quot;, error: &quot;reset from interrupted running state&quot; };
+    return prev;
+  });
+  merged.cursor = Math.max(0, merged.steps.findIndex(s =&gt; s.status !== &quot;done&quot;));
+  if (merged.cursor === -1) merged.cursor = merged.steps.length;
+  merged.updatedAt = now();
+  merged.audit.push({ at: now(), event: &quot;reconciled&quot;, reason: &quot;resume from checkpoint&quot; });
+  return merged;
+}
+
+function ready(step: Step, cp: Checkpoint) {
+  return (step.dependsOn || []).every(dep =&gt; cp.steps.find(s =&gt; s.id === dep)?.status === &quot;done&quot;);
+}
+
+async function run(cp: Checkpoint, file: string, handlers: Record&lt;string, () =&gt; Promise&lt;string&gt;&gt;) {
+  for (let i = 0; i &lt; cp.steps.length; i++) {
+    const step = cp.steps[i];
+    if (step.status === &quot;done&quot; || step.status === &quot;skipped&quot;) continue;
+    if (!ready(step, cp)) continue;
+    const handler = handlers[step.id];
+    if (!handler) throw new Error(`missing handler for ${step.id}`);
+    step.status = &quot;running&quot;;
+    step.startedAt = now();
+    step.attempts += 1;
+    cp.cursor = i;
+    cp.updatedAt = now();
+    cp.audit.push({ at: now(), event: &quot;started&quot;, step: step.id });
+    atomicWrite(file, cp);
+    try {
+      const out = await handler();
+      step.status = &quot;done&quot;;
+      step.outputRef = out;
+      step.finishedAt = now();
+      step.error = undefined;
+      cp.audit.push({ at: now(), event: &quot;finished&quot;, step: step.id });
+    } catch (err) {
+      step.status = &quot;failed&quot;;
+      step.finishedAt = now();
+      step.error = String(err).slice(0, 300);
+      cp.audit.push({ at: now(), event: &quot;failed&quot;, step: step.id, reason: step.error });
+      atomicWrite(file, cp);
+      throw err;
+    }
+    cp.updatedAt = now();
+    atomicWrite(file, cp);
+  }
+  return cp;
+}
+
+function summarize(cp: Checkpoint) {
+  const counts = cp.steps.reduce&lt;Record&lt;string, number&gt;&gt;((acc, step) =&gt; {
+    acc[step.status] = (acc[step.status] || 0) + 1;
+    return acc;
+  }, {});
+  return { runId: cp.runId, mode: cp.mode, cursor: cp.cursor, counts, done: cp.steps.every(s =&gt; s.status === &quot;done&quot;) };
+}
+
+async function main() {
+  const dir = process.argv[2] || &quot;.agent-checkpoints&quot;;
+  const runId = process.argv[3] || &quot;demo-run&quot;;
+  const task = { goal: &quot;publish verified article&quot;, repo: &quot;alg99&quot; };
+  const stepDefs = [
+    { id: &quot;observe&quot;, input: { sources: [&quot;repo&quot;, &quot;search&quot;] } },
+    { id: &quot;draft&quot;, dependsOn: [&quot;observe&quot;], input: { minWords: 1500 } },
+    { id: &quot;verify&quot;, dependsOn: [&quot;draft&quot;], input: { checks: [&quot;links&quot;, &quot;counts&quot;, &quot;html&quot;] } },
+    { id: &quot;publish&quot;, dependsOn: [&quot;verify&quot;], input: { branch: &quot;main&quot; } }
+  ];
+  const file = checkpointPath(dir, runId);
+  const cp = reconcile(load(file), create(runId, task, stepDefs));
+  const handlers = {
+    observe: async () =&gt; &quot;evidence/observe.json&quot;,
+    draft: async () =&gt; &quot;posts/draft.html&quot;,
+    verify: async () =&gt; &quot;reports/verify.json&quot;,
+    publish: async () =&gt; &quot;deploy/publish.txt&quot;
+  };
+  await run(cp, file, handlers);
+  console.log(JSON.stringify(summarize(cp), null, 2));
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(err =&gt; { console.error(err.message); process.exit(1); });
+}
+</code></pre>
+
+<h2>Five anti-patterns that break checkpoint/resume</h2>
+<div class="grid">
+  <div class="tile"><h3>1. Transcript as checkpoint</h3><p>Dumping the whole prompt history looks easy but does not define completed side effects, dependencies, or replay safety.</p></div>
+  <div class="tile"><h3>2. Done before durable evidence</h3><p>If a step is marked done before its output reference or receipt is persisted, a crash creates a false checkpoint.</p></div>
+  <div class="tile"><h3>3. Retry non-idempotent writes</h3><p>Resuming a send, charge, deploy, or database mutation without an idempotency key is a duplicate-action generator.</p></div>
+  <div class="tile"><h3>4. No schema version</h3><p>Old checkpoints need a version check. Otherwise new code may misread old fields and resume from the wrong boundary.</p></div>
+  <div class="tile"><h3>5. Invisible resume mode</h3><p>Operators should see when a run resumed, which steps were reused, and which steps reset. Hidden resume is debugging debt.</p></div>
+</div>
+
+<h2>Where this fits in the Algoram99 stack</h2>
+<p>Use <strong>AI agent checkpoint resume</strong> as the recovery layer after the system already has tool validation, idempotency, and audit events. A good sequence is:</p>
+<ol>
+  <li>Validate tool calls before execution with a schema gate.</li>
+  <li>Wrap side effects with idempotency keys.</li>
+  <li>Append a tamper-evident audit event for each external action.</li>
+  <li>Write a checkpoint after each durable boundary.</li>
+  <li>Use trace replay and deployment checks to prove resumed behavior did not drift.</li>
+</ol>
+<p>If you want the packaged implementation, look for <strong>Agent Checkpoint Resume CLI</strong> in the <a href="/#guides">Algoram99 CLI catalog</a>. Stripe checkout remains in test mode on this site; the article itself adds no new product and no new payment link.</p>
+
+<h2>Related Algoram99 guides</h2>
+<ul>
+  <li><a href="/posts/2026-06-11-ai-agent-idempotency/">AI Agent Idempotency</a> — the side-effect safety layer that makes replay safe.</li>
+  <li><a href="/posts/2026-06-26-ai-agent-retry-policy/">AI Agent Retry Policy</a> — retry budgets, backoff, and classification before resume is needed.</li>
+  <li><a href="/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">AI Agent Audit Trail for Tool Calls</a> — evidence that a resumed run can trust.</li>
+  <li><a href="/posts/2026-06-10-ai-agent-memory-architecture/">AI Agent Memory Architecture</a> — separates remembered facts from operational checkpoint state.</li>
+  <li><a href="/posts/2026-07-03-ai-agent-deployment-checklist/">AI Agent Deployment Checklist</a> — where checkpoint/resume becomes a release gate.</li>
+  <li><a href="/posts/2026-06-15-ai-agent-timeout-and-cancellation/">AI Agent Timeout and Cancellation</a> — how to stop safely before a later resume.</li>
+</ul>
+
+<footer>
+  <p>Algoram99 &middot; 46th live post &middot; 2026-07-04 &middot; <a href="/posts/">All posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a></p>
+  <p>Target keyword: AI agent checkpoint resume. The phrase appears intentionally throughout the guide because the topic is narrow, operational, and directly tied to restart-safe agent workflows.</p>
+</footer>
+</body>
+</html>
