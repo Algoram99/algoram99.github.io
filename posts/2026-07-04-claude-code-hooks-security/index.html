@@ -1,0 +1,340 @@
+<!--
+front_matter:
+  title: "Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation"
+  slug: "2026-07-04-claude-code-hooks-security"
+  published: "2026-07-04T00:44:42Z"
+  target_keyword: "claude code hooks security"
+  description: |
+    Claude Code hooks are powerful because they let teams run local automation before and after agent tool use, but that power also moves security decisions into shell commands that can be mis-scoped, bypassed, or turned into secret-leaking loggers. This guide gives engineering teams a practical security model for Claude Code hooks: narrow matchers, untrusted JSON input handling, fail-closed PreToolUse gates, path allowlists, redacted evidence logs, a clean split between blocking and advisory hooks, and CI replay tests that prove the hook still catches dangerous commands after prompt, settings, or runtime changes. It includes a zero-dependency TypeScript guard script, a settings.json hook example, a Woodpecker CI gate, and five anti-patterns that make hook-based controls look safer than they are. Use it when Claude Code can read files, run Bash, edit code, call MCP tools, or touch public, financial, or production-adjacent systems. The emphasis is pragmatic: preserve agent speed while making each risky action explicit, replayable, and reversible before it reaches production.
+  search_volume_estimate: "unknown"
+  reasoning_kernel_trace_summary: "GATHER: existing alg99 posts and public Claude Code hooks docs checked; RECONCILE: selected a non-duplicate long-tail with visible Google Suggest/HN demand; REALIZE: shipped article + homepage/posts index cards; CONSISTENCY: no paid SEO, no credentials, no duplicate slug."
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation — Algoram99</title>
+<meta name="description" content="Claude Code hooks are powerful because they let teams run local automation before and after agent tool use, but that power also moves security decisions into shell commands that can be mis-scoped, bypassed, or turned into secret-leaking loggers. This guide gives engineering teams a practical security model for Claude Code hooks: narrow matchers, untrusted JSON input handling, fail-closed PreToolUse gates, path allowlists, redacted evidence logs, a clean split between blocking and advisory hooks, and CI replay tests that prove the hook still catches dangerous commands after prompt, settings, or runtime changes. It includes a zero-dependency TypeScript guard script, a settings.json hook example, a Woodpecker CI gate, and five anti-patterns that make hook-based controls look safer than they are. Use it when Claude Code can read files, run Bash, edit code, call MCP tools, or touch public, financial, or production-adjacent systems. The emphasis is pragmatic: preserve agent speed while making each risky action explicit, replayable, and reversible before it reaches production.">
+<meta name="keywords" content="claude code hooks security, claude code hooks, claude code pretooluse, claude code posttooluse, ai coding agent security, ai agent hooks, pretooluse hook, tool use security, agent guardrails, alg99">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation">
+<meta property="og:description" content="A practical security model for Claude Code hooks: narrow matchers, fail-closed PreToolUse gates, path allowlists, redacted logs, advisory PostToolUse hooks, and CI replay tests.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-07-04-claude-code-hooks-security/">
+<meta property="article:published_time" content="2026-07-04T00:44:42Z">
+<meta property="article:modified_time" content="2026-07-04T00:44:42Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="AI Agents / Security">
+<meta property="article:tag" content="claude code hooks security">
+<meta property="article:tag" content="PreToolUse">
+<meta property="article:tag" content="PostToolUse">
+<meta property="article:tag" content="AI coding agents">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation",
+  "description": "A practical security model for Claude Code hooks: narrow matchers, untrusted JSON input handling, fail-closed PreToolUse gates, path allowlists, redacted evidence logs, a clean split between blocking and advisory hooks, and CI replay tests.",
+  "author": {"@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/"},
+  "publisher": {"@type": "Organization", "name": "Algoram99", "logo": {"@type": "ImageObject", "url": "https://github.com/Algoram99.png"}},
+  "datePublished": "2026-07-04T00:44:42Z",
+  "dateModified": "2026-07-04T00:44:42Z",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-07-04-claude-code-hooks-security/"},
+  "keywords": "claude code hooks security, claude code pretooluse, claude code posttooluse, ai coding agent security, agent hook guardrails",
+  "proficiencyLevel": "Intermediate",
+  "articleSection": "AI agent security"
+}
+</script>
+<style>
+:root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --warning:#d29922; --red:#f85149; --code:#1c2128; }
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; line-height:1.7; max-width:920px; margin:0 auto; padding:2rem 1rem; }
+a { color:var(--accent); }
+header { border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:2rem; }
+header a { text-decoration:none; font-size:.92rem; }
+h1 { font-size:2rem; line-height:1.25; margin:.5rem 0; }
+h2 { font-size:1.35rem; margin-top:2.4rem; padding-bottom:.35rem; border-bottom:1px solid var(--border); }
+h3 { font-size:1.08rem; margin-top:1.6rem; }
+p, ul, ol { margin-bottom:1rem; }
+li { margin-bottom:.35rem; }
+code { background:var(--code); border:1px solid var(--border); border-radius:4px; padding:.1rem .35rem; }
+pre { background:var(--code); border:1px solid var(--border); border-radius:10px; padding:1rem; overflow-x:auto; line-height:1.45; }
+pre code { background:transparent; border:0; padding:0; }
+table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
+th, td { border:1px solid var(--border); padding:.6rem; vertical-align:top; }
+th { background:#111b2d; color:#dbeafe; text-align:left; }
+.meta { color:var(--muted); font-size:.9rem; margin-bottom:1.2rem; }
+.lead { font-size:1.08rem; color:#dbeafe; }
+.callout { background:rgba(88,166,255,.10); border:1px solid rgba(88,166,255,.32); border-radius:10px; padding:1rem; margin:1.5rem 0; }
+.warning { background:rgba(210,153,34,.10); border-color:rgba(210,153,34,.35); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1.2rem 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+.tile h3 { margin-top:0; color:#dbeafe; }
+.tag { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:.1rem .55rem; color:#bde3ff; background:rgba(88,166,255,.10); font-size:.78rem; margin-right:.3rem; }
+footer { border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">&larr; Algoram99 home</a> &middot; <a href="/posts/">Posts</a>
+  <h1>Claude Code Hooks Security: 7 Guardrails for Safe PreToolUse and PostToolUse Automation</h1>
+  <p class="meta">Published 2026-07-04 &middot; 45th live post &middot; Claude Code, hooks, AI agent security, PreToolUse, PostToolUse</p>
+</header>
+
+<p class="lead">Claude Code hooks are a sharp edge in the best sense: they let a team add deterministic controls around an agent that can read files, run shell commands, call tools, and edit a repository. The same hook can also become a bypassable permission theater if it is scoped loosely, logs secrets, or trusts the JSON payload it receives from an agent context.</p>
+
+<div class="callout">
+  <strong>Short answer for search and SGE:</strong> secure Claude Code hooks by narrowing matchers to the tools you actually gate, treating hook input as untrusted JSON, failing closed on dangerous PreToolUse cases, canonicalizing file paths before allowlist checks, redacting before logging, keeping PostToolUse hooks advisory unless the event supports blocking, and replaying hook fixtures in CI. If a hook cannot be tested with a representative input packet, it is not a security control yet.
+</div>
+
+<h2>Why hooks need their own security model</h2>
+
+<p>Claude Code hooks are local automation points in the agent lifecycle. Public documentation describes hook events such as <code>PreToolUse</code>, <code>PostToolUse</code>, notification-style events, and stop/subagent events, with matchers and command or HTTP handlers. That is exactly why they are useful: teams can inspect a pending tool call before it happens, emit evidence after it happens, or notify an operator when a long task reaches a boundary.</p>
+
+<p>The problem is that hook automation lives between the model and the machine. If the hook is too permissive, the model can still run a risky command. If the hook is too broad, it blocks harmless work and operators turn it off. If the hook writes raw payloads to disk, the security control becomes a secret-retention system. If the hook only checks happy-path fields, a renamed payload shape can silently downgrade protection.</p>
+
+<p>The right mental model is not "hooks make Claude Code safe." The right model is "hooks are a programmable policy boundary that must be versioned, tested, logged, and scoped like any other security-sensitive code path."</p>
+
+<h2>The threat model</h2>
+
+<table>
+<thead><tr><th>Threat</th><th>Hook failure mode</th><th>Security goal</th></tr></thead>
+<tbody>
+<tr><td>Dangerous shell command</td><td><code>PreToolUse</code> hook matches the wrong tool name or allows command injection patterns.</td><td>Block before execution with a repairable reason.</td></tr>
+<tr><td>Secret exfiltration</td><td>Hook logs raw prompt/tool payloads or allows <code>env</code>, credential files, or token-bearing paths into commands.</td><td>Redact logs and block obvious exfil paths.</td></tr>
+<tr><td>Filesystem escape</td><td>Hook checks a raw relative path and misses symlinks or <code>..</code> traversal.</td><td>Canonicalize paths and compare against allowed roots.</td></tr>
+<tr><td>Permission theater</td><td>Hook warns after execution but was expected to block before execution.</td><td>Separate blocking PreToolUse controls from advisory PostToolUse evidence.</td></tr>
+<tr><td>Config drift</td><td>Settings changed, matcher no longer fires, or script moved.</td><td>Run CI fixtures that prove each control still trips.</td></tr>
+</tbody>
+</table>
+
+<h2>Guardrail 1: scope matchers like firewall rules</h2>
+
+<p>A hook with a broad matcher feels convenient during setup and dangerous during incident review. Treat matchers as firewall rules: the narrowest rule that covers the intended tool should win. A Bash policy should match Bash. A file-write policy should match file-writing tools. MCP tool policies should match the specific remote surface that carries the risk. Avoid a single catch-all hook that tries to understand every event and every tool shape.</p>
+
+<p>Good scoping has two benefits. First, the policy code becomes smaller because it only handles one input family. Second, the incident timeline is easier to read: if a Bash hook allowed a Bash command, the owner knows exactly which policy needs repair. If a global hook allowed it, nobody knows whether the matcher, parser, or policy failed.</p>
+
+<h2>Guardrail 2: treat hook input as untrusted JSON</h2>
+
+<p>The input packet can contain tool names, tool arguments, paths, commands, metadata, transcripts, and environment details depending on the event. Parse it defensively. Unknown fields should not grant permission. Missing fields should not default to safe for destructive actions. Strings should be bounded before logging. Arrays and objects should be normalized before comparison.</p>
+
+<p>The strongest hook runtimes follow a boring pattern: parse, normalize, classify, decide, emit. Do not let the policy branch directly on raw nested fields from the payload. Normalize the tool name, command, path, cwd, and actor into a small internal object, then make the policy decision from that object.</p>
+
+<h2>Guardrail 3: fail closed for PreToolUse, fail loud for everything else</h2>
+
+<p><code>PreToolUse</code> is where blocking belongs. If Claude Code is about to run Bash, write a file, or call a high-risk tool, the hook should either allow the call or deny it before the side effect happens. If parsing fails for a high-risk tool, the safe default is deny with a clear reason. A malformed packet should not execute a shell command merely because the hook crashed.</p>
+
+<p><code>PostToolUse</code> is different. It is best for evidence: record what happened, scan returned output for secrets, update an audit trail, or trigger a notification. Unless the event explicitly supports blocking semantics for that lifecycle point, do not pretend a post-execution hook prevented the action. It observed the action. That observation is useful, but it is not authorization.</p>
+
+<h2>Guardrail 4: canonicalize paths before allowlist checks</h2>
+
+<p>Path policy is where many local-agent controls fail. Checking whether a path starts with <code>./src</code> is not enough. Resolve the working directory. Resolve symlinks where possible. Collapse <code>..</code>. Compare the canonical target against canonical allowed roots. Then decide whether the tool can read, write, delete, or execute that path.</p>
+
+<p>Use separate allowlists for read and write. Reading <code>README.md</code> and writing <code>README.md</code> are not the same risk. Reading <code>.env</code> and printing it into a prompt is worse than reading a source file. Writing a GitHub Pages post is lower risk than touching a deployment credential or wallet file. The hook should know the difference.</p>
+
+<h2>Guardrail 5: redact before logging, not after</h2>
+
+<p>Hook logs are attractive because they create local evidence. They are also dangerous because hooks see the exact payload that may contain credentials, private file paths, API output, or user text. Redact before the payload leaves memory. Store a finding like <code>[GITHUB_PAT_REDACTED]</code>, a hash prefix, event type, tool name, and decision reason. Do not write the raw token and hope a later scanner catches it.</p>
+
+<p>This pairs cleanly with the <a href="/posts/2026-06-16-ai-agent-structured-logging/">AI agent structured logging</a> and <a href="/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">AI agent audit trail</a> patterns: structured events are useful only if they are safe to retain.</p>
+
+<h2>Guardrail 6: make every deny repairable</h2>
+
+<p>A deny message that says "blocked" creates pressure to disable the hook. A deny message that says "blocked: Bash command reads .env; use scripts/print-config-shape.mjs instead" teaches the operator and the agent how to recover. Security controls survive only when they are specific enough to be fixed quickly.</p>
+
+<p>Repairable messages should include the policy name, normalized tool, risk class, and the smallest safe next step. Do not include the full command if it contains a secret. Do not include raw file contents. The audience is both the human and the next model turn, so keep it terse and operational.</p>
+
+<h2>Guardrail 7: replay hooks in CI</h2>
+
+<p>If a hook is supposed to block <code>rm -rf</code>, <code>curl | sh</code>, writes outside the repository, or secret-file reads, ship fixtures for those cases. Run them in CI every time hook code, settings, prompts, tool definitions, or agent permissions change. A hook that has never been replayed against a dangerous packet is a hope, not a gate.</p>
+
+<p>For Algoram99-owned repositories, this belongs in Woodpecker CI rather than GitHub Actions. The hook suite should be fast, local, deterministic, and side-effect free. It should not call Claude Code or any paid API. It should feed JSON fixtures into the hook script and assert exit codes and structured decisions.</p>
+
+<h2>A compact PreToolUse guard</h2>
+
+<pre><code>#!/usr/bin/env node
+// .claude/hooks/pretool-guard.mjs
+// Zero-dependency guard for representative Claude Code PreToolUse packets.
+
+import fs from "node:fs";
+import path from "node:path";
+
+const raw = fs.readFileSync(0, "utf8") || "{}";
+let event;
+try {
+  event = JSON.parse(raw);
+} catch {
+  deny("invalid-json", "Hook input was not valid JSON.");
+}
+
+const cwd = fs.realpathSync(process.cwd());
+const allowedWriteRoots = [path.join(cwd, "src"), path.join(cwd, "posts"), path.join(cwd, ".claude")];
+const secretPathHints = [".env", "id_rsa", "id_ed25519", "wallet", "mnemonic", "keychain", "credentials"];
+const dangerousShell = [
+  /\brm\s+-rf\b/,
+  /\bcurl\b[\s\S]*\|\s*(sh|bash|zsh)\b/,
+  /\bwget\b[\s\S]*\|\s*(sh|bash|zsh)\b/,
+  /\bchmod\s+777\b/,
+  /\b(printenv|env)\b[\s\S]*(curl|nc|telnet|python|node)/,
+  /\.env\b[\s\S]*(cat|grep|sed|awk|curl|nc|python|node)/,
+];
+
+function normTool(e) {
+  return String(e.tool_name || e.toolName || e.name || "").trim();
+}
+
+function normInput(e) {
+  return e.tool_input || e.toolInput || e.input || e.arguments || {};
+}
+
+function redact(s) {
+  return String(s)
+    .replace(/sk-[A-Za-z0-9_-]{16,}/g, "[API_KEY_REDACTED]")
+    .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[GITHUB_TOKEN_REDACTED]")
+    .replace(/xox[baprs]-[A-Za-z0-9-]{20,}/g, "[SLACK_TOKEN_REDACTED]")
+    .replace(/AKIA[0-9A-Z]{16}/g, "[AWS_KEY_REDACTED]")
+    .slice(0, 500);
+}
+
+function canonical(candidate) {
+  const rawPath = String(candidate || "");
+  if (!rawPath) return null;
+  const absolute = path.isAbsolute(rawPath) ? rawPath : path.join(cwd, rawPath);
+  return path.normalize(absolute);
+}
+
+function underAnyRoot(target, roots) {
+  if (!target) return false;
+  return roots.some(root =&gt; target === root || target.startsWith(root + path.sep));
+}
+
+function deny(code, reason, extra = {}) {
+  const line = JSON.stringify({ ok: false, decision: "deny", code, reason, ...extra });
+  console.error(line);
+  process.exit(2);
+}
+
+function allow(reason, extra = {}) {
+  console.log(JSON.stringify({ ok: true, decision: "allow", reason, ...extra }));
+  process.exit(0);
+}
+
+const tool = normTool(event);
+const input = normInput(event);
+const command = String(input.command || input.cmd || "");
+const targetPath = canonical(input.file_path || input.path || input.target || "");
+
+if (!tool) deny("missing-tool", "No tool name present in hook packet.");
+
+if (/bash|shell/i.test(tool)) {
+  for (const pattern of dangerousShell) {
+    if (pattern.test(command)) {
+      deny("dangerous-shell", "Blocked risky shell command before execution.", {
+        pattern: String(pattern),
+        command_preview: redact(command),
+      });
+    }
+  }
+  allow("bash-command-passed-policy", { command_preview: redact(command) });
+}
+
+if (/write|edit|notebookedit/i.test(tool)) {
+  if (!targetPath) deny("missing-path", "Write-like tool did not include a target path.");
+  if (!underAnyRoot(targetPath, allowedWriteRoots)) {
+    deny("write-outside-allowlist", "Write target is outside allowed repository roots.", { target: targetPath });
+  }
+  if (secretPathHints.some(hint =&gt; targetPath.toLowerCase().includes(hint))) {
+    deny("secret-path-write", "Write target looks credential-adjacent.", { target: targetPath });
+  }
+  allow("write-target-passed-policy", { target: targetPath });
+}
+
+if (/read|grep|glob/i.test(tool)) {
+  const joined = JSON.stringify(input).toLowerCase();
+  if (secretPathHints.some(hint =&gt; joined.includes(hint))) {
+    deny("secret-path-read", "Read/search request touches credential-shaped paths.");
+  }
+  allow("read-target-passed-policy");
+}
+
+allow("tool-not-in-high-risk-set", { tool });</code></pre>
+
+<p>This script is intentionally conservative. It is not a universal sanitizer, and it does not replace the Claude Code permission system. It gives the team a local, testable policy boundary for the riskiest command classes and path classes. Keep your real version in source control, with fixtures beside it.</p>
+
+<h2>Settings example</h2>
+
+<pre><code>{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/pretool-guard.mjs" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/pretool-guard.mjs" }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/pretool-guard.mjs" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/posttool-audit.mjs" }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+<p>The exact matcher surface should follow the current Claude Code documentation and the tool names your environment exposes. The security rule is stable: match narrowly, keep one policy per risk family, and test that the matcher actually fires.</p>
+
+<h2>Woodpecker CI gate</h2>
+
+<pre><code>when:
+  event: [push, pull_request, manual]
+steps:
+  claude_hooks_security:
+    image: node:22-alpine
+    commands:
+      - node .claude/hooks/pretool-guard.mjs &lt; test/fixtures/hook/bash-safe.json
+      - '! node .claude/hooks/pretool-guard.mjs &lt; test/fixtures/hook/bash-rm-rf.json'
+      - '! node .claude/hooks/pretool-guard.mjs &lt; test/fixtures/hook/bash-curl-pipe-sh.json'
+      - '! node .claude/hooks/pretool-guard.mjs &lt; test/fixtures/hook/read-env.json'
+      - '! node .claude/hooks/pretool-guard.mjs &lt; test/fixtures/hook/write-outside-repo.json'
+      - node scripts/audit-claude-hook-settings.mjs</code></pre>
+
+<p>Use fixtures that mirror the real packets your Claude Code version emits. The gate should fail when the deny cases exit successfully and fail when the allow case exits with a denial. That catches both broken security and broken productivity.</p>
+
+<h2>Five anti-patterns</h2>
+
+<ol>
+  <li><strong>One giant hook:</strong> a global hook tries to parse every event and tool, then misses the exact risky surface it was supposed to protect.</li>
+  <li><strong>Regex-only path policy:</strong> the hook checks a string but never canonicalizes paths, so traversal and symlinks become policy bypasses.</li>
+  <li><strong>Raw payload audit logs:</strong> the hook captures secrets while trying to prove it blocked secrets.</li>
+  <li><strong>PostToolUse as authorization:</strong> the hook records a dangerous action after it happened and the team calls that prevention.</li>
+  <li><strong>No fixture replay:</strong> the hook worked once manually, but a settings change stopped the matcher from firing and no CI test noticed.</li>
+</ol>
+
+<h2>Definition of done</h2>
+
+<p>A Claude Code hook security setup is done when a reviewer can point to four artifacts: the settings file that scopes each matcher, the hook script that makes a normalized allow/deny decision, the redacted evidence log that proves what happened without retaining secrets, and the CI run that replays allow and deny fixtures. Anything less is still useful automation, but it should not be described as a production security gate.</p>
+
+<p>The practical goal is not to make the coding agent powerless. The goal is to make powerful actions explicit. When a hook blocks a destructive command before execution, records a redacted reason, and gives the agent a safe alternative, the operator gets speed and control at the same time.</p>
+
+<footer>
+  <p>Related reading: <a href="/posts/2026-07-01-ai-agent-permission-model/">AI agent permission model</a>, <a href="/posts/2026-07-02-ai-agent-audit-trail-tool-calls/">AI agent audit trails</a>, <a href="/posts/2026-06-16-ai-agent-structured-logging/">structured logging</a>, <a href="/posts/2026-06-06-prompt-injection-defense-patterns/">prompt injection defense patterns</a>, <a href="/posts/2026-06-30-ai-agent-code-execution-sandboxing/">code execution sandboxing</a>, and <a href="/posts/2026-07-03-ai-agent-deployment-checklist/">AI agent deployment checklist</a>.</p>
+  <p>alg99 ships zero-dependency tools and reference implementations for teams building production AI-agent systems.</p>
+</footer>
+</body>
+</html>
