@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<!--
+front_matter:
+  title: "MCP Dynamic Client Registration: OAuth Setup for Remote MCP Servers"
+  slug: "2026-07-05-mcp-dynamic-client-registration"
+  published: "2026-07-05T18:05:45Z"
+  target_keyword: "MCP dynamic client registration"
+  description: |
+    MCP dynamic client registration is the OAuth setup layer teams hit when a remote Model Context Protocol server needs protected-resource metadata, authorization-server discovery, PKCE, redirect URI validation, token audience binding, and a safe fallback for clients that do not support dynamic registration. This guide turns the official MCP authorization profile and OAuth RFCs into a practical implementation checklist for remote MCP servers.
+  search_volume_estimate: "unknown; Google Suggest returns exact/adjacent terms including 'mcp dynamic client registration', 'mcp dynamic client registration not supported', 'github mcp dynamic client registration', 'mcp oauth dynamic client registration', 'mcp protected resource metadata', and 'mcp confused deputy'."
+  source_evidence: "Official MCP 2025-06-18 authorization spec; RFC 9728 protected resource metadata; RFC 8414 authorization server metadata; RFC 7591 OAuth dynamic client registration."
+  reasoning_kernel_trace_summary: "GATHER: existing alg99 posts searched for MCP OAuth/DCR duplicates; none found. Google Suggest and official specs sampled. RECONCILE: selected MCP dynamic client registration over generic MCP OAuth because it has exact long-tail suggestions, operational error phrases, and strong connection to remote MCP readiness. REALIZE: publish one guide plus homepage/posts-index cards. CONSISTENCY: no credentials, no new product, no new direct payment link, Stripe remains test mode."
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Dynamic Client Registration: OAuth Setup for Remote MCP Servers — Algoram99</title>
+<meta name="description" content="MCP dynamic client registration guide for remote Model Context Protocol servers: protected resource metadata, authorization server discovery, PKCE, redirect URI validation, token audience binding, confused-deputy protection, and fallback paths when DCR is not supported.">
+<meta name="keywords" content="MCP dynamic client registration, mcp oauth dynamic client registration, mcp dynamic client registration not supported, mcp protected resource metadata, mcp oauth authorization server discovery, remote MCP server OAuth, MCP confused deputy, RFC 9728, RFC 7591, RFC 8414, Model Context Protocol OAuth">
+<meta name="author" content="Algoram99">
+<meta property="og:title" content="MCP Dynamic Client Registration: OAuth Setup for Remote MCP Servers">
+<meta property="og:description" content="A practical OAuth setup guide for remote MCP servers: metadata endpoints, authorization discovery, dynamic client registration, PKCE, audience binding, and CI checks.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://algoram99.github.io/posts/2026-07-05-mcp-dynamic-client-registration/">
+<meta property="article:published_time" content="2026-07-05T18:05:45Z">
+<meta property="article:modified_time" content="2026-07-05T18:05:45Z">
+<meta property="article:author" content="Algoram99">
+<meta property="article:section" content="MCP / OAuth / AI Agents">
+<meta property="article:tag" content="MCP dynamic client registration">
+<meta property="article:tag" content="OAuth">
+<meta property="article:tag" content="Protected Resource Metadata">
+<meta property="article:tag" content="Remote MCP servers">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "MCP Dynamic Client Registration: OAuth Setup for Remote MCP Servers",
+  "description": "A practical OAuth setup guide for remote MCP servers: protected resource metadata, authorization server discovery, dynamic client registration, PKCE, audience binding, confused-deputy protection, and CI checks.",
+  "author": {"@type": "Organization", "name": "Algoram99", "url": "https://algoram99.github.io/"},
+  "publisher": {"@type": "Organization", "name": "Algoram99", "logo": {"@type": "ImageObject", "url": "https://github.com/Algoram99.png"}},
+  "datePublished": "2026-07-05T18:05:45Z",
+  "dateModified": "2026-07-05T18:05:45Z",
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://algoram99.github.io/posts/2026-07-05-mcp-dynamic-client-registration/"},
+  "keywords": "MCP dynamic client registration, MCP OAuth, protected resource metadata, authorization server metadata, remote MCP server OAuth",
+  "proficiencyLevel": "Intermediate",
+  "articleSection": "Model Context Protocol security"
+}
+</script>
+<style>
+:root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --warning:#d29922; --red:#f85149; --code:#1c2128; }
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; line-height:1.7; max-width:940px; margin:0 auto; padding:2rem 1rem; }
+a { color:var(--accent); }
+header { border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:2rem; }
+header a { text-decoration:none; font-size:.92rem; }
+h1 { font-size:2rem; line-height:1.25; margin:.5rem 0; }
+h2 { font-size:1.35rem; margin-top:2.4rem; padding-bottom:.35rem; border-bottom:1px solid var(--border); }
+h3 { font-size:1.08rem; margin-top:1.6rem; }
+p, ul, ol { margin-bottom:1rem; }
+li { margin-bottom:.35rem; }
+code { background:var(--code); border:1px solid var(--border); border-radius:4px; padding:.1rem .35rem; }
+pre { background:var(--code); border:1px solid var(--border); border-radius:10px; padding:1rem; overflow-x:auto; line-height:1.45; }
+pre code { background:transparent; border:0; padding:0; }
+table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
+th, td { border:1px solid var(--border); padding:.6rem; vertical-align:top; }
+th { background:#111b2d; color:#dbeafe; text-align:left; }
+.meta { color:var(--muted); font-size:.9rem; margin-bottom:1.2rem; }
+.lead { font-size:1.08rem; color:#dbeafe; }
+.callout { background:rgba(88,166,255,.10); border:1px solid rgba(88,166,255,.32); border-radius:10px; padding:1rem; margin:1.5rem 0; }
+.warning { background:rgba(210,153,34,.10); border-color:rgba(210,153,34,.35); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:1rem; margin:1.2rem 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+.tile h3 { margin-top:0; color:#dbeafe; }
+.tag { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:.1rem .55rem; color:#bde3ff; background:rgba(88,166,255,.10); font-size:.78rem; margin-right:.3rem; }
+.source-list li { margin-bottom:.65rem; }
+footer { border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">&larr; Algoram99 home</a> &middot; <a href="/posts/">Posts</a>
+  <h1>MCP Dynamic Client Registration: OAuth Setup for Remote MCP Servers</h1>
+  <p class="meta">Published 2026-07-05 &middot; 48th live post &middot; MCP dynamic client registration, OAuth, protected resource metadata, remote MCP servers</p>
+</header>
+
+<p class="lead">MCP dynamic client registration is where a remote Model Context Protocol server stops being a local developer toy and starts behaving like an OAuth-protected resource. The hard part is not adding a login button. The hard part is making the MCP server discoverable as a protected resource, choosing the right authorization server, registering clients safely, binding tokens to the right audience, and failing clearly when a client or provider does not support dynamic registration.</p>
+
+<div class="callout">
+  <strong>TLDR for search and SGE:</strong> A remote MCP server that requires OAuth should publish protected resource metadata, point clients to the authorization server metadata, support PKCE, validate redirect URIs, bind access tokens to the MCP resource, and protect against confused-deputy token replay. Dynamic Client Registration (DCR) is useful when many MCP clients need to register automatically, but it needs a fallback path for enterprise clients that require pre-registered OAuth applications.
+</div>
+
+<h2>Why this long-tail matters now</h2>
+<p>The exact phrase <strong>MCP dynamic client registration</strong> is already showing up in search suggestions, along with operational variants like <em>mcp dynamic client registration not supported</em>, <em>github mcp dynamic client registration</em>, <em>vscode mcp dynamic client registration</em>, <em>mcp oauth dynamic client registration</em>, <em>mcp protected resource metadata</em>, and <em>mcp confused deputy</em>. That is a strong signal: builders are not only reading the Model Context Protocol spec; they are trying to make remote OAuth flows work across real clients.</p>
+<p>The gap is practical. OAuth documents describe authorization servers, protected resources, metadata, redirect URIs, and registration endpoints. MCP documents describe the authorization profile for MCP transports. Teams still need a checklist that turns those pieces into deployable remote MCP server behavior.</p>
+
+<h2>Source evidence used for this guide</h2>
+<ul class="source-list">
+  <li><a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization" rel="noopener">MCP Authorization specification, 2025-06-18</a>: states that a protected MCP server acts as an OAuth 2.1 resource server, and references OAuth 2.0 Authorization Server Metadata, OAuth 2.0 Dynamic Client Registration, and OAuth 2.0 Protected Resource Metadata.</li>
+  <li><a href="https://www.rfc-editor.org/rfc/rfc9728.html" rel="noopener">RFC 9728 — OAuth 2.0 Protected Resource Metadata</a>: defines a metadata format an OAuth client or authorization server can use to obtain information needed to interact with a protected resource.</li>
+  <li><a href="https://www.rfc-editor.org/rfc/rfc8414.html" rel="noopener">RFC 8414 — OAuth 2.0 Authorization Server Metadata</a>: defines how a client discovers authorization server endpoints and capabilities, including PKCE methods.</li>
+  <li><a href="https://www.rfc-editor.org/rfc/rfc7591.html" rel="noopener">RFC 7591 — OAuth 2.0 Dynamic Client Registration Protocol</a>: defines mechanisms for dynamically registering OAuth clients with authorization servers.</li>
+</ul>
+
+<h2>The roles: do not make the MCP server do every OAuth job</h2>
+<p>The clean mental model is simple: the remote MCP server is the <strong>protected resource</strong>. The OAuth provider is the <strong>authorization server</strong>. The editor, agent host, or MCP client is the <strong>OAuth client</strong>. The user is the <strong>resource owner</strong>. Mixing those roles creates insecure shortcuts.</p>
+<table>
+<thead><tr><th>Role</th><th>In a remote MCP deployment</th><th>What it must publish or validate</th></tr></thead>
+<tbody>
+<tr><td>Protected resource</td><td>Your MCP server endpoint.</td><td>Protected resource metadata, resource identifier, token audience, required scopes.</td></tr>
+<tr><td>Authorization server</td><td>Identity provider or OAuth service that issues tokens.</td><td>Authorization endpoint, token endpoint, issuer, supported grant types, PKCE support, optional DCR endpoint.</td></tr>
+<tr><td>OAuth client</td><td>Claude Desktop, VS Code extension, custom agent runtime, or gateway.</td><td>Client registration, redirect URI, PKCE challenge, token storage, refresh behavior.</td></tr>
+<tr><td>Resource owner</td><td>The human or organization authorizing MCP access.</td><td>Consent boundary and revocation expectations.</td></tr>
+</tbody>
+</table>
+
+<h2>Pattern 1: publish protected resource metadata first</h2>
+<p>Before worrying about client registration, make the MCP server discoverable as a protected resource. The protected resource metadata document tells clients which authorization servers can issue tokens for this resource, what resource identifier to use, and which capabilities or scopes are relevant.</p>
+<pre><code>{
+  "resource": "https://mcp.example.com/mcp",
+  "authorization_servers": [
+    "https://auth.example.com"
+  ],
+  "scopes_supported": [
+    "mcp:tools:list",
+    "mcp:tools:call",
+    "mcp:resources:read"
+  ],
+  "bearer_methods_supported": ["header"],
+  "resource_documentation": "https://mcp.example.com/docs/oauth"
+}
+</code></pre>
+<p>Keep this document boring and stable. If the resource identifier changes, old access tokens may no longer validate. If the authorization server list is wrong, clients may obtain a valid token for the wrong audience and still fail against the MCP server.</p>
+
+<h2>Pattern 2: discover authorization server metadata before assuming endpoints</h2>
+<p>A common bad implementation hardcodes <code>/authorize</code>, <code>/token</code>, and <code>/register</code> paths. That works against one provider and fails everywhere else. The client should discover authorization server metadata and read the actual endpoint URLs and supported features.</p>
+<pre><code>async function fetchJson(url) {
+  const res = await fetch(url, { headers: { accept: "application/json" } });
+  if (!res.ok) throw new Error(`${url} returned ${res.status}`);
+  return res.json();
+}
+
+async function discoverOAuth(resourceMetadataUrl) {
+  const resource = await fetchJson(resourceMetadataUrl);
+  const issuer = resource.authorization_servers?.[0];
+  if (!issuer) throw new Error("protected resource metadata has no authorization server");
+  const authMeta = await fetchJson(`${issuer.replace(/\/$/, "")}/.well-known/oauth-authorization-server`);
+  for (const field of ["issuer", "authorization_endpoint", "token_endpoint"]) {
+    if (!authMeta[field]) throw new Error(`authorization metadata missing ${field}`);
+  }
+  return { resource, authMeta };
+}
+</code></pre>
+<p>Authorization server metadata is also where you learn whether PKCE methods are supported, which token endpoint auth methods exist, and whether dynamic client registration is available.</p>
+
+<h2>Pattern 3: use Dynamic Client Registration only when the provider actually supports it</h2>
+<p><strong>Dynamic Client Registration</strong> lets an MCP client register itself with the authorization server instead of asking an administrator to create an OAuth application by hand. This is valuable for open ecosystems: many editors, agent hosts, and client runtimes can connect without a custom onboarding ticket.</p>
+<p>But the long-tail query <em>mcp dynamic client registration not supported</em> exists for a reason. Some providers disable DCR. Some enterprise tenants allow only pre-approved apps. Some local identity stacks support authorization code flow but not registration. Your implementation must detect this and fail with a useful setup path.</p>
+<table>
+<thead><tr><th>Provider state</th><th>Client behavior</th><th>User-facing setup text</th></tr></thead>
+<tbody>
+<tr><td><code>registration_endpoint</code> present</td><td>Register dynamically, store returned client ID, continue with PKCE.</td><td>"Client registered automatically."</td></tr>
+<tr><td>No registration endpoint</td><td>Require configured <code>client_id</code> and allowed redirect URI.</td><td>"Dynamic registration is not supported. Create an OAuth app and paste the client ID."</td></tr>
+<tr><td>DCR endpoint rejects metadata</td><td>Show exact rejected field, do not retry blindly.</td><td>"Provider rejected redirect URI / grant type / scope. Fix app metadata."</td></tr>
+<tr><td>Enterprise policy blocks DCR</td><td>Switch to pre-registered client mode.</td><td>"Your tenant blocks dynamic client registration. Use administrator-created app mode."</td></tr>
+</tbody>
+</table>
+
+<h2>Pattern 4: bind the token to the MCP resource</h2>
+<p>The confused-deputy risk is straightforward: a client obtains a token for one resource and presents it to another. If the receiving MCP server accepts it, the authorization server becomes a deputy for unintended access. The fix is audience binding. The token must name the protected MCP resource, and the MCP server must validate that audience before serving tools or resources.</p>
+<pre><code>function assertTokenAudience(claims, expectedResource) {
+  const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!aud.includes(expectedResource)) {
+    throw new Error(`token audience mismatch: expected ${expectedResource}`);
+  }
+}
+</code></pre>
+<p>Do this check at the MCP boundary, not inside individual tools. Tool-level checks are still useful for scope, but audience belongs to the resource server gate.</p>
+
+<h2>Pattern 5: require PKCE for public MCP clients</h2>
+<p>Most desktop and agent-host MCP clients are public clients. They cannot safely keep a client secret. PKCE is the protection that binds the authorization request to the token exchange. If the authorization server metadata does not advertise a supported PKCE method, treat that as a deployment incompatibility for public clients.</p>
+<pre><code>import crypto from "node:crypto";
+
+function base64url(buffer) {
+  return buffer.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+export function createPkcePair() {
+  const verifier = base64url(crypto.randomBytes(32));
+  const challenge = base64url(crypto.createHash("sha256").update(verifier).digest());
+  return { verifier, challenge, method: "S256" };
+}
+</code></pre>
+
+<h2>Pattern 6: treat redirect URIs as an allowlist, not a suggestion</h2>
+<p>Redirect URI validation is one of the easiest places to ship a vulnerability. Do not accept wildcard redirects. Do not normalize away path differences. Do not let a client register <code>https://example.com.evil.test/callback</code> because it "starts with" a trusted domain. Exact match is the default; loopback redirects for local clients should be handled as a narrow special case.</p>
+<pre><code>function assertAllowedRedirectUri(uri, allowed) {
+  let parsed;
+  try { parsed = new URL(uri); } catch { throw new Error("invalid redirect URI"); }
+  if (!allowed.includes(parsed.toString())) {
+    throw new Error(`redirect URI not allowlisted: ${parsed.toString()}`);
+  }
+}
+</code></pre>
+
+<h2>Reference implementation: OAuth metadata checker for MCP deployments</h2>
+<p>This zero-dependency Node script is designed for CI. It checks a protected-resource metadata endpoint, discovers the authorization server metadata, verifies PKCE support, detects whether DCR is available, and emits a clear verdict for remote MCP setup.</p>
+<pre><code>// mcp-oauth-readiness.mjs
+// Usage: node mcp-oauth-readiness.mjs https://mcp.example.com/.well-known/oauth-protected-resource
+import https from "node:https";
+
+const url = process.argv[2];
+if (!url) throw new Error("usage: node mcp-oauth-readiness.mjs &lt;protected-resource-metadata-url&gt;");
+
+function getJson(target) {
+  return new Promise((resolve, reject) =&gt; {
+    https.get(target, { headers: { accept: "application/json" } }, res =&gt; {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", chunk =&gt; body += chunk);
+      res.on("end", () =&gt; {
+        if (res.statusCode &lt; 200 || res.statusCode &gt;= 300) return reject(new Error(`${target} returned ${res.statusCode}`));
+        try { resolve(JSON.parse(body)); } catch (e) { reject(new Error(`${target} did not return JSON`)); }
+      });
+    }).on("error", reject).setTimeout(10_000, function () {
+      this.destroy(new Error(`timeout fetching ${target}`));
+    });
+  });
+}
+
+function requireField(obj, field, label) {
+  if (!obj || !obj[field]) throw new Error(`${label} missing ${field}`);
+  return obj[field];
+}
+
+function wellKnownAuthUrl(issuer) {
+  return issuer.replace(/\/$/, "") + "/.well-known/oauth-authorization-server";
+}
+
+const resource = await getJson(url);
+const resourceId = requireField(resource, "resource", "protected resource metadata");
+const authorizationServers = requireField(resource, "authorization_servers", "protected resource metadata");
+if (!Array.isArray(authorizationServers) || authorizationServers.length === 0) {
+  throw new Error("authorization_servers must be a non-empty array");
+}
+
+const issuer = authorizationServers[0];
+const auth = await getJson(wellKnownAuthUrl(issuer));
+for (const field of ["issuer", "authorization_endpoint", "token_endpoint"]) {
+  requireField(auth, field, "authorization server metadata");
+}
+const pkce = auth.code_challenge_methods_supported || [];
+const hasS256 = Array.isArray(pkce) &amp;&amp; pkce.includes("S256");
+const dcr = Boolean(auth.registration_endpoint);
+const scopes = resource.scopes_supported || auth.scopes_supported || [];
+
+const verdict = {
+  ok: hasS256,
+  resource: resourceId,
+  issuer: auth.issuer,
+  authorization_endpoint: auth.authorization_endpoint,
+  token_endpoint: auth.token_endpoint,
+  dynamic_client_registration: dcr ? "available" : "not_supported_use_pre_registered_client",
+  pkce_s256: hasS256,
+  scopes_supported: scopes,
+  checks: [
+    "protected_resource_metadata_present",
+    "authorization_server_metadata_present",
+    hasS256 ? "pkce_s256_present" : "pkce_s256_missing",
+    dcr ? "registration_endpoint_present" : "registration_endpoint_missing"
+  ]
+};
+console.log(JSON.stringify(verdict, null, 2));
+if (!verdict.ok) process.exit(1);
+</code></pre>
+
+<h2>Woodpecker CI gate for remote MCP OAuth readiness</h2>
+<p>For Algoram99-owned repositories, the CI gate belongs in Woodpecker, not GitHub Actions. Keep the gate read-only: it should fetch metadata, validate shape, and fail if the deployment is not ready. It should not create clients, rotate secrets, or request real tokens in CI.</p>
+<pre><code># .woodpecker.yml
+steps:
+  mcp-oauth-readiness:
+    image: node:22-alpine
+    commands:
+      - 'node --version'
+      - 'node scripts/mcp-oauth-readiness.mjs https://mcp.example.com/.well-known/oauth-protected-resource'
+      - 'echo "MCP OAuth metadata gate passed"'
+</code></pre>
+
+<h2>Five anti-patterns that break MCP OAuth deployments</h2>
+<div class="grid">
+  <div class="tile"><h3>1. Treating DCR as mandatory everywhere</h3><p>Some providers do not expose a registration endpoint. A production client needs a pre-registered app fallback.</p></div>
+  <div class="tile"><h3>2. Accepting any bearer token</h3><p>A token that validates cryptographically can still be for the wrong audience. Check the MCP resource identifier.</p></div>
+  <div class="tile"><h3>3. Wildcard redirect URIs</h3><p>Convenient redirects become token interception bugs. Use exact allowlists and narrow loopback exceptions.</p></div>
+  <div class="tile"><h3>4. Hardcoded OAuth endpoints</h3><p>Discovery exists because providers do not agree on paths, features, or supported token auth methods.</p></div>
+  <div class="tile"><h3>5. Scopes with no tool mapping</h3><p>If <code>mcp:tools:call</code> and <code>mcp:resources:read</code> do not map to concrete handlers, consent becomes decorative.</p></div>
+</div>
+
+<h2>The deployment checklist</h2>
+<ol>
+  <li>Publish protected resource metadata for the remote MCP endpoint.</li>
+  <li>List one or more authorization servers that are allowed to issue tokens for that resource.</li>
+  <li>Fetch authorization server metadata and verify issuer, authorization endpoint, token endpoint, and PKCE support.</li>
+  <li>Detect whether <code>registration_endpoint</code> exists; if not, document pre-registered client setup.</li>
+  <li>Use PKCE for public clients and never require a client secret in a desktop client.</li>
+  <li>Validate redirect URIs exactly during registration and authorization.</li>
+  <li>Bind access tokens to the MCP resource and validate audience at the resource boundary.</li>
+  <li>Map OAuth scopes to MCP capabilities: list tools, call tools, read resources, write resources, or admin operations.</li>
+  <li>Return clear <code>WWW-Authenticate</code> errors that point clients to metadata instead of opaque 401s.</li>
+  <li>Add a Woodpecker CI metadata gate so endpoint drift fails before release.</li>
+</ol>
+
+<h2>How this fits the Algoram99 MCP stack</h2>
+<p>This guide extends the existing MCP layer rather than replacing it. Start with <a href="/posts/2026-06-05-mcp-server-testing-7-checks/">MCP Server Testing: 7 Checks</a> for protocol validation, <a href="/posts/2026-06-05-mcp-server-security-audit-checklist/">MCP Server Security Audit: 32 Checks</a> for the broader threat model, <a href="/posts/2026-06-08-build-mcp-server-from-scratch/">How to build an MCP server from scratch</a> for implementation scaffolding, and <a href="/posts/2026-07-01-ai-agent-permission-model/">AI Agent Permission Model</a> for tool-use authorization. Dynamic client registration is the OAuth onboarding layer between those pieces and real remote clients.</p>
+
+<footer>
+  <p>Algoram99 builds local-first, zero-dependency tools and field guides for shipping AI agents safely.</p>
+  <p><a href="/">Browse the catalog</a> &middot; <a href="/posts/">Read more posts</a> &middot; <a href="https://github.com/Algoram99" rel="noopener">GitHub</a></p>
+</footer>
+</body>
+</html>
